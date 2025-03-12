@@ -37,10 +37,10 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   return (
-    <div className="min-h-screen flex bg-gray-100">
+    <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar para desktop */}
-      <aside className={`hidden lg:block w-64 bg-sidebar text-sidebar-foreground h-screen fixed left-0 top-0 transition-all duration-300`}>
-        <div className="p-5 border-b border-sidebar-border">
+      <aside className={`hidden lg:block w-64 bg-blue-600 text-white h-screen fixed left-0 top-0 transition-all duration-300`}>
+        <div className="p-5 border-b border-blue-500">
           <Link to="/" className="flex items-center space-x-2">
             <Scissors className="h-6 w-6" />
             <span className="font-bold text-xl">BarberShop</span>
@@ -54,8 +54,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   to={item.path} 
                   className={`flex items-center space-x-3 p-3 rounded-md transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'hover:bg-sidebar-accent/50'
+                      ? 'bg-blue-700 text-white'
+                      : 'hover:bg-blue-700/60'
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
@@ -69,16 +69,16 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
       {/* Sidebar móvel */}
       <aside 
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground transform ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-blue-600 text-white transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } transition-transform duration-300 ease-in-out`}
       >
-        <div className="flex justify-between items-center p-5 border-b border-sidebar-border">
+        <div className="flex justify-between items-center p-5 border-b border-blue-500">
           <Link to="/" className="flex items-center space-x-2">
             <Scissors className="h-6 w-6" />
             <span className="font-bold text-xl">BarberShop</span>
           </Link>
-          <button onClick={toggleSidebar} className="text-sidebar-foreground">
+          <button onClick={toggleSidebar} className="text-white">
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -90,8 +90,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   to={item.path} 
                   className={`flex items-center space-x-3 p-3 rounded-md transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'hover:bg-sidebar-accent/50'
+                      ? 'bg-blue-700 text-white'
+                      : 'hover:bg-blue-700/60'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
@@ -121,7 +121,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               <img 
                 src="https://randomuser.me/api/portraits/men/75.jpg" 
                 alt="Admin" 
-                className="w-10 h-10 rounded-full border-2 border-barber-400"
+                className="w-10 h-10 rounded-full border-2 border-blue-400"
               />
             </div>
           </div>
