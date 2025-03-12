@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar } from 'react-day-picker';
+import { DayPicker } from 'react-day-picker';
 import { format, addDays, isWeekend, isAfter, isBefore, startOfToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ClientLayout from '@/components/layout/ClientLayout';
@@ -229,7 +228,7 @@ const Schedule = () => {
               <CalendarIcon className="mr-2 h-5 w-5 text-barber-500" />
               <h3 className="text-lg font-semibold">Selecione a data</h3>
             </div>
-            <Calendar
+            <DayPicker
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
