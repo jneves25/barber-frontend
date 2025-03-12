@@ -38,10 +38,10 @@ const Dashboard = () => {
   return (
     <AdminLayout>
       <div className="grid gap-4 md:gap-6 mb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
           <div>
-            <select className="border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+            <select className="w-full sm:w-auto border border-gray-300 rounded-md px-3 py-1.5 text-sm">
               <option>Últimos 7 dias</option>
               <option>Últimos 30 dias</option>
               <option>Este mês</option>
@@ -52,7 +52,7 @@ const Dashboard = () => {
       </div>
       
       {/* Cards de estatísticas */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           title="Faturamento"
           value="R$ 5.984,00"
@@ -94,7 +94,7 @@ const Dashboard = () => {
             <CardTitle>Faturamento por período</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-md">
+            <div className="flex items-center justify-center h-40 md:h-64 bg-gray-50 rounded-md">
               <BarChart3 className="h-10 w-10 text-gray-400" />
               <p className="text-gray-500 ml-2">Gráfico de faturamento</p>
             </div>
@@ -106,7 +106,7 @@ const Dashboard = () => {
             <CardTitle>Serviços mais procurados</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center h-64 bg-gray-50 rounded-md">
+            <div className="flex items-center justify-center h-40 md:h-64 bg-gray-50 rounded-md">
               <TrendingUp className="h-10 w-10 text-gray-400" />
               <p className="text-gray-500 ml-2">Gráfico de serviços</p>
             </div>
@@ -130,7 +130,7 @@ const Dashboard = () => {
               ].map((barber) => (
                 <div key={barber.name} className="space-y-2">
                   <div className="flex items-center">
-                    <span className="font-medium">{barber.name}</span>
+                    <span className="font-medium truncate">{barber.name}</span>
                     <span className="ml-auto">{barber.value}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -159,7 +159,9 @@ const Dashboard = () => {
                 <div key={goal.name} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">{goal.name}</span>
-                    <span className="text-gray-500">{goal.current} / {goal.goal}</span>
+                    <span className="text-gray-500 text-xs md:text-sm">
+                      {goal.current} / {goal.goal}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2.5">
                     <div 
@@ -180,72 +182,86 @@ const Dashboard = () => {
           <CardTitle>Próximos agendamentos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="py-3 px-4 text-left border-b font-medium text-gray-500">Cliente</th>
-                  <th className="py-3 px-4 text-left border-b font-medium text-gray-500">Serviço</th>
-                  <th className="py-3 px-4 text-left border-b font-medium text-gray-500">Barbeiro</th>
-                  <th className="py-3 px-4 text-left border-b font-medium text-gray-500">Data</th>
-                  <th className="py-3 px-4 text-left border-b font-medium text-gray-500">Horário</th>
-                  <th className="py-3 px-4 text-left border-b font-medium text-gray-500">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { 
-                    client: 'João Silva', 
-                    service: 'Corte de Cabelo', 
-                    barber: 'Carlos Silva', 
-                    date: '12/06/2023', 
-                    time: '10:00', 
-                    price: 'R$ 50,00' 
-                  },
-                  { 
-                    client: 'Pedro Santos', 
-                    service: 'Barba', 
-                    barber: 'Ricardo Gomes', 
-                    date: '12/06/2023', 
-                    time: '11:00', 
-                    price: 'R$ 35,00' 
-                  },
-                  { 
-                    client: 'Lucas Mendes', 
-                    service: 'Combo Completo', 
-                    barber: 'André Santos', 
-                    date: '12/06/2023', 
-                    time: '14:00', 
-                    price: 'R$ 80,00' 
-                  },
-                  { 
-                    client: 'Gabriel Costa', 
-                    service: 'Corte Degradê', 
-                    barber: 'Felipe Costa', 
-                    date: '12/06/2023', 
-                    time: '15:30', 
-                    price: 'R$ 60,00' 
-                  },
-                  { 
-                    client: 'Thiago Oliveira', 
-                    service: 'Barba', 
-                    barber: 'Carlos Silva', 
-                    date: '12/06/2023', 
-                    time: '16:00', 
-                    price: 'R$ 35,00' 
-                  }
-                ].map((appointment, index) => (
-                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
-                    <td className="py-3 px-4 border-b border-gray-200">{appointment.client}</td>
-                    <td className="py-3 px-4 border-b border-gray-200">{appointment.service}</td>
-                    <td className="py-3 px-4 border-b border-gray-200">{appointment.barber}</td>
-                    <td className="py-3 px-4 border-b border-gray-200">{appointment.date}</td>
-                    <td className="py-3 px-4 border-b border-gray-200">{appointment.time}</td>
-                    <td className="py-3 px-4 border-b border-gray-200">{appointment.price}</td>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
+                    <th className="hidden sm:table-cell py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                    <th className="hidden md:table-cell py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horário</th>
+                    <th className="hidden sm:table-cell py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {[
+                    { 
+                      client: 'João Silva', 
+                      service: 'Corte de Cabelo', 
+                      barber: 'Carlos Silva', 
+                      date: '12/06/2023', 
+                      time: '10:00', 
+                      price: 'R$ 50,00' 
+                    },
+                    { 
+                      client: 'Pedro Santos', 
+                      service: 'Barba', 
+                      barber: 'Ricardo Gomes', 
+                      date: '12/06/2023', 
+                      time: '11:00', 
+                      price: 'R$ 35,00' 
+                    },
+                    { 
+                      client: 'Lucas Mendes', 
+                      service: 'Combo Completo', 
+                      barber: 'André Santos', 
+                      date: '12/06/2023', 
+                      time: '14:00', 
+                      price: 'R$ 80,00' 
+                    },
+                    { 
+                      client: 'Gabriel Costa', 
+                      service: 'Corte Degradê', 
+                      barber: 'Felipe Costa', 
+                      date: '12/06/2023', 
+                      time: '15:30', 
+                      price: 'R$ 60,00' 
+                    },
+                    { 
+                      client: 'Thiago Oliveira', 
+                      service: 'Barba', 
+                      barber: 'Carlos Silva', 
+                      date: '12/06/2023', 
+                      time: '16:00', 
+                      price: 'R$ 35,00' 
+                    }
+                  ].map((appointment, index) => (
+                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{appointment.client}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{appointment.service}</div>
+                      </td>
+                      <td className="hidden sm:table-cell py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{appointment.barber}</div>
+                      </td>
+                      <td className="hidden md:table-cell py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{appointment.date}</div>
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{appointment.time}</div>
+                      </td>
+                      <td className="hidden sm:table-cell py-3 px-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{appointment.price}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </CardContent>
       </Card>

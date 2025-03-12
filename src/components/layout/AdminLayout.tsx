@@ -39,8 +39,8 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar para desktop */}
-      <aside className={`hidden lg:block w-64 bg-blue-600 text-white h-screen fixed left-0 top-0 transition-all duration-300`}>
-        <div className="p-5 border-b border-blue-500">
+      <aside className="hidden lg:block w-64 bg-sidebar text-white h-screen fixed left-0 top-0 z-40 transition-all duration-300">
+        <div className="p-5 border-b border-sidebar-border">
           <Link to="/" className="flex items-center space-x-2">
             <Scissors className="h-6 w-6" />
             <span className="font-bold text-xl">BarberShop</span>
@@ -54,11 +54,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   to={item.path} 
                   className={`flex items-center space-x-3 p-3 rounded-md transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-blue-700 text-white'
-                      : 'hover:bg-blue-700/60'
+                      ? 'bg-sidebar-accent text-white'
+                      : 'hover:bg-sidebar-accent/60'
                   }`}
                 >
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
                   <span>{item.label}</span>
                 </Link>
               </li>
@@ -69,11 +69,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
       {/* Sidebar móvel */}
       <aside 
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-blue-600 text-white transform ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-white transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } transition-transform duration-300 ease-in-out`}
       >
-        <div className="flex justify-between items-center p-5 border-b border-blue-500">
+        <div className="flex justify-between items-center p-5 border-b border-sidebar-border">
           <Link to="/" className="flex items-center space-x-2">
             <Scissors className="h-6 w-6" />
             <span className="font-bold text-xl">BarberShop</span>
@@ -90,12 +90,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   to={item.path} 
                   className={`flex items-center space-x-3 p-3 rounded-md transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-blue-700 text-white'
-                      : 'hover:bg-blue-700/60'
+                      ? 'bg-sidebar-accent text-white'
+                      : 'hover:bg-sidebar-accent/60'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className="h-5 w-5 flex-shrink-0" />
                   <span>{item.label}</span>
                 </Link>
               </li>
@@ -105,15 +105,16 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
       </aside>
 
       {/* Conteúdo principal */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:ml-0' : ''} lg:ml-64`}>
+      <div className="flex-1 transition-all duration-300 lg:ml-64 w-full">
         <header className="bg-white shadow-sm h-16 flex items-center px-4">
           <button 
             onClick={toggleSidebar} 
             className="lg:hidden text-gray-500 hover:text-gray-700 mr-4"
+            aria-label="Toggle menu"
           >
             <Menu className="h-6 w-6" />
           </button>
-          <h1 className="text-xl font-semibold text-gray-800">
+          <h1 className="text-xl font-semibold text-gray-800 truncate">
             {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
           </h1>
           <div className="ml-auto flex items-center space-x-4">
@@ -126,7 +127,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             </div>
           </div>
         </header>
-        <main className="p-6">{children}</main>
+        <main className="p-4 md:p-6 overflow-x-hidden">{children}</main>
       </div>
 
       {/* Overlay para fechar o menu no mobile */}

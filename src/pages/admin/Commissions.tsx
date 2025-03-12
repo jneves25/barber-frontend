@@ -19,7 +19,7 @@ const AdminCommissions = () => {
   return (
     <AdminLayout>
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold">Comissões</h1>
           <div className="flex items-center space-x-2">
             <button 
@@ -43,7 +43,7 @@ const AdminCommissions = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
@@ -104,46 +104,58 @@ const AdminCommissions = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 text-left">
-                    <th className="p-3 border-b">Barbeiro</th>
-                    <th className="p-3 border-b">Serviços</th>
-                    <th className="p-3 border-b">Faturamento</th>
-                    <th className="p-3 border-b">Comissão</th>
-                    <th className="p-3 border-b">%</th>
-                    <th className="p-3 border-b">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {commissions.map(commission => (
-                    <tr key={commission.id} className="hover:bg-gray-50">
-                      <td className="p-3 border-b">{commission.barber}</td>
-                      <td className="p-3 border-b">{commission.services}</td>
-                      <td className="p-3 border-b">R$ {commission.revenue.toFixed(2)}</td>
-                      <td className="p-3 border-b">R$ {commission.commission.toFixed(2)}</td>
-                      <td className="p-3 border-b">{commission.percentage}%</td>
-                      <td className="p-3 border-b">
-                        <div className="flex space-x-2">
-                          <button className="text-blue-500 hover:text-blue-700">Detalhes</button>
-                          <button className="text-green-500 hover:text-green-700">Pagar</button>
-                        </div>
-                      </td>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                      <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faturamento</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comissão</th>
+                      <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">%</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="p-3 border-b">Total</td>
-                    <td className="p-3 border-b">161</td>
-                    <td className="p-3 border-b">R$ 8.050,00</td>
-                    <td className="p-3 border-b">R$ 3.220,00</td>
-                    <td className="p-3 border-b">40%</td>
-                    <td className="p-3 border-b"></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {commissions.map(commission => (
+                      <tr key={commission.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{commission.barber}</div>
+                        </td>
+                        <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{commission.services}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">R$ {commission.revenue.toFixed(2)}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">R$ {commission.commission.toFixed(2)}</div>
+                        </td>
+                        <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{commission.percentage}%</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="flex space-x-2">
+                            <button className="text-blue-500 hover:text-blue-700 text-sm">Detalhes</button>
+                            <button className="text-green-500 hover:text-green-700 text-sm">Pagar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50 font-semibold">
+                      <td className="px-3 py-3 whitespace-nowrap">Total</td>
+                      <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">161</td>
+                      <td className="px-3 py-3 whitespace-nowrap">R$ 8.050,00</td>
+                      <td className="px-3 py-3 whitespace-nowrap">R$ 3.220,00</td>
+                      <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">40%</td>
+                      <td className="px-3 py-3 whitespace-nowrap"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </CardContent>
         </Card>

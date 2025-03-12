@@ -7,18 +7,18 @@ import { Calendar, Clock, User } from 'lucide-react';
 const AdminAppointments = () => {
   // Dados de exemplo para agendamentos
   const appointments = [
-    { id: 1, clientName: 'João Silva', service: 'Corte de Cabelo', barber: 'Carlos Silva', date: '2023-10-10', time: '14:00' },
-    { id: 2, clientName: 'Pedro Oliveira', service: 'Barba', barber: 'Ricardo Gomes', date: '2023-10-10', time: '15:30' },
-    { id: 3, clientName: 'Lucas Santos', service: 'Combo Completo', barber: 'André Santos', date: '2023-10-11', time: '10:00' },
-    { id: 4, clientName: 'Marcos Pereira', service: 'Corte Degradê', barber: 'Felipe Costa', date: '2023-10-11', time: '16:00' }
+    { id: 1, clientName: 'João Silva', service: 'Corte de Cabelo', barber: 'Carlos Silva', date: '10/10/2023', time: '14:00' },
+    { id: 2, clientName: 'Pedro Oliveira', service: 'Barba', barber: 'Ricardo Gomes', date: '10/10/2023', time: '15:30' },
+    { id: 3, clientName: 'Lucas Santos', service: 'Combo Completo', barber: 'André Santos', date: '11/10/2023', time: '10:00' },
+    { id: 4, clientName: 'Marcos Pereira', service: 'Corte Degradê', barber: 'Felipe Costa', date: '11/10/2023', time: '16:00' }
   ];
 
   return (
     <AdminLayout>
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold">Agenda</h1>
-          <button className="bg-barber-500 text-white px-4 py-2 rounded-md">
+          <button className="bg-barber-500 text-white px-4 py-2 rounded-md w-full sm:w-auto">
             Novo Agendamento
           </button>
         </div>
@@ -29,41 +29,53 @@ const AdminAppointments = () => {
             <CardDescription>Visualize e gerencie todos os agendamentos da barbearia.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100 text-left">
-                    <th className="p-3 border-b">Cliente</th>
-                    <th className="p-3 border-b">Serviço</th>
-                    <th className="p-3 border-b">Barbeiro</th>
-                    <th className="p-3 border-b">Data</th>
-                    <th className="p-3 border-b">Horário</th>
-                    <th className="p-3 border-b">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appointments.map(appointment => (
-                    <tr key={appointment.id} className="hover:bg-gray-50">
-                      <td className="p-3 border-b">{appointment.clientName}</td>
-                      <td className="p-3 border-b">{appointment.service}</td>
-                      <td className="p-3 border-b">{appointment.barber}</td>
-                      <td className="p-3 border-b">{appointment.date}</td>
-                      <td className="p-3 border-b">{appointment.time}</td>
-                      <td className="p-3 border-b">
-                        <div className="flex space-x-2">
-                          <button className="text-blue-500 hover:text-blue-700">Editar</button>
-                          <button className="text-red-500 hover:text-red-700">Cancelar</button>
-                        </div>
-                      </td>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
+                      <th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                      <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horário</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {appointments.map(appointment => (
+                      <tr key={appointment.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{appointment.clientName}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{appointment.service}</div>
+                        </td>
+                        <td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{appointment.barber}</div>
+                        </td>
+                        <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{appointment.date}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{appointment.time}</div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="flex space-x-2">
+                            <button className="text-blue-500 hover:text-blue-700 text-sm">Editar</button>
+                            <button className="text-red-500 hover:text-red-700 text-sm">Cancelar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
