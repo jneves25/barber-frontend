@@ -2,7 +2,7 @@
 import React from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, User } from 'lucide-react';
+import { Calendar, Clock, User, Edit, Trash2 } from 'lucide-react';
 
 const AdminAppointments = () => {
   // Dados de exemplo para agendamentos
@@ -62,8 +62,12 @@ const AdminAppointments = () => {
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <div className="flex space-x-2">
-                            <button className="text-blue-500 hover:text-blue-700 text-sm">Editar</button>
-                            <button className="text-red-500 hover:text-red-700 text-sm">Cancelar</button>
+                            <button className="p-1 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button className="p-1 text-red-500 hover:text-red-700 transition-colors" title="Cancelar">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>

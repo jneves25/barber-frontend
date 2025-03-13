@@ -2,7 +2,7 @@
 import React from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scissors, Clock, DollarSign } from 'lucide-react';
+import { Scissors, Clock, DollarSign, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const AdminServices = () => {
@@ -20,7 +20,7 @@ const AdminServices = () => {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-800">Serviços</h1>
-          <Button className="bg-blue-500 hover:bg-blue-600">
+          <Button className="bg-barber-500 hover:bg-barber-600">
             Novo Serviço
           </Button>
         </div>
@@ -51,8 +51,12 @@ const AdminServices = () => {
                       <td className="p-3 border-b border-gray-100">{service.description}</td>
                       <td className="p-3 border-b border-gray-100">
                         <div className="flex space-x-2">
-                          <button className="text-blue-500 hover:text-blue-700 font-medium">Editar</button>
-                          <button className="text-red-500 hover:text-red-700 font-medium">Excluir</button>
+                          <button className="p-1 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button className="p-1 text-red-500 hover:text-red-700 transition-colors" title="Excluir">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -67,7 +71,7 @@ const AdminServices = () => {
           <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-800">Total de Serviços</CardTitle>
-              <Scissors className="h-4 w-4 text-blue-500" />
+              <Scissors className="h-4 w-4 text-barber-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-800">12</div>
@@ -79,7 +83,7 @@ const AdminServices = () => {
           <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-800">Duração Média</CardTitle>
-              <Clock className="h-4 w-4 text-blue-500" />
+              <Clock className="h-4 w-4 text-barber-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-800">35 min</div>
@@ -91,7 +95,7 @@ const AdminServices = () => {
           <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-gray-800">Ticket Médio</CardTitle>
-              <DollarSign className="h-4 w-4 text-blue-500" />
+              <DollarSign className="h-4 w-4 text-barber-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-gray-800">R$ 55,00</div>

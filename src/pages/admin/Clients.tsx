@@ -2,7 +2,7 @@
 import React from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Phone, Mail, User } from 'lucide-react';
+import { Search, Phone, Mail, User, Edit, Trash2 } from 'lucide-react';
 
 const AdminClients = () => {
   // Dados de exemplo para clientes
@@ -33,7 +33,7 @@ const AdminClients = () => {
               className="w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-barber-500"
             />
           </div>
-          <button className="rounded-md border border-gray-300 px-4 py-2 text-sm w-full sm:w-auto">
+          <button className="rounded-md border border-gray-300 px-4 py-2 text-sm w-full sm:w-auto bg-white hover:bg-gray-50">
             Buscar
           </button>
         </div>
@@ -77,14 +77,17 @@ const AdminClients = () => {
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <div className="flex space-x-2">
-                            <button className="p-1 text-blue-500 hover:text-blue-700" title="Email">
-                              <Mail className="h-4 w-4" />
+                            <button className="p-1 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button className="p-1 text-red-500 hover:text-red-700 transition-colors" title="Excluir">
+                              <Trash2 className="h-4 w-4" />
                             </button>
                             <button className="p-1 text-green-500 hover:text-green-700" title="WhatsApp">
                               <Phone className="h-4 w-4" />
                             </button>
-                            <button className="p-1 text-gray-500 hover:text-gray-700" title="Ver perfil">
-                              <User className="h-4 w-4" />
+                            <button className="p-1 text-gray-500 hover:text-gray-700" title="Email">
+                              <Mail className="h-4 w-4" />
                             </button>
                           </div>
                         </td>

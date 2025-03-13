@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Calendar, Scissors, BarChart } from 'lucide-react';
+import { DollarSign, Calendar, Scissors, BarChart, Edit, Eye } from 'lucide-react';
 
 // Dados de exemplo para comissões dos barbeiros
 const initialCommissions = [
@@ -24,19 +24,19 @@ const AdminCommissions = () => {
           <div className="flex items-center space-x-2">
             <button 
               onClick={() => setDateFilter('week')}
-              className={`px-3 py-1 rounded-md ${dateFilter === 'week' ? 'bg-barber-500 text-white' : 'bg-gray-100'}`}
+              className={`px-3 py-1 rounded-md ${dateFilter === 'week' ? 'bg-barber-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
             >
               Semana
             </button>
             <button 
               onClick={() => setDateFilter('month')}
-              className={`px-3 py-1 rounded-md ${dateFilter === 'month' ? 'bg-barber-500 text-white' : 'bg-gray-100'}`}
+              className={`px-3 py-1 rounded-md ${dateFilter === 'month' ? 'bg-barber-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
             >
               Mês
             </button>
             <button 
               onClick={() => setDateFilter('year')}
-              className={`px-3 py-1 rounded-md ${dateFilter === 'year' ? 'bg-barber-500 text-white' : 'bg-gray-100'}`}
+              className={`px-3 py-1 rounded-md ${dateFilter === 'year' ? 'bg-barber-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
             >
               Ano
             </button>
@@ -137,8 +137,12 @@ const AdminCommissions = () => {
                         </td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <div className="flex space-x-2">
-                            <button className="text-blue-500 hover:text-blue-700 text-sm">Detalhes</button>
-                            <button className="text-green-500 hover:text-green-700 text-sm">Pagar</button>
+                            <button className="p-1 text-blue-500 hover:text-blue-700 transition-colors" title="Detalhes">
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button className="p-1 text-green-500 hover:text-green-700 transition-colors" title="Pagar">
+                              <DollarSign className="h-4 w-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>

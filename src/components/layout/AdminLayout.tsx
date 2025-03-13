@@ -12,8 +12,11 @@ import {
   Users, 
   Menu,
   X,
-  BarChart
+  BarChart,
+  Edit,
+  Trash2
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -39,26 +42,28 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar para desktop */}
-      <aside className="hidden lg:block w-64 bg-sidebar text-white h-screen fixed left-0 top-0 z-40 transition-all duration-300">
-        <div className="p-5 border-b border-sidebar-border">
+      <aside className="hidden lg:block w-64 bg-white shadow-sm h-screen fixed left-0 top-0 z-40 transition-all duration-300 border-r border-gray-100">
+        <div className="p-5 border-b border-gray-100">
           <Link to="/" className="flex items-center space-x-2">
-            <Scissors className="h-6 w-6" />
-            <span className="font-bold text-xl">BarberShop</span>
+            <Scissors className="h-6 w-6 text-barber-500" />
+            <span className="font-bold text-xl text-barber-500">BarberShop</span>
           </Link>
         </div>
         <nav className="p-4">
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.path}>
                 <Link 
                   to={item.path} 
                   className={`flex items-center space-x-3 p-3 rounded-md transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-sidebar-accent text-white'
-                      : 'hover:bg-sidebar-accent/60'
+                      ? 'bg-barber-50 text-barber-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-barber-500'
                   }`}
                 >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  <item.icon className={`h-5 w-5 flex-shrink-0 ${
+                    location.pathname === item.path ? 'text-barber-500' : 'text-gray-400'
+                  }`} />
                   <span>{item.label}</span>
                 </Link>
               </li>
@@ -69,33 +74,35 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
       {/* Sidebar móvel */}
       <aside 
-        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-white transform ${
+        className={`lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } transition-transform duration-300 ease-in-out`}
       >
-        <div className="flex justify-between items-center p-5 border-b border-sidebar-border">
+        <div className="flex justify-between items-center p-5 border-b border-gray-100">
           <Link to="/" className="flex items-center space-x-2">
-            <Scissors className="h-6 w-6" />
-            <span className="font-bold text-xl">BarberShop</span>
+            <Scissors className="h-6 w-6 text-barber-500" />
+            <span className="font-bold text-xl text-barber-500">BarberShop</span>
           </Link>
-          <button onClick={toggleSidebar} className="text-white">
+          <button onClick={toggleSidebar} className="text-gray-500 hover:text-gray-700">
             <X className="h-6 w-6" />
           </button>
         </div>
         <nav className="p-4">
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {menuItems.map((item) => (
               <li key={item.path}>
                 <Link 
                   to={item.path} 
                   className={`flex items-center space-x-3 p-3 rounded-md transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-sidebar-accent text-white'
-                      : 'hover:bg-sidebar-accent/60'
+                      ? 'bg-barber-50 text-barber-600 font-medium'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-barber-500'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
+                  <item.icon className={`h-5 w-5 flex-shrink-0 ${
+                    location.pathname === item.path ? 'text-barber-500' : 'text-gray-400'
+                  }`} />
                   <span>{item.label}</span>
                 </Link>
               </li>
@@ -122,7 +129,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               <img 
                 src="https://randomuser.me/api/portraits/men/75.jpg" 
                 alt="Admin" 
-                className="w-10 h-10 rounded-full border-2 border-blue-400"
+                className="w-10 h-10 rounded-full border-2 border-barber-400"
               />
             </div>
           </div>
