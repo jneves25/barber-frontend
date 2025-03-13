@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Star } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface BarberProps {
   id: string;
@@ -10,6 +11,7 @@ export interface BarberProps {
   image?: string;
   onClick?: () => void;
   selected?: boolean;
+  isLoading?: boolean;
 }
 
 const BarberCard = ({ 
@@ -18,8 +20,29 @@ const BarberCard = ({
   rating, 
   image, 
   onClick,
-  selected = false
+  selected = false,
+  isLoading = false
 }: BarberProps) => {
+  if (isLoading) {
+    return (
+      <div className="barber-card">
+        <div className="flex items-center">
+          <Skeleton className="w-16 h-16 rounded-full mr-4" />
+          <div>
+            <Skeleton className="h-6 w-32 mb-2" />
+            <Skeleton className="h-4 w-24 mb-1" />
+            <div className="flex items-center gap-1 mt-1">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-3 w-3 rounded-full" />
+              ))}
+              <Skeleton className="h-3 w-8 ml-1" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
       className={`barber-card ${selected ? 'ring-2 ring-barber-400' : ''}`} 

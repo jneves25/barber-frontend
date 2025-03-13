@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Clock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface ServiceProps {
   id: string;
@@ -11,6 +12,7 @@ export interface ServiceProps {
   image?: string;
   onClick?: () => void;
   selected?: boolean;
+  isLoading?: boolean;
 }
 
 const ServiceCard = ({ 
@@ -20,8 +22,23 @@ const ServiceCard = ({
   duration, 
   image, 
   onClick,
-  selected = false
+  selected = false,
+  isLoading = false
 }: ServiceProps) => {
+  if (isLoading) {
+    return (
+      <div className="service-card">
+        <Skeleton className="mb-4 h-40 w-full rounded-md" />
+        <Skeleton className="h-6 w-3/4 mb-2" />
+        <Skeleton className="h-4 w-full mb-4" />
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-1/4" />
+          <Skeleton className="h-4 w-1/4" />
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div 
       className={`service-card ${selected ? 'ring-2 ring-barber-400' : ''}`} 
