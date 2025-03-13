@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, User, Edit, Trash2, Check, DollarSign, Filter } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Edit, Trash2, Check, DollarSign, Filter } from 'lucide-react';
 import { format, isBefore, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { DayPicker } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 
 // Tipo para agendamentos
@@ -114,9 +113,9 @@ const AdminAppointments = () => {
               <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
-                  className="w-full sm:w-auto flex items-center"
+                  className="w-full sm:w-auto flex items-center justify-between gap-2"
                 >
-                  <Filter className="h-4 w-4 mr-2" />
+                  <CalendarIcon className="h-4 w-4" />
                   {selectedDate ? (
                     format(selectedDate, "dd 'de' MMMM", { locale: ptBR })
                   ) : (
@@ -125,14 +124,11 @@ const AdminAppointments = () => {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
-                <DayPicker
+                <Calendar
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
-                  classNames={{
-                    day_selected: "bg-blue-500 text-white hover:bg-blue-600 hover:text-white",
-                    day_today: "bg-blue-50 text-blue-600",
-                  }}
+                  initialFocus
                   className="p-3 pointer-events-auto"
                 />
               </PopoverContent>
@@ -271,7 +267,7 @@ const AdminAppointments = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
-              <Calendar className="h-4 w-4 text-gray-500" />
+              <CalendarIcon className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
