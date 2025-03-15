@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Scissors } from 'lucide-react';
 
 interface ClientLayoutProps {
@@ -9,6 +9,12 @@ interface ClientLayoutProps {
 }
 
 const ClientLayout = ({ children, hideHeader = false }: ClientLayoutProps) => {
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+  
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {!hideHeader && (
@@ -19,14 +25,39 @@ const ClientLayout = ({ children, hideHeader = false }: ClientLayoutProps) => {
               <span className="font-bold text-xl text-barber-500">BarberShop</span>
             </Link>
             <nav className="hidden md:flex items-center space-x-6">
-              <Link to="/" className="text-gray-700 hover:text-barber-500 transition-colors">Início</Link>
-              <Link to="/services" className="text-gray-700 hover:text-barber-500 transition-colors">Serviços</Link>
-              <Link to="/about" className="text-gray-700 hover:text-barber-500 transition-colors">Sobre</Link>
-              <Link to="/contact" className="text-gray-700 hover:text-barber-500 transition-colors">Contato</Link>
+              <Link 
+                to="/" 
+                className={`${isActive("/") ? "text-barber-500" : "text-gray-700"} hover:text-barber-500 transition-colors`}
+              >
+                Início
+              </Link>
+              <Link 
+                to="/pricing" 
+                className={`${isActive("/pricing") ? "text-barber-500" : "text-gray-700"} hover:text-barber-500 transition-colors`}
+              >
+                Planos
+              </Link>
+              <Link 
+                to="/about" 
+                className={`${isActive("/about") ? "text-barber-500" : "text-gray-700"} hover:text-barber-500 transition-colors`}
+              >
+                Sobre
+              </Link>
+              <Link 
+                to="/contact" 
+                className={`${isActive("/contact") ? "text-barber-500" : "text-gray-700"} hover:text-barber-500 transition-colors`}
+              >
+                Contato
+              </Link>
             </nav>
-            <Link to="/login" className="bg-barber-400 text-white px-4 py-2 rounded-md hover:bg-barber-500 transition-colors">
-              Entrar
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link to="/admin" className="text-gray-700 hover:text-barber-500 transition-colors">
+                Demo
+              </Link>
+              <Link to="/admin" className="bg-barber-400 text-white px-4 py-2 rounded-md hover:bg-barber-500 transition-colors">
+                Entrar
+              </Link>
+            </div>
           </div>
         </header>
       )}
@@ -41,9 +72,17 @@ const ClientLayout = ({ children, hideHeader = false }: ClientLayoutProps) => {
                 <Scissors className="h-5 w-5 text-barber-400" />
                 <span className="font-bold text-lg text-barber-500">BarberShop</span>
               </Link>
-              <p className="text-gray-600 mt-2">A melhor experiência em barbearia.</p>
+              <p className="text-gray-600 mt-2">A melhor plataforma para gestão de barbearias.</p>
             </div>
             <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-8">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">Links rápidos</h4>
+                <ul className="space-y-2">
+                  <li><Link to="/pricing" className="text-gray-600 hover:text-barber-500">Planos</Link></li>
+                  <li><Link to="/about" className="text-gray-600 hover:text-barber-500">Sobre nós</Link></li>
+                  <li><Link to="/contact" className="text-gray-600 hover:text-barber-500">Contato</Link></li>
+                </ul>
+              </div>
               <div>
                 <h4 className="font-semibold text-gray-900 mb-3">Contato</h4>
                 <p className="text-gray-600">contato@barbershop.com</p>

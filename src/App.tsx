@@ -6,11 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Services from "./pages/Services";
-import Barbers from "./pages/Barbers";
-import Schedule from "./pages/Schedule";
-import ContactInfo from "./pages/ContactInfo";
-import Confirmation from "./pages/Confirmation";
+import Pricing from "./pages/Pricing";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -31,15 +29,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Rotas do cliente */}
+          {/* Rotas do cliente - site institucional */}
           <Route path="/" element={<Index />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/barbers" element={<Barbers />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/contact-info" element={<ContactInfo />} />
-          <Route path="/confirmation" element={<Confirmation />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
           
-          {/* Rotas administrativas */}
+          {/* Rotas administrativas - dashboard */}
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/dashboard" element={<Dashboard />} />
           <Route path="/admin/appointments" element={<AdminAppointments />} />
