@@ -63,6 +63,14 @@ const ClientPortal = () => {
   const [selectedDate, setSelectedDate] = React.useState('');
   const [selectedTime, setSelectedTime] = React.useState('');
 
+  // Helper function to safely click tab triggers
+  const clickTabTrigger = (value: string) => {
+    const element = document.querySelector(`[data-value="${value}"]`) as HTMLElement | null;
+    if (element) {
+      element.click();
+    }
+  };
+
   const handleSubmit = (data: any) => {
     console.log("Booking submitted:", {
       service: selectedService,
@@ -175,7 +183,7 @@ const ClientPortal = () => {
                 <div className="mt-6 flex justify-end">
                   <Button 
                     disabled={!selectedService} 
-                    onClick={() => document.querySelector('[data-value="barber"]')?.click()}
+                    onClick={() => clickTabTrigger("barber")}
                     className="bg-barber-500 hover:bg-barber-600"
                   >
                     Continuar
@@ -208,13 +216,13 @@ const ClientPortal = () => {
                 <div className="mt-6 flex justify-between">
                   <Button 
                     variant="outline" 
-                    onClick={() => document.querySelector('[data-value="service"]')?.click()}
+                    onClick={() => clickTabTrigger("service")}
                   >
                     Voltar
                   </Button>
                   <Button 
                     disabled={!selectedBarber} 
-                    onClick={() => document.querySelector('[data-value="date"]')?.click()}
+                    onClick={() => clickTabTrigger("date")}
                     className="bg-barber-500 hover:bg-barber-600"
                   >
                     Continuar
@@ -262,13 +270,13 @@ const ClientPortal = () => {
                 <div className="mt-6 flex justify-between">
                   <Button 
                     variant="outline" 
-                    onClick={() => document.querySelector('[data-value="barber"]')?.click()}
+                    onClick={() => clickTabTrigger("barber")}
                   >
                     Voltar
                   </Button>
                   <Button 
                     disabled={!selectedDate || !selectedTime} 
-                    onClick={() => document.querySelector('[data-value="confirm"]')?.click()}
+                    onClick={() => clickTabTrigger("confirm")}
                     className="bg-barber-500 hover:bg-barber-600"
                   >
                     Continuar
@@ -331,7 +339,7 @@ const ClientPortal = () => {
                     <Button 
                       type="button"
                       variant="outline" 
-                      onClick={() => document.querySelector('[data-value="date"]')?.click()}
+                      onClick={() => clickTabTrigger("date")}
                     >
                       Voltar
                     </Button>
