@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Scissors } from 'lucide-react';
@@ -51,9 +50,6 @@ const ClientLayout = ({ children, hideHeader = false }: ClientLayoutProps) => {
               </Link>
             </nav>
             <div className="flex items-center space-x-4">
-              <Link to="/admin" className="text-gray-700 hover:text-barber-500 transition-colors">
-                Demo
-              </Link>
               <Link to="/admin" className="bg-barber-400 text-white px-4 py-2 rounded-md hover:bg-barber-500 transition-colors">
                 Entrar
               </Link>
