@@ -1,11 +1,30 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarCheck, CheckCircle2, Clock, LineChart, Scissors, ShieldCheck, Star, Users, Play } from 'lucide-react';
+import { 
+  CalendarCheck, 
+  CheckCircle2, 
+  Clock, 
+  LineChart, 
+  Scissors, 
+  ShieldCheck, 
+  Star, 
+  Users, 
+  Play,
+  BookOpen,
+  ArrowRight 
+} from 'lucide-react';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import ServiceCard from '@/components/ServiceCard';
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from '@/components/ui/pagination';
 
 const Index = () => {
   return (
@@ -134,12 +153,146 @@ const Index = () => {
                 <div className="bg-barber-50 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
                   <LineChart className="h-8 w-8 text-barber-500" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Relatórios avançados</h3>
+                <h3 className="text-xl font-semibold mb-2">Relat��rios avançados</h3>
                 <p className="text-gray-600">
                   Acompanhe vendas, comissões e desempenho com relatórios detalhados e gráficos intuitivos.
                 </p>
               </CardContent>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Blog Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Blog da Barbearia</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Dicas, tendências e novidades do mundo das barbearias para você ficar por dentro.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative h-48 overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1599351431202-1e0f0137899a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                  alt="Tendências em cortes masculinos" 
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <CardContent className="pt-6">
+                <div className="flex items-center text-gray-500 text-sm mb-3">
+                  <Clock className="h-4 w-4 mr-1" />
+                  <span>27 Out 2023</span>
+                  <span className="mx-2">•</span>
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  <span>5 min de leitura</span>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 hover:text-barber-500 transition-colors">
+                  <Link to="/blog/tendencias-cortes-masculinos">
+                    Tendências em cortes masculinos para 2024
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Descubra os cortes que estarão em alta no próximo ano e como adaptar cada estilo ao formato do seu rosto.
+                </p>
+                <Link to="/blog/tendencias-cortes-masculinos" className="text-barber-500 font-medium inline-flex items-center hover:text-barber-600 transition-colors">
+                  Ler mais <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </CardContent>
+            </Card>
+            
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative h-48 overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1517832606299-7ae9b720a186?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                  alt="Cuidados com a barba" 
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <CardContent className="pt-6">
+                <div className="flex items-center text-gray-500 text-sm mb-3">
+                  <Clock className="h-4 w-4 mr-1" />
+                  <span>15 Out 2023</span>
+                  <span className="mx-2">•</span>
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  <span>7 min de leitura</span>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 hover:text-barber-500 transition-colors">
+                  <Link to="/blog/cuidados-barba">
+                    Guia completo de cuidados com a barba
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Aprenda a manter sua barba saudável e bem cuidada com dicas de especialistas e produtos recomendados.
+                </p>
+                <Link to="/blog/cuidados-barba" className="text-barber-500 font-medium inline-flex items-center hover:text-barber-600 transition-colors">
+                  Ler mais <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </CardContent>
+            </Card>
+            
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative h-48 overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1493256338651-d82f7272f427?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                  alt="Gestão de barbearia" 
+                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+              <CardContent className="pt-6">
+                <div className="flex items-center text-gray-500 text-sm mb-3">
+                  <Clock className="h-4 w-4 mr-1" />
+                  <span>03 Out 2023</span>
+                  <span className="mx-2">•</span>
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  <span>10 min de leitura</span>
+                </div>
+                <h3 className="text-xl font-semibold mb-2 hover:text-barber-500 transition-colors">
+                  <Link to="/blog/gestao-barbearia">
+                    Como gerenciar sua barbearia com eficiência
+                  </Link>
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Estratégias e ferramentas para otimizar o gerenciamento do seu negócio e aumentar a produtividade.
+                </p>
+                <Link to="/blog/gestao-barbearia" className="text-barber-500 font-medium inline-flex items-center hover:text-barber-600 transition-colors">
+                  Ler mais <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious href="#" />
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink href="#" isActive>1</PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink href="#">2</PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationLink href="#">3</PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext href="#" />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+          
+          <div className="text-center mt-8">
+            <Link to="/blog">
+              <Button variant="outline" className="border-barber-400 text-barber-500 hover:bg-barber-50">
+                Ver todos os artigos
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
