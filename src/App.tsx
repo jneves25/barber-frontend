@@ -20,11 +20,13 @@ import AdminCommissions from "./pages/admin/Commissions";
 import AdminGoals from "./pages/admin/Goals";
 import AdminRevenue from "./pages/admin/Revenue";
 import AdminSettings from "./pages/admin/Settings";
+import AdminProducts from "./pages/admin/Products";
 
 // Client booking pages
 import Services from "./pages/Services";
 import Barbers from "./pages/Barbers";
 import Schedule from "./pages/Schedule";
+import Products from "./pages/Products";
 
 // Blog pages
 import Blog from "./pages/Blog";
@@ -54,6 +56,7 @@ const App = () => (
           <Route path="/portal/services" element={<Services />} />
           <Route path="/portal/barbers" element={<Barbers />} />
           <Route path="/portal/schedule" element={<Schedule />} />
+          <Route path="/portal/products" element={<Products />} />
           
           {/* Rotas administrativas - dashboard */}
           <Route path="/admin" element={<Dashboard />} />
@@ -65,6 +68,7 @@ const App = () => (
           <Route path="/admin/goals" element={<AdminGoals />} />
           <Route path="/admin/revenue" element={<AdminRevenue />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/products" element={<AdminProducts />} />
           
           {/* Rota de fallback */}
           <Route path="*" element={<NotFound />} />

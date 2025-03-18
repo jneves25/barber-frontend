@@ -14,7 +14,8 @@ import {
   X,
   BarChart,
   Edit,
-  Trash2
+  Trash2,
+  Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -30,6 +31,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { path: '/admin', icon: Home, label: 'Dashboard' },
     { path: '/admin/appointments', icon: Calendar, label: 'Agenda' },
     { path: '/admin/services', icon: Scissors, label: 'Serviços' },
+    { path: '/admin/products', icon: Package, label: 'Produtos' },
     { path: '/admin/clients', icon: Users, label: 'Clientes' },
     { path: '/admin/commissions', icon: DollarSign, label: 'Comissões' },
     { path: '/admin/goals', icon: Target, label: 'Metas' },
