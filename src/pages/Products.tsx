@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 
 // Mock data - in a real app, this would come from an API
+// Updated to include stock property
 const mockProducts = [
   {
     id: '1',
@@ -13,6 +14,7 @@ const mockProducts = [
     description: 'Pomada modeladora para cabelo com fixação forte',
     price: 45.90,
     image: 'https://images.unsplash.com/photo-1581075487814-fbcaa48eb06b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    stock: 24
   },
   {
     id: '2',
@@ -20,6 +22,7 @@ const mockProducts = [
     description: 'Shampoo especial para combater a queda de cabelo',
     price: 38.50,
     image: 'https://images.unsplash.com/photo-1583209814683-c023dd293cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    stock: 18
   },
   {
     id: '3',
@@ -27,6 +30,7 @@ const mockProducts = [
     description: 'Óleo hidratante para barba com aroma de madeira',
     price: 29.90,
     image: 'https://images.unsplash.com/photo-1533484211272-98ffdb2a0cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
+    stock: 32
   },
 ];
 
@@ -70,6 +74,7 @@ const ProductsPage = () => {
                 description={product.description}
                 price={product.price}
                 image={product.image}
+                stock={product.stock}
                 viewOnly={true}
               />
             ))}
