@@ -4,6 +4,7 @@ import ClientLayout from '@/components/layout/ClientLayout';
 import { ProductCard } from '@/components/ProductCard';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 // Mock data - in a real app, this would come from an API
 // Updated to include stock property
@@ -36,6 +37,10 @@ const mockProducts = [
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { user, hasPermission } = useAuth();
+  
+  // Determinar se o usuário pode ver o estoque
+  const canViewStock = user && (user.role === 'admin' || hasPermission('manage_products'));
   
   const filteredProducts = mockProducts.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -75,7 +80,7 @@ const ProductsPage = () => {
                 price={product.price}
                 image={product.image}
                 stock={product.stock}
-                viewOnly={true}
+                viewOnly={!canViewStock}
               />
             ))}
           </div>

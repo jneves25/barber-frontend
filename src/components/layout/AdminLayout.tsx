@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   Clipboard, 
@@ -15,9 +15,20 @@ import {
   BarChart,
   Edit,
   Trash2,
-  Package
+  Package,
+  Shield,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -26,20 +37,39 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout, hasPermission } = useAuth();
   
+  // Menu items com checagem de permissão
   const menuItems = [
-    { path: '/admin', icon: Home, label: 'Dashboard' },
-    { path: '/admin/appointments', icon: Calendar, label: 'Agenda' },
-    { path: '/admin/services', icon: Scissors, label: 'Serviços' },
-    { path: '/admin/products', icon: Package, label: 'Produtos' },
-    { path: '/admin/clients', icon: Users, label: 'Clientes' },
-    { path: '/admin/commissions', icon: DollarSign, label: 'Comissões' },
-    { path: '/admin/goals', icon: Target, label: 'Metas' },
-    { path: '/admin/revenue', icon: BarChart, label: 'Faturamento' },
-    { path: '/admin/settings', icon: Settings, label: 'Configurações' },
+    { path: '/admin', icon: Home, label: 'Dashboard', permission: null },
+    { path: '/admin/appointments', icon: Calendar, label: 'Agenda', permission: 'view_all_appointments' },
+    { path: '/admin/services', icon: Scissors, label: 'Serviços', permission: 'view_all_services' },
+    { path: '/admin/products', icon: Package, label: 'Produtos', permission: 'view_all_products' },
+    { path: '/admin/clients', icon: Users, label: 'Clientes', permission: 'view_all_clients' },
+    { path: '/admin/commissions', icon: DollarSign, label: 'Comissões', permission: 'view_all_commissions' },
+    { path: '/admin/goals', icon: Target, label: 'Metas', permission: 'view_all_goals' },
+    { path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'view_all_revenue' },
+    { path: '/admin/permissions', icon: Shield, label: 'Permissões', permission: 'manage_permissions' },
+    { path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manage_settings' },
   ];
 
+  // Filtrar itens de menu baseado em permissões
+  const filteredMenuItems = menuItems.filter(item => 
+    item.permission === null || hasPermission(item.permission)
+  );
+
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  // Verificar se o usuário está autenticado
+  if (!user) {
+    navigate('/login');
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex bg-gray-50">
@@ -53,7 +83,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
         <nav className="p-4">
           <ul className="space-y-1">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <li key={item.path}>
                 <Link 
                   to={item.path} 
@@ -91,7 +121,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         </div>
         <nav className="p-4">
           <ul className="space-y-1">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <li key={item.path}>
                 <Link 
                   to={item.path} 
@@ -124,16 +154,43 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <Menu className="h-6 w-6" />
           </button>
           <h1 className="text-xl font-semibold text-gray-800 truncate">
-            {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
+            {filteredMenuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
           </h1>
           <div className="ml-auto flex items-center space-x-4">
-            <div className="relative">
-              <img 
-                src="https://randomuser.me/api/portraits/men/75.jpg" 
-                alt="Admin" 
-                className="w-10 h-10 rounded-full border-2 border-barber-400"
-              />
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center space-x-2 focus:outline-none">
+                  <div className="relative">
+                    <img 
+                      src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || '')}`} 
+                      alt={user?.name || "Usuário"} 
+                      className="w-10 h-10 rounded-full border-2 border-barber-400"
+                    />
+                  </div>
+                  <div className="hidden md:block text-left">
+                    <p className="text-sm font-medium">{user?.name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer">
+                  <Edit className="mr-2 h-4 w-4" />
+                  <span>Editar Perfil</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Configurações</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="p-4 md:p-6 overflow-x-hidden">{children}</main>
