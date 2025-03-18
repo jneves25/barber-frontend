@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart as BarChartIcon, DollarSign, TrendingUp, Calendar } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart as BarChartIcon, DollarSign, TrendingUp, Calendar, Users } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 // Dados de exemplo para o gráfico de faturamento
 const revenueData = [
@@ -30,11 +31,24 @@ const serviceRevenueData = [
   { id: 5, service: 'Sobrancelha', quantity: 35, revenue: 700, percentage: 3 }
 ];
 
+// Dados de faturamento por barbeiro
+const barberRevenueData = [
+  { id: 1, name: 'Carlos Silva', revenue: 5280, percentage: 25, color: '#8B4513' },
+  { id: 2, name: 'Ricardo Gomes', revenue: 4830, percentage: 23, color: '#A0522D' },
+  { id: 3, name: 'André Santos', revenue: 6350, percentage: 30, color: '#CD853F' },
+  { id: 4, name: 'Felipe Costa', revenue: 4520, percentage: 22, color: '#DEB887' }
+];
+
+const COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3'];
+
 const AdminRevenue = () => {
   const [period, setPeriod] = useState('year');
 
   // Calcula o faturamento total
   const totalRevenue = serviceRevenueData.reduce((sum, item) => sum + item.revenue, 0);
+  
+  // Calcula o faturamento total por barbeiro
+  const totalBarberRevenue = barberRevenueData.reduce((sum, item) => sum + item.revenue, 0);
 
   return (
     <AdminLayout>
@@ -137,6 +151,89 @@ const AdminRevenue = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Nova seção: Faturamento por Barbeiro */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Faturamento por Barbeiro</CardTitle>
+                <CardDescription>Distribuição de receita por profissional</CardDescription>
+              </div>
+              <Users className="h-5 w-5 text-gray-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-80 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={barberRevenueData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="revenue"
+                      nameKey="name"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {barberRevenueData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`R$ ${value.toFixed(2)}`, 'Faturamento']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalhamento por Barbeiro</CardTitle>
+              <CardDescription>Análise de receita por profissional</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 text-left">
+                      <th className="p-3 border-b">Barbeiro</th>
+                      <th className="p-3 border-b">Faturamento</th>
+                      <th className="p-3 border-b">% do Total</th>
+                      <th className="p-3 border-b">Distribuição</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {barberRevenueData.map(item => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="p-3 border-b">{item.name}</td>
+                        <td className="p-3 border-b">R$ {item.revenue.toFixed(2)}</td>
+                        <td className="p-3 border-b">{item.percentage}%</td>
+                        <td className="p-3 border-b w-1/4">
+                          <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div 
+                              className="h-2.5 rounded-full"
+                              style={{ width: `${item.percentage}%`, backgroundColor: item.color || '#8B4513' }}
+                            ></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50 font-semibold">
+                      <td className="p-3 border-b">Total</td>
+                      <td className="p-3 border-b">R$ {totalBarberRevenue.toFixed(2)}</td>
+                      <td className="p-3 border-b">100%</td>
+                      <td className="p-3 border-b"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         <Card>
           <CardHeader>
