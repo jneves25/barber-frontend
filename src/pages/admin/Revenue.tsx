@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,6 +32,7 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useAuth } from '@/context/AuthContext';
 
 // Dados de exemplo para o gráfico de faturamento
 const revenueData = [
@@ -49,6 +49,54 @@ const revenueData = [
   { name: 'Nov', total: 0 },
   { name: 'Dez', total: 0 },
 ];
+
+// Dados de faturamento individuais para cada barbeiro
+const barberIndividualData = {
+  'Carlos Silva': [
+    { name: 'Jan', total: 1200 },
+    { name: 'Fev', total: 1350 },
+    { name: 'Mar', total: 1280 },
+    { name: 'Abr', total: 1450 },
+    { name: 'Mai', total: 1520 },
+    { name: 'Jun', total: 1580 },
+    { name: 'Jul', total: 1620 },
+    { name: 'Ago', total: 1680 },
+    { name: 'Set', total: 1750 },
+    { name: 'Out', total: 1600 },
+    { name: 'Nov', total: 0 },
+    { name: 'Dez', total: 0 },
+  ],
+  'Ricardo Gomes': [
+    { name: 'Jan', total: 980 },
+    { name: 'Fev', total: 1100 },
+    { name: 'Mar', total: 950 },
+    { name: 'Abr', total: 1200 },
+    { name: 'Mai', total: 1250 },
+    { name: 'Jun', total: 1350 },
+    { name: 'Jul', total: 1400 },
+    { name: 'Ago', total: 1450 },
+    { name: 'Set', total: 1500 },
+    { name: 'Out', total: 1450 },
+    { name: 'Nov', total: 0 },
+    { name: 'Dez', total: 0 },
+  ]
+};
+
+// Dados de faturamento por serviço para cada barbeiro
+const barberServiceData = {
+  'Carlos Silva': [
+    { id: 1, service: 'Corte de Cabelo', quantity: 45, revenue: 2250, percentage: 40 },
+    { id: 2, service: 'Barba', quantity: 30, revenue: 1050, percentage: 19 },
+    { id: 3, service: 'Combo Completo', quantity: 20, revenue: 1600, percentage: 29 },
+    { id: 4, service: 'Corte Degradê', quantity: 12, revenue: 720, percentage: 12 },
+  ],
+  'Ricardo Gomes': [
+    { id: 1, service: 'Corte de Cabelo', quantity: 42, revenue: 2100, percentage: 38 },
+    { id: 2, service: 'Barba', quantity: 28, revenue: 980, percentage: 18 },
+    { id: 3, service: 'Combo Completo', quantity: 25, revenue: 2000, percentage: 36 },
+    { id: 4, service: 'Corte Degradê', quantity: 8, revenue: 480, percentage: 8 },
+  ]
+};
 
 // Dados de faturamento por serviço
 const serviceRevenueData = [
@@ -146,11 +194,25 @@ const COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3'];
 const AdminRevenue = () => {
   const [period, setPeriod] = useState('year');
   const [reportTab, setReportTab] = useState('overview');
+  const { user } = useAuth();
 
-  // Calcula o faturamento total
-  const totalRevenue = serviceRevenueData.reduce((sum, item) => sum + item.revenue, 0);
+  // Obter os dados para o usuário atual se for um barbeiro
+  const getUserData = () => {
+    if (user?.role === 'barber') {
+      return {
+        revenueData: barberIndividualData[user.name] || [],
+        serviceData: barberServiceData[user.name] || []
+      };
+    }
+    return { revenueData, serviceData: serviceRevenueData };
+  };
+
+  const userData = getUserData();
   
-  // Calcula o faturamento total por barbeiro
+  // Calcula o faturamento total para os dados do usuário atual
+  const totalUserRevenue = userData.serviceData.reduce((sum, item) => sum + item.revenue, 0);
+  
+  // Calcula o faturamento total por barbeiro (apenas para admin)
   const totalBarberRevenue = barberRevenueData.reduce((sum, item) => sum + item.revenue, 0);
 
   // Função auxiliar para formatar números como valores monetários
@@ -171,7 +233,9 @@ const AdminRevenue = () => {
     <AdminLayout>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Faturamento</h1>
+          <h1 className="text-2xl font-bold">
+            {user?.role === 'barber' ? 'Meu Faturamento' : 'Faturamento'}
+          </h1>
           <div className="flex items-center space-x-2">
             <button 
               onClick={() => setPeriod('month')}
@@ -197,11 +261,15 @@ const AdminRevenue = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {user?.role === 'barber' ? 'Meu Faturamento Total' : 'Faturamento Total'}
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">R$ 20.980,00</div>
+              <div className="text-2xl font-bold">
+                {user?.role === 'barber' ? 'R$ 14.850,00' : 'R$ 20.980,00'}
+              </div>
               <p className="text-xs text-muted-foreground">
                 +15% comparado ao período anterior
               </p>
@@ -221,11 +289,15 @@ const AdminRevenue = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {user?.role === 'barber' ? 'Meu Ticket Médio' : 'Ticket Médio'}
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">R$ 62,00</div>
+              <div className="text-2xl font-bold">
+                {user?.role === 'barber' && user.name === 'Carlos Silva' ? 'R$ 68,50' : 'R$ 62,00'}
+              </div>
               <p className="text-xs text-muted-foreground">
                 +8% comparado ao período anterior
               </p>
@@ -234,12 +306,11 @@ const AdminRevenue = () => {
         </div>
 
         <Tabs value={reportTab} onValueChange={setReportTab} className="w-full">
-          <TabsList className="grid grid-cols-5 w-full mb-4">
+          <TabsList className="grid grid-cols-3 w-full mb-4">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="barbers">Por Barbeiro</TabsTrigger>
+            {user?.role !== 'barber' && <TabsTrigger value="barbers">Por Barbeiro</TabsTrigger>}
             <TabsTrigger value="services">Por Serviço</TabsTrigger>
             <TabsTrigger value="time">Por Período</TabsTrigger>
-            <TabsTrigger value="comparison">Comparativos</TabsTrigger>
           </TabsList>
 
           {/* Tab: Visão Geral */}
@@ -247,7 +318,9 @@ const AdminRevenue = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Análise de Faturamento</CardTitle>
+                  <CardTitle>
+                    {user?.role === 'barber' ? 'Análise do Meu Faturamento' : 'Análise de Faturamento'}
+                  </CardTitle>
                   <CardDescription>
                     {period === 'month' && 'Faturamento do mês atual'}
                     {period === 'quarter' && 'Faturamento do trimestre atual'}
@@ -260,7 +333,7 @@ const AdminRevenue = () => {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={revenueData}
+                      data={userData.revenueData}
                       margin={{
                         top: 20,
                         right: 30,
@@ -348,167 +421,171 @@ const AdminRevenue = () => {
           </TabsContent>
 
           {/* Tab: Por Barbeiro */}
-          <TabsContent value="barbers">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Faturamento por Barbeiro</CardTitle>
-                    <CardDescription>Distribuição de receita por profissional</CardDescription>
-                  </div>
-                  <Users className="h-5 w-5 text-gray-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80 flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={barberRevenueData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="revenue"
-                          nameKey="name"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        >
-                          {barberRevenueData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+          {user?.role !== 'barber' && (
+            <TabsContent value="barbers">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Faturamento por Barbeiro</CardTitle>
+                      <CardDescription>Distribuição de receita por profissional</CardDescription>
+                    </div>
+                    <Users className="h-5 w-5 text-gray-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80 flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={barberRevenueData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="revenue"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {barberRevenueData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: any) => {
+                            if (typeof value === 'number') {
+                              return [`R$ ${value.toFixed(2)}`, 'Faturamento'];
+                            }
+                            return [`R$ ${value}`, 'Faturamento'];
+                          }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Detalhamento por Barbeiro</CardTitle>
+                    <CardDescription>Análise de receita por profissional</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Barbeiro</TableHead>
+                            <TableHead>Faturamento</TableHead>
+                            <TableHead>% do Total</TableHead>
+                            <TableHead>Distribuição</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {barberRevenueData.map(item => (
+                            <TableRow key={item.id}>
+                              <TableCell>{item.name}</TableCell>
+                              <TableCell>{formatCurrency(item.revenue)}</TableCell>
+                              <TableCell>{item.percentage}%</TableCell>
+                              <TableCell className="w-1/4">
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                  <div 
+                                    className="h-2.5 rounded-full"
+                                    style={{ width: `${item.percentage}%`, backgroundColor: item.color || '#8B4513' }}
+                                  ></div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => {
-                          if (typeof value === 'number') {
-                            return [`R$ ${value.toFixed(2)}`, 'Faturamento'];
-                          }
-                          return [`R$ ${value}`, 'Faturamento'];
-                        }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            
-              <Card>
-                <CardHeader>
-                  <CardTitle>Detalhamento por Barbeiro</CardTitle>
-                  <CardDescription>Análise de receita por profissional</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Barbeiro</TableHead>
-                          <TableHead>Faturamento</TableHead>
-                          <TableHead>% do Total</TableHead>
-                          <TableHead>Distribuição</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {barberRevenueData.map(item => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.name}</TableCell>
-                            <TableCell>{formatCurrency(item.revenue)}</TableCell>
-                            <TableCell>{item.percentage}%</TableCell>
-                            <TableCell className="w-1/4">
-                              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div 
-                                  className="h-2.5 rounded-full"
-                                  style={{ width: `${item.percentage}%`, backgroundColor: item.color || '#8B4513' }}
-                                ></div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                      <tfoot className="bg-gray-50 font-semibold">
-                        <tr>
-                          <TableCell>Total</TableCell>
-                          <TableCell>{formatCurrency(totalBarberRevenue)}</TableCell>
-                          <TableCell>100%</TableCell>
-                          <TableCell></TableCell>
-                        </tr>
-                      </tfoot>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                        </TableBody>
+                        <tfoot className="bg-gray-50 font-semibold">
+                          <tr>
+                            <TableCell>Total</TableCell>
+                            <TableCell>{formatCurrency(totalBarberRevenue)}</TableCell>
+                            <TableCell>100%</TableCell>
+                            <TableCell></TableCell>
+                          </tr>
+                        </tfoot>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-            <div className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Evolução Mensal por Barbeiro</CardTitle>
-                  <CardDescription>Faturamento mensal de cada profissional</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={barberMonthlyData}
-                        margin={{
-                          top: 20,
-                          right: 30,
-                          left: 20,
-                          bottom: 5,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip formatter={tooltipFormatter} />
-                        <Legend />
-                        <Line type="monotone" dataKey="Carlos" stroke="#8B4513" activeDot={{ r: 8 }} />
-                        <Line type="monotone" dataKey="Ricardo" stroke="#A0522D" />
-                        <Line type="monotone" dataKey="André" stroke="#CD853F" />
-                        <Line type="monotone" dataKey="Felipe" stroke="#DEB887" />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+              <div className="mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Evolução Mensal por Barbeiro</CardTitle>
+                    <CardDescription>Faturamento mensal de cada profissional</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={barberMonthlyData}
+                          margin={{
+                            top: 20,
+                            right: 30,
+                            left: 20,
+                            bottom: 5,
+                          }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis />
+                          <Tooltip formatter={tooltipFormatter} />
+                          <Legend />
+                          <Line type="monotone" dataKey="Carlos" stroke="#8B4513" activeDot={{ r: 8 }} />
+                          <Line type="monotone" dataKey="Ricardo" stroke="#A0522D" />
+                          <Line type="monotone" dataKey="André" stroke="#CD853F" />
+                          <Line type="monotone" dataKey="Felipe" stroke="#DEB887" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-            <div className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Ticket Médio por Barbeiro</CardTitle>
-                  <CardDescription>Valor médio por atendimento</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Barbeiro</TableHead>
-                          <TableHead>Ticket Médio</TableHead>
-                          <TableHead>Ticket Máximo</TableHead>
-                          <TableHead>Ticket Mínimo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {avgTicketData.map(item => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.name}</TableCell>
-                            <TableCell>{formatCurrency(item.avgTicket)}</TableCell>
-                            <TableCell>{formatCurrency(item.maxTicket)}</TableCell>
-                            <TableCell>{formatCurrency(item.minTicket)}</TableCell>
+              <div className="mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ticket Médio por Barbeiro</CardTitle>
+                    <CardDescription>Valor médio por atendimento</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Barbeiro</TableHead>
+                            <TableHead>Ticket Médio</TableHead>
+                            <TableHead>Ticket Máximo</TableHead>
+                            <TableHead>Ticket Mínimo</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                        </TableHeader>
+                        <TableBody>
+                          {avgTicketData.map(item => (
+                            <TableRow key={item.id}>
+                              <TableCell>{item.name}</TableCell>
+                              <TableCell>{formatCurrency(item.avgTicket)}</TableCell>
+                              <TableCell>{formatCurrency(item.maxTicket)}</TableCell>
+                              <TableCell>{formatCurrency(item.minTicket)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
 
           {/* Tab: Por Serviço */}
           <TabsContent value="services">
             <Card>
               <CardHeader>
-                <CardTitle>Faturamento por Serviço</CardTitle>
+                <CardTitle>
+                  {user?.role === 'barber' ? 'Meu Faturamento por Serviço' : 'Faturamento por Serviço'}
+                </CardTitle>
                 <CardDescription>Análise de receita por tipo de serviço</CardDescription>
               </CardHeader>
               <CardContent>
@@ -524,7 +601,7 @@ const AdminRevenue = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {serviceRevenueData.map(item => (
+                      {userData.serviceData.map(item => (
                         <TableRow key={item.id}>
                           <TableCell>{item.service}</TableCell>
                           <TableCell>{item.quantity}</TableCell>
@@ -544,8 +621,10 @@ const AdminRevenue = () => {
                     <tfoot className="bg-gray-50 font-semibold">
                       <tr>
                         <TableCell>Total</TableCell>
-                        <TableCell>412</TableCell>
-                        <TableCell>{formatCurrency(totalRevenue)}</TableCell>
+                        <TableCell>
+                          {userData.serviceData.reduce((sum, item) => sum + item.quantity, 0)}
+                        </TableCell>
+                        <TableCell>{formatCurrency(totalUserRevenue)}</TableCell>
                         <TableCell>100%</TableCell>
                         <TableCell></TableCell>
                       </tr>
@@ -558,7 +637,9 @@ const AdminRevenue = () => {
             <div className="mt-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Distribuição de Serviços</CardTitle>
+                  <CardTitle>
+                    {user?.role === 'barber' ? 'Distribuição dos Meus Serviços' : 'Distribuição de Serviços'}
+                  </CardTitle>
                   <CardDescription>Proporção de cada serviço no faturamento total</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -566,7 +647,7 @@ const AdminRevenue = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={serviceRevenueData}
+                          data={userData.serviceData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -576,7 +657,7 @@ const AdminRevenue = () => {
                           nameKey="service"
                           label={({ service, percent }) => `${service}: ${(percent * 100).toFixed(0)}%`}
                         >
-                          {serviceRevenueData.map((entry, index) => (
+                          {userData.serviceData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
@@ -655,53 +736,21 @@ const AdminRevenue = () => {
             </div>
           </TabsContent>
 
-          {/* Tab: Comparativos */}
-          <TabsContent value="comparison">
-            <Card>
-              <CardHeader>
-                <CardTitle>Comparativo Anual</CardTitle>
-                <CardDescription>Faturamento 2022 vs 2023</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={yearComparisonData}
-                      margin={{
-                        top: 20,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={tooltipFormatter} />
-                      <Legend />
-                      <Line type="monotone" dataKey="2022" stroke="#CD853F" />
-                      <Line type="monotone" dataKey="2023" stroke="#8B4513" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="mt-4 flex justify-end space-x-4">
-              <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
-                <FileSpreadsheet className="h-4 w-4" />
-                <span>Exportar Excel</span>
-              </button>
-              <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
-                <FileText className="h-4 w-4" />
-                <span>Exportar PDF</span>
-              </button>
-              <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
-                <Printer className="h-4 w-4" />
-                <span>Imprimir</span>
-              </button>
-            </div>
-          </TabsContent>
+          {/* Export options */}
+          <div className="mt-4 flex justify-end space-x-4">
+            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Exportar Excel</span>
+            </button>
+            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
+              <FileText className="h-4 w-4" />
+              <span>Exportar PDF</span>
+            </button>
+            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
+              <Printer className="h-4 w-4" />
+              <span>Imprimir</span>
+            </button>
+          </div>
         </Tabs>
       </div>
     </AdminLayout>

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 // Tipo para agendamentos
 interface Appointment {
@@ -27,6 +29,7 @@ interface Appointment {
 const AdminAppointments = () => {
   // Estado para data selecionada
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const { user } = useAuth();
   
   // Estado para agendamentos (expandido com mais informações)
   const [appointments, setAppointments] = useState<Appointment[]>([
@@ -38,10 +41,15 @@ const AdminAppointments = () => {
     { id: 6, clientName: 'Fernando Lima', service: 'Hidratação', price: 45, barber: 'Ricardo Gomes', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], time: '11:30', status: 'pending' },
   ]);
 
+  // Filtrar agendamentos pelo barbeiro atual se for um barbeiro
+  const userAppointments = user?.role === 'barber' 
+    ? appointments.filter(app => app.barber === user.name) 
+    : appointments;
+
   // Filtrar agendamentos pela data selecionada
   const filteredAppointments = selectedDate 
-    ? appointments.filter(app => app.date === format(selectedDate, 'yyyy-MM-dd'))
-    : appointments;
+    ? userAppointments.filter(app => app.date === format(selectedDate, 'yyyy-MM-dd'))
+    : userAppointments;
 
   // Handler para completar um agendamento aberto
   const handleCompleteService = (id: number) => {
@@ -71,7 +79,11 @@ const AdminAppointments = () => {
 
   // Função para calcular estatísticas do dia
   const getDayStats = () => {
-    const todayApps = appointments.filter(app => app.date === format(new Date(), 'yyyy-MM-dd'));
+    // Filtrar agendamentos de hoje e pelo barbeiro atual, se aplicável
+    const todayApps = user?.role === 'barber'
+      ? appointments.filter(app => app.date === format(new Date(), 'yyyy-MM-dd') && app.barber === user.name)
+      : appointments.filter(app => app.date === format(new Date(), 'yyyy-MM-dd'));
+    
     const pendingApps = todayApps.filter(app => app.status === 'pending').length;
     const completedApps = todayApps.filter(app => app.status === 'completed').length;
     const openApps = todayApps.filter(app => app.status === 'open').length;
@@ -107,7 +119,9 @@ const AdminAppointments = () => {
     <AdminLayout>
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold">Agenda</h1>
+          <h1 className="text-2xl font-bold">
+            {user?.role === 'barber' ? 'Minha Agenda' : 'Agenda'}
+          </h1>
           <div className="flex flex-col sm:flex-row gap-2">
             <Popover>
               <PopoverTrigger asChild>
@@ -141,11 +155,15 @@ const AdminAppointments = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Agendamentos</CardTitle>
+            <CardTitle>
+              {user?.role === 'barber' ? 'Meus Agendamentos' : 'Agendamentos'}
+            </CardTitle>
             <CardDescription>
               {selectedDate 
                 ? `Visualizando agendamentos para ${format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
-                : "Visualize e gerencie todos os agendamentos da barbearia."}
+                : user?.role === 'barber' 
+                  ? "Visualize e gerencie seus agendamentos."
+                  : "Visualize e gerencie todos os agendamentos da barbearia."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -157,7 +175,9 @@ const AdminAppointments = () => {
                       <tr>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
-                        <th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                        {user?.role !== 'barber' && (
+                          <th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                        )}
                         <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horário</th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
@@ -178,9 +198,11 @@ const AdminAppointments = () => {
                             <td className="px-3 py-3 whitespace-nowrap">
                               <div className="text-sm text-gray-900">{appointment.service}</div>
                             </td>
-                            <td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{appointment.barber}</div>
-                            </td>
+                            {user?.role !== 'barber' && (
+                              <td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{appointment.barber}</div>
+                              </td>
+                            )}
                             <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
                                 {format(parseISO(appointment.date), 'dd/MM/yyyy')}
@@ -266,7 +288,9 @@ const AdminAppointments = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Agendamentos Hoje</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {user?.role === 'barber' ? 'Meus Agendamentos Hoje' : 'Agendamentos Hoje'}
+              </CardTitle>
               <CalendarIcon className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
@@ -316,18 +340,40 @@ const AdminAppointments = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total do Dia</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {user?.role === 'barber' ? 'Meu Total do Dia' : 'Total do Dia'}
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                R$ {appointments
-                  .filter(app => app.date === format(new Date(), 'yyyy-MM-dd') && app.status === 'completed')
-                  .reduce((sum, app) => sum + app.price, 0)
+                R$ {(user?.role === 'barber' 
+                  ? appointments
+                      .filter(app => 
+                        app.date === format(new Date(), 'yyyy-MM-dd') && 
+                        app.status === 'completed' &&
+                        app.barber === user.name
+                      )
+                  : appointments
+                      .filter(app => 
+                        app.date === format(new Date(), 'yyyy-MM-dd') && 
+                        app.status === 'completed'
+                      )
+                  ).reduce((sum, app) => sum + app.price, 0)
                   .toFixed(2)}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {appointments.filter(app => app.date === format(new Date(), 'yyyy-MM-dd') && app.status === 'completed').length} serviços finalizados
+                {(user?.role === 'barber'
+                  ? appointments.filter(app => 
+                      app.date === format(new Date(), 'yyyy-MM-dd') && 
+                      app.status === 'completed' &&
+                      app.barber === user.name
+                    )
+                  : appointments.filter(app => 
+                      app.date === format(new Date(), 'yyyy-MM-dd') && 
+                      app.status === 'completed'
+                    )
+                ).length} serviços finalizados
               </p>
             </CardContent>
           </Card>

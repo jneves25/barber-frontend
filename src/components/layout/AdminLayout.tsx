@@ -43,15 +43,15 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   // Menu items com checagem de permissão
   const menuItems = [
     { path: '/admin', icon: Home, label: 'Dashboard', permission: null },
-    { path: '/admin/appointments', icon: Calendar, label: 'Agenda', permission: 'view_all_appointments' },
-    { path: '/admin/services', icon: Scissors, label: 'Serviços', permission: 'view_all_services' },
-    { path: '/admin/products', icon: Package, label: 'Produtos', permission: 'view_all_products' },
-    { path: '/admin/clients', icon: Users, label: 'Clientes', permission: 'view_all_clients' },
-    { path: '/admin/commissions', icon: DollarSign, label: 'Comissões', permission: 'view_all_commissions' },
-    { path: '/admin/goals', icon: Target, label: 'Metas', permission: 'view_all_goals' },
-    { path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'view_all_revenue' },
+    { path: '/admin/appointments', icon: Calendar, label: 'Agenda', permission: 'view_appointments' },
+    { path: '/admin/services', icon: Scissors, label: 'Serviços', permission: 'view_services' },
+    { path: '/admin/products', icon: Package, label: 'Produtos', permission: 'view_products' },
+    { path: '/admin/clients', icon: Users, label: 'Clientes', permission: 'view_clients' },
+    { path: '/admin/commissions', icon: DollarSign, label: 'Comissões', permission: 'view_commissions' },
+    { path: '/admin/goals', icon: Target, label: 'Metas', permission: 'view_goals' },
+    { path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'view_revenue' },
     { path: '/admin/permissions', icon: Shield, label: 'Permissões', permission: 'manage_permissions' },
-    { path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manage_settings' },
+    { path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manage_user_settings' },
   ];
 
   // Filtrar itens de menu baseado em permissões

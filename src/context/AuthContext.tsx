@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -34,7 +35,7 @@ const MOCK_USERS = [
   },
   {
     id: '2',
-    name: 'Carlos Barbeiro',
+    name: 'Carlos Silva',
     email: 'carlos@barbearia.com',
     password: 'carlos123',
     role: 'barber' as UserRole,
@@ -89,6 +90,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_own_goals',
     'view_goals',
     'view_own_revenue',
+    'view_revenue',
     'view_services',
     'view_products',
     'manage_user_settings',

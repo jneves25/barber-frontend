@@ -103,7 +103,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/admin/revenue" element={
-              <ProtectedRoute requiredPermission="view_all_revenue">
+              <ProtectedRoute requiredPermission="view_revenue">
                 <AdminRevenue />
               </ProtectedRoute>
             } />
