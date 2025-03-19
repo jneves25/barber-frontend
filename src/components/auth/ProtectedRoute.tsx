@@ -15,7 +15,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { isAuthenticated, isLoading, hasPermission } = useAuth();
 
   if (isLoading) {
-    // Poderia renderizar um componente de loading aqui
     return <div className="flex h-screen items-center justify-center">Carregando...</div>;
   }
 

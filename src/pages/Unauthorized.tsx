@@ -16,7 +16,7 @@ const Unauthorized = () => {
       <p className="text-gray-600 mb-6 max-w-md">
         Você não tem permissão para acessar esta página.
         {user?.role && (
-          <span> Seu perfil atual ({user.role}) não possui as permissões necessárias.</span>
+          <span> Seu perfil atual ({user.role === 'admin' ? 'Administrador' : user.role === 'barber' ? 'Barbeiro' : 'Recepcionista'}) não possui as permissões necessárias.</span>
         )}
       </p>
       <div className="flex flex-col sm:flex-row gap-4">

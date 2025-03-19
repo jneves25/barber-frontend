@@ -78,27 +78,27 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/admin/appointments" element={
-              <ProtectedRoute requiredPermission="view_all_appointments">
+              <ProtectedRoute requiredPermission="view_appointments">
                 <AdminAppointments />
               </ProtectedRoute>
             } />
             <Route path="/admin/services" element={
-              <ProtectedRoute requiredPermission="view_all_services">
+              <ProtectedRoute requiredPermission="view_services">
                 <AdminServices />
               </ProtectedRoute>
             } />
             <Route path="/admin/clients" element={
-              <ProtectedRoute requiredPermission="view_all_clients">
+              <ProtectedRoute requiredPermission="view_clients">
                 <AdminClients />
               </ProtectedRoute>
             } />
             <Route path="/admin/commissions" element={
-              <ProtectedRoute requiredPermission="view_all_commissions">
+              <ProtectedRoute requiredPermission="view_commissions">
                 <AdminCommissions />
               </ProtectedRoute>
             } />
             <Route path="/admin/goals" element={
-              <ProtectedRoute requiredPermission="view_all_goals">
+              <ProtectedRoute requiredPermission="view_goals">
                 <AdminGoals />
               </ProtectedRoute>
             } />
@@ -108,12 +108,12 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/admin/settings" element={
-              <ProtectedRoute requiredPermission="manage_settings">
+              <ProtectedRoute requiredPermission="manage_user_settings">
                 <AdminSettings />
               </ProtectedRoute>
             } />
             <Route path="/admin/products" element={
-              <ProtectedRoute requiredPermission="view_all_products">
+              <ProtectedRoute requiredPermission="view_products">
                 <AdminProducts />
               </ProtectedRoute>
             } />

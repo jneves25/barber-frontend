@@ -59,6 +59,11 @@ const initialUsers = [
   },
 ];
 
+// Define UserWithAvatar type that includes required avatar field
+interface UserWithAvatar extends UserType {
+  avatar: string;
+}
+
 // Todas as permissões disponíveis no sistema
 const allPermissions = [
   { id: 'view_all_appointments', name: 'Ver todos os agendamentos', description: 'Acesso para visualizar agendamentos de todos os barbeiros' },
@@ -89,10 +94,10 @@ const allPermissions = [
 
 // Componente principal
 const Permissions = () => {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState<UserWithAvatar[]>(initialUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const { user: currentUser, hasPermission } = useAuth();
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithAvatar | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     name: '',
@@ -108,7 +113,7 @@ const Permissions = () => {
   );
 
   // Edição de usuário
-  const handleEditUser = (user: UserType) => {
+  const handleEditUser = (user: UserWithAvatar) => {
     setSelectedUser(user);
   };
 
@@ -124,7 +129,7 @@ const Permissions = () => {
   };
 
   // Salvar edição de usuário
-  const handleSaveUserEdit = (editedUser: UserType) => {
+  const handleSaveUserEdit = (editedUser: UserWithAvatar) => {
     setUsers(prev => prev.map(user => 
       user.id === editedUser.id ? editedUser : user
     ));
@@ -140,7 +145,7 @@ const Permissions = () => {
       return;
     }
 
-    const newUserWithId = {
+    const newUserWithId: UserWithAvatar = {
       ...newUser,
       id: `${users.length + 1}`,
       avatar: `https://randomuser.me/api/portraits/${newUser.role === 'receptionist' ? 'women' : 'men'}/${Math.floor(Math.random() * 100)}.jpg`,
