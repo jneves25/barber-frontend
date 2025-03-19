@@ -9,7 +9,7 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, X, Check, DollarSign } from 'lucide-react';
+import { Plus, Minus, X, Check, DollarSign, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 
