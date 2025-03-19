@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -375,7 +374,7 @@ const AdminGoals = () => {
                 <Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
                 <h3 className="text-gray-500 text-lg font-medium">Nenhuma meta de serviço encontrada</h3>
                 <p className="text-gray-400 text-sm mt-1">
-                  Não há metas por serviço definidas para este período.
+                  Não há metas por serviço definidas para este per��odo.
                 </p>
               </div>
             )}
