@@ -33,6 +33,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/context/AuthContext';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Dados de exemplo para o gráfico de faturamento
 const revenueData = [
@@ -195,8 +196,8 @@ const AdminRevenue = () => {
   const [period, setPeriod] = useState('year');
   const [reportTab, setReportTab] = useState('overview');
   const { user } = useAuth();
+  const isMobile = useIsMobile();
 
-  // Obter os dados para o usuário atual se for um barbeiro
   const getUserData = () => {
     if (user?.role === 'barber') {
       return {
@@ -209,20 +210,15 @@ const AdminRevenue = () => {
 
   const userData = getUserData();
   
-  // Calcula o faturamento total para os dados do usuário atual
   const totalUserRevenue = userData.serviceData.reduce((sum, item) => sum + item.revenue, 0);
   
-  // Calcula o faturamento total por barbeiro (apenas para admin)
   const totalBarberRevenue = barberRevenueData.reduce((sum, item) => sum + item.revenue, 0);
 
-  // Função auxiliar para formatar números como valores monetários
   const formatCurrency = (value: number) => {
     return `R$ ${value.toFixed(2)}`;
   };
 
-  // Função para formatar valores do Tooltip corretamente
   const tooltipFormatter = (value: any) => {
-    // Verifica se o valor é um número antes de usar toFixed
     if (typeof value === 'number') {
       return [`R$ ${value.toFixed(2)}`, 'Faturamento'];
     }
@@ -232,7 +228,7 @@ const AdminRevenue = () => {
   return (
     <AdminLayout>
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
           <h1 className="text-2xl font-bold">
             {user?.role === 'barber' ? 'Meu Faturamento' : 'Faturamento'}
           </h1>
@@ -306,14 +302,13 @@ const AdminRevenue = () => {
         </div>
 
         <Tabs value={reportTab} onValueChange={setReportTab} className="w-full">
-          <TabsList className="grid grid-cols-3 w-full mb-4">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            {user?.role !== 'barber' && <TabsTrigger value="barbers">Por Barbeiro</TabsTrigger>}
-            <TabsTrigger value="services">Por Serviço</TabsTrigger>
-            <TabsTrigger value="time">Por Período</TabsTrigger>
+          <TabsList className={`w-full mb-4 ${isMobile ? 'flex flex-wrap gap-1' : 'grid grid-cols-3'}`}>
+            <TabsTrigger value="overview" className="text-xs sm:text-sm">Visão Geral</TabsTrigger>
+            {user?.role !== 'barber' && <TabsTrigger value="barbers" className="text-xs sm:text-sm">Por Barbeiro</TabsTrigger>}
+            <TabsTrigger value="services" className="text-xs sm:text-sm">Por Serviço</TabsTrigger>
+            <TabsTrigger value="time" className="text-xs sm:text-sm">Por Período</TabsTrigger>
           </TabsList>
 
-          {/* Tab: Visão Geral */}
           <TabsContent value="overview">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -420,7 +415,6 @@ const AdminRevenue = () => {
             </div>
           </TabsContent>
 
-          {/* Tab: Por Barbeiro */}
           {user?.role !== 'barber' && (
             <TabsContent value="barbers">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -579,7 +573,6 @@ const AdminRevenue = () => {
             </TabsContent>
           )}
 
-          {/* Tab: Por Serviço */}
           <TabsContent value="services">
             <Card>
               <CardHeader>
@@ -675,7 +668,6 @@ const AdminRevenue = () => {
             </div>
           </TabsContent>
 
-          {/* Tab: Por Período */}
           <TabsContent value="time">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card>
@@ -736,17 +728,16 @@ const AdminRevenue = () => {
             </div>
           </TabsContent>
 
-          {/* Export options */}
-          <div className="mt-4 flex justify-end space-x-4">
-            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors text-xs sm:text-sm">
               <FileSpreadsheet className="h-4 w-4" />
               <span>Exportar Excel</span>
             </button>
-            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
+            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors text-xs sm:text-sm">
               <FileText className="h-4 w-4" />
               <span>Exportar PDF</span>
             </button>
-            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors">
+            <button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors text-xs sm:text-sm">
               <Printer className="h-4 w-4" />
               <span>Imprimir</span>
             </button>
