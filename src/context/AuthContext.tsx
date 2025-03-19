@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -76,8 +77,10 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'view_all_goals',
     'manage_goals',
     'view_all_revenue',
+    'manage_revenue',
     'manage_settings',
     'manage_permissions',
+    'manage_user_settings',
   ],
   barber: [
     'view_own_appointments',

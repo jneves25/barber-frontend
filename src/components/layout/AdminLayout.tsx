@@ -51,7 +51,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     { path: '/admin/goals', icon: Target, label: 'Metas', permission: 'view_goals' },
     { path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'view_revenue' },
     { path: '/admin/permissions', icon: Shield, label: 'Permissões', permission: 'manage_permissions' },
-    { path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manage_user_settings' },
+    { path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manage_settings' },
   ];
 
   // Filtrar itens de menu baseado em permissões
@@ -180,10 +180,12 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
                   <Edit className="mr-2 h-4 w-4" />
                   <span>Editar Perfil</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Configurações</span>
-                </DropdownMenuItem>
+                {hasPermission('manage_user_settings') && (
+                  <DropdownMenuItem className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Configurações</span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />

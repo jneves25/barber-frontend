@@ -13,8 +13,17 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
+import OrderEditModal from '@/components/appointment/OrderEditModal';
 
-// Tipo para agendamentos
+// Tipo para agendamentos e itens do pedido
+interface OrderItem {
+  id: number;
+  name: string;
+  price: number;
+  quantity: number;
+  type: 'service' | 'product';
+}
+
 interface Appointment {
   id: number;
   clientName: string;
@@ -24,6 +33,7 @@ interface Appointment {
   date: string; // ISO string
   time: string;
   status: 'pending' | 'completed' | 'open';
+  orderItems?: OrderItem[];
 }
 
 const AdminAppointments = () => {
@@ -31,12 +41,19 @@ const AdminAppointments = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const { user } = useAuth();
   
-  // Estado para agendamentos (expandido com mais informações)
+  // Estado para o modal de edição de comanda
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  
+  // Estado para agendamentos (expandido com itens de comanda)
   const [appointments, setAppointments] = useState<Appointment[]>([
     { id: 1, clientName: 'João Silva', service: 'Corte de Cabelo', price: 50, barber: 'Carlos Silva', date: '2023-10-10', time: '14:00', status: 'completed' },
     { id: 2, clientName: 'Pedro Oliveira', service: 'Barba', price: 35, barber: 'Ricardo Gomes', date: '2023-10-10', time: '15:30', status: 'completed' },
     { id: 3, clientName: 'Lucas Santos', service: 'Combo Completo', price: 80, barber: 'André Santos', date: new Date().toISOString().split('T')[0], time: '10:00', status: 'pending' },
-    { id: 4, clientName: 'Marcos Pereira', service: 'Corte Degradê', price: 60, barber: 'Felipe Costa', date: new Date().toISOString().split('T')[0], time: '16:00', status: 'open' },
+    { id: 4, clientName: 'Marcos Pereira', service: 'Corte Degradê', price: 60, barber: 'Felipe Costa', date: new Date().toISOString().split('T')[0], time: '16:00', status: 'open', orderItems: [
+      { id: 101, name: 'Corte Degradê', price: 60, quantity: 1, type: 'service' },
+      { id: 102, name: 'Pomada Modeladora', price: 39.90, quantity: 1, type: 'product' }
+    ]},
     { id: 5, clientName: 'Rafael Dias', service: 'Corte e Barba', price: 70, barber: 'Carlos Silva', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], time: '09:00', status: 'pending' },
     { id: 6, clientName: 'Fernando Lima', service: 'Hidratação', price: 45, barber: 'Ricardo Gomes', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], time: '11:30', status: 'pending' },
   ]);
@@ -51,6 +68,30 @@ const AdminAppointments = () => {
     ? userAppointments.filter(app => app.date === format(selectedDate, 'yyyy-MM-dd'))
     : userAppointments;
 
+  // Handler para abrir o modal de edição de comanda
+  const handleOpenOrderModal = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setOrderModalOpen(true);
+  };
+
+  // Handler para salvar a comanda editada
+  const handleSaveOrder = (appointment: Appointment, items: OrderItem[]) => {
+    // Calcula o novo preço total baseado nos itens
+    const newTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    setAppointments(appointments.map(app => 
+      app.id === appointment.id 
+        ? { 
+            ...app, 
+            price: newTotal,
+            orderItems: items,
+            // Se estava pendente, muda para comanda aberta
+            status: app.status === 'pending' ? 'open' : app.status
+          } 
+        : app
+    ));
+  };
+
   // Handler para completar um agendamento aberto
   const handleCompleteService = (id: number) => {
     setAppointments(prev => 
@@ -63,12 +104,10 @@ const AdminAppointments = () => {
 
   // Handler para abrir um agendamento pendente
   const handleOpenService = (id: number) => {
-    setAppointments(prev => 
-      prev.map(app => 
-        app.id === id ? { ...app, status: 'open' } : app
-      )
-    );
-    toast.success('Serviço aberto como comanda!');
+    const appointment = appointments.find(app => app.id === id);
+    if (appointment) {
+      handleOpenOrderModal(appointment);
+    }
   };
 
   // Handler para excluir um agendamento
@@ -240,21 +279,33 @@ const AdminAppointments = () => {
                                 )}
                                 
                                 {appointment.status === 'open' && (
-                                  <button 
-                                    onClick={() => handleCompleteService(appointment.id)}
-                                    className="p-1 text-green-500 hover:text-green-700 transition-colors" 
-                                    title="Finalizar serviço"
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </button>
+                                  <>
+                                    <button 
+                                      onClick={() => handleOpenOrderModal(appointment)}
+                                      className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
+                                      title="Editar comanda"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleCompleteService(appointment.id)}
+                                      className="p-1 text-green-500 hover:text-green-700 transition-colors" 
+                                      title="Finalizar serviço"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                  </>
                                 )}
                                 
-                                <button 
-                                  className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
-                                  title="Editar"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </button>
+                                {appointment.status === 'completed' && (
+                                  <button 
+                                    onClick={() => handleOpenOrderModal(appointment)}
+                                    className="p-1 text-gray-500 hover:text-gray-700 transition-colors" 
+                                    title="Ver detalhes"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                )}
                                 
                                 <button 
                                   onClick={() => handleDeleteAppointment(appointment.id)}
@@ -379,6 +430,17 @@ const AdminAppointments = () => {
           </Card>
         </div>
       </div>
+
+      {/* Modal para edição de comanda */}
+      <OrderEditModal 
+        isOpen={orderModalOpen}
+        onClose={() => {
+          setOrderModalOpen(false);
+          setSelectedAppointment(null);
+        }}
+        appointment={selectedAppointment}
+        onSave={handleSaveOrder}
+      />
     </AdminLayout>
   );
 };
