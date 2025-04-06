@@ -11,9 +11,21 @@ export interface Client {
   createdAt?: string;
 }
 
+export interface ClientLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface ClientRegisterRequest {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}
+
 export class ClientService extends BaseService {
   constructor() {
-    super('clients');
+    super('client');
   }
 
   validateClient(client: Client): string | null {
@@ -36,38 +48,57 @@ export class ClientService extends BaseService {
     return null;
   }
 
-  async getAll(): Promise<ApiResponse<Client[]>> {
-    return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}`));
+  // Client login
+  async loginClient(credentials: ClientLoginRequest): Promise<ApiResponse<any>> {
+    if (!credentials.email || !credentials.password) {
+      return { error: 'Email and password are required', status: 400, success: false };
+    }
+    
+    const emailError = this.validateEmail(credentials.email);
+    if (emailError) return { error: emailError, status: 400, success: false };
+    
+    return this.handleResponse(apiClient.post(`/${this.endpoint}/auth/login`, credentials));
   }
 
-  async getByCompany(companyId: number): Promise<ApiResponse<Client[]>> {
-    return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}/company/${companyId}`));
+  // Client registration
+  async registerClient(client: ClientRegisterRequest): Promise<ApiResponse<Client>> {
+    const validationError = this.validateClient(client as Client);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}/auth/register`, client));
+  }
+
+  // Client personal information (requires client authentication)
+  async getPersonalInfo(): Promise<ApiResponse<Client>> {
+    return this.handleResponse<Client>(apiClient.get(`/${this.endpoint}/personal`));
+  }
+
+  async updatePersonalInfo(id: number, client: Client): Promise<ApiResponse<Client>> {
+    const validationError = this.validateClient(client);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/personal/${id}`, client));
+  }
+
+  async deletePersonalAccount(id: number): Promise<ApiResponse<void>> {
+    return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/personal/${id}`));
+  }
+  
+  // Admin-side endpoints (require admin authentication)
+  async getAll(): Promise<ApiResponse<Client[]>> {
+    return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}`));
   }
 
   async getById(id: number): Promise<ApiResponse<Client>> {
     return this.handleResponse<Client>(apiClient.get(`/${this.endpoint}/${id}`));
   }
 
-  async create(client: Client): Promise<ApiResponse<Client>> {
-    const validationError = this.validateClient(client);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}`, client));
-  }
-
-  async update(id: number, client: Client): Promise<ApiResponse<Client>> {
-    const validationError = this.validateClient(client);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/${id}`, client));
-  }
-
-  async delete(id: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
+  async getByBarber(): Promise<ApiResponse<Client[]>> {
+    return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}/barber`));
   }
 }
 

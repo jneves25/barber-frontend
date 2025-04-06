@@ -37,7 +37,7 @@ export interface Appointment {
 
 export class AppointmentService extends BaseService {
   constructor() {
-    super('appointments');
+    super('appointment');
   }
 
   validateAppointment(appointment: Appointment): string | null {
@@ -80,6 +80,7 @@ export class AppointmentService extends BaseService {
     return null;
   }
 
+  // Admin side appointments
   async getAll(): Promise<ApiResponse<Appointment[]>> {
     return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}`));
   }
@@ -182,6 +183,33 @@ export class AppointmentService extends BaseService {
     return this.handleResponse<void>(
       apiClient.delete(`/${this.endpoint}/${appointmentId}/products/${productId}`)
     );
+  }
+  
+  // Client side appointments
+  async getClientAppointments(): Promise<ApiResponse<Appointment[]>> {
+    return this.handleResponse<Appointment[]>(apiClient.get(`/client/appointment`));
+  }
+  
+  async createClientAppointment(appointment: Appointment): Promise<ApiResponse<Appointment>> {
+    const validationError = this.validateAppointment(appointment);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    return this.handleResponse<Appointment>(apiClient.post(`/client/appointment`, appointment));
+  }
+  
+  async updateClientAppointment(id: number, appointment: Appointment): Promise<ApiResponse<Appointment>> {
+    const validationError = this.validateAppointment(appointment);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    return this.handleResponse<Appointment>(apiClient.put(`/client/appointment/${id}`, appointment));
+  }
+  
+  async cancelClientAppointment(id: number): Promise<ApiResponse<void>> {
+    return this.handleResponse<void>(apiClient.delete(`/client/appointment/${id}`));
   }
 }
 

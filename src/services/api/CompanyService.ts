@@ -58,7 +58,7 @@ export interface CompanyMember {
 
 export class CompanyService extends BaseService {
   constructor() {
-    super('companies');
+    super('company');
   }
 
   validateCompany(company: Company): string | null {
@@ -95,7 +95,9 @@ export class CompanyService extends BaseService {
     ] as (keyof WorkingHours)[];
     
     for (const field of timeFields) {
-      if (!timeRegex.test(hours[field])) {
+      // Fixed: Convert to string before testing with regex
+      const value = hours[field];
+      if (!timeRegex.test(String(value))) {
         return `Invalid time format for ${String(field)}. Use HH:MM format`;
       }
     }

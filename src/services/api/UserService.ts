@@ -52,7 +52,7 @@ export interface UserPermissions {
 
 export class UserService extends BaseService {
   constructor() {
-    super('users');
+    super('user');
   }
 
   // Validate user data
@@ -115,13 +115,13 @@ export class UserService extends BaseService {
 
   // Get user permissions
   async getPermissions(userId: number): Promise<ApiResponse<UserPermissions>> {
-    return this.handleResponse<UserPermissions>(apiClient.get(`/${this.endpoint}/${userId}/permissions`));
+    return this.handleResponse<UserPermissions>(apiClient.get(`/permission/${userId}`));
   }
 
   // Update user permissions
   async updatePermissions(userId: number, permissions: UserPermissions): Promise<ApiResponse<UserPermissions>> {
     return this.handleResponse<UserPermissions>(
-      apiClient.put(`/${this.endpoint}/${userId}/permissions`, permissions)
+      apiClient.put(`/permission/${userId}`, permissions)
     );
   }
 }

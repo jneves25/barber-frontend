@@ -58,11 +58,11 @@ export class ServiceProductService extends BaseService {
 
   // Service methods
   async getAllServices(companyId: number): Promise<ApiResponse<Service[]>> {
-    return this.handleResponse<Service[]>(apiClient.get(`/companies/${companyId}/services`));
+    return this.handleResponse<Service[]>(apiClient.get(`/service/company/${companyId}`));
   }
 
   async getServiceById(id: number): Promise<ApiResponse<Service>> {
-    return this.handleResponse<Service>(apiClient.get(`/services/${id}`));
+    return this.handleResponse<Service>(apiClient.get(`/service/${id}`));
   }
 
   async createService(service: Service): Promise<ApiResponse<Service>> {
@@ -71,7 +71,7 @@ export class ServiceProductService extends BaseService {
       return { error: validationError, status: 400, success: false };
     }
     
-    return this.handleResponse<Service>(apiClient.post('/services', service));
+    return this.handleResponse<Service>(apiClient.post('/service', service));
   }
 
   async updateService(id: number, service: Service): Promise<ApiResponse<Service>> {
@@ -80,20 +80,20 @@ export class ServiceProductService extends BaseService {
       return { error: validationError, status: 400, success: false };
     }
     
-    return this.handleResponse<Service>(apiClient.put(`/services/${id}`, service));
+    return this.handleResponse<Service>(apiClient.put(`/service/${id}`, service));
   }
 
   async deleteService(id: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(apiClient.delete(`/services/${id}`));
+    return this.handleResponse<void>(apiClient.delete(`/service/${id}`));
   }
 
   // Product methods
   async getAllProducts(companyId: number): Promise<ApiResponse<Product[]>> {
-    return this.handleResponse<Product[]>(apiClient.get(`/companies/${companyId}/products`));
+    return this.handleResponse<Product[]>(apiClient.get(`/product/company/${companyId}`));
   }
 
   async getProductById(id: number): Promise<ApiResponse<Product>> {
-    return this.handleResponse<Product>(apiClient.get(`/products/${id}`));
+    return this.handleResponse<Product>(apiClient.get(`/product/${id}`));
   }
 
   async createProduct(product: Product): Promise<ApiResponse<Product>> {
@@ -102,7 +102,7 @@ export class ServiceProductService extends BaseService {
       return { error: validationError, status: 400, success: false };
     }
     
-    return this.handleResponse<Product>(apiClient.post('/products', product));
+    return this.handleResponse<Product>(apiClient.post('/product', product));
   }
 
   async updateProduct(id: number, product: Product): Promise<ApiResponse<Product>> {
@@ -111,11 +111,11 @@ export class ServiceProductService extends BaseService {
       return { error: validationError, status: 400, success: false };
     }
     
-    return this.handleResponse<Product>(apiClient.put(`/products/${id}`, product));
+    return this.handleResponse<Product>(apiClient.put(`/product/${id}`, product));
   }
 
   async deleteProduct(id: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(apiClient.delete(`/products/${id}`));
+    return this.handleResponse<void>(apiClient.delete(`/product/${id}`));
   }
 
   async updateProductStock(id: number, quantity: number): Promise<ApiResponse<Product>> {
@@ -124,7 +124,7 @@ export class ServiceProductService extends BaseService {
     }
     
     return this.handleResponse<Product>(
-      apiClient.patch(`/products/${id}/stock`, { stock: quantity })
+      apiClient.patch(`/product/${id}/stock`, { stock: quantity })
     );
   }
 }

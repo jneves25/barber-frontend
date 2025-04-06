@@ -1,5 +1,6 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import { toast } from 'sonner';
 
 // Base API configuration
 const apiClient: AxiosInstance = axios.create({
@@ -28,11 +29,34 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      // Unauthorized, clear token and redirect to login
+    const status = error.response?.status;
+    
+    // Handle 401 Unauthorized errors (expired or invalid tokens)
+    if (status === 401) {
       localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      localStorage.removeItem('user_type');
+      
+      // Check if we're already on the login page to avoid redirect loops
+      const isLoginPage = window.location.pathname === '/login' || 
+                        window.location.pathname === '/client/login';
+      
+      if (!isLoginPage) {
+        const isClient = localStorage.getItem('user_type') === 'client';
+        const redirectPath = isClient ? '/client/login' : '/login';
+        
+        toast.error('Sua sessão expirou. Por favor, faça login novamente.');
+        window.location.href = redirectPath;
+      }
+    } 
+    // Handle 403 Forbidden errors (permission issues)
+    else if (status === 403) {
+      toast.error('Você não tem permissão para realizar esta operação');
     }
+    // Handle 500 and other server errors
+    else if (status && status >= 500) {
+      toast.error('Erro no servidor. Por favor, tente novamente mais tarde.');
+    }
+    
     return Promise.reject(error);
   }
 );

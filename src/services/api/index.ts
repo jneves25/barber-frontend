@@ -1,29 +1,31 @@
 
-import apiClient from './apiClient';
-import UserService from './UserService';
-import CompanyService from './CompanyService';
-import AppointmentService from './AppointmentService';
-import ClientService from './ClientService';
-import ServiceProductService from './ServiceProductService';
-import AuthService from './AuthService';
-import { BaseService, ApiResponse } from './BaseService';
+// Re-export all service types and instances
+import AuthService, { AuthResponse, LoginRequest, RegisterUserRequest, RegisterClientRequest } from './AuthService';
+import UserService, { User, RoleEnum, UserPermissions } from './UserService';
+import ClientService, { Client } from './ClientService';
+import CompanyService, { Company, CompanySettings, WorkingHours, CompanyMember } from './CompanyService';
+import ServiceProductService, { Service, Product } from './ServiceProductService';
+import AppointmentService, { Appointment, ServiceAppointment, ProductAppointment, AppointmentStatusEnum } from './AppointmentService';
 
-export {
-  apiClient,
-  UserService,
-  CompanyService,
-  AppointmentService,
-  ClientService,
-  ServiceProductService,
-  AuthService,
-  BaseService,
-  ApiResponse
+// Fix re-export type issue by using 'export type'
+export { AuthService, UserService, ClientService, CompanyService, ServiceProductService, AppointmentService };
+export type { 
+  AuthResponse, 
+  LoginRequest, 
+  RegisterUserRequest, 
+  RegisterClientRequest,
+  User, 
+  RoleEnum, 
+  UserPermissions,
+  Client,
+  Company, 
+  CompanySettings, 
+  WorkingHours, 
+  CompanyMember,
+  Service, 
+  Product,
+  Appointment, 
+  ServiceAppointment, 
+  ProductAppointment, 
+  AppointmentStatusEnum
 };
-
-// Re-export types
-export * from './UserService';
-export * from './CompanyService';
-export * from './AppointmentService';
-export * from './ClientService';
-export * from './ServiceProductService';
-export * from './AuthService';
