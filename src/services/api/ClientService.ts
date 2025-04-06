@@ -48,29 +48,7 @@ export class ClientService extends BaseService {
     return null;
   }
 
-  // Client login
-  async loginClient(credentials: ClientLoginRequest): Promise<ApiResponse<any>> {
-    if (!credentials.email || !credentials.password) {
-      return { error: 'Email and password are required', status: 400, success: false };
-    }
-    
-    const emailError = this.validateEmail(credentials.email);
-    if (emailError) return { error: emailError, status: 400, success: false };
-    
-    return this.handleResponse(apiClient.post(`/${this.endpoint}/auth/login`, credentials));
-  }
-
-  // Client registration
-  async registerClient(client: ClientRegisterRequest): Promise<ApiResponse<Client>> {
-    const validationError = this.validateClient(client as Client);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}/auth/register`, client));
-  }
-
-  // Client personal information (requires client authentication)
+  // Client personal information (client-side endpoints)
   async getPersonalInfo(): Promise<ApiResponse<Client>> {
     return this.handleResponse<Client>(apiClient.get(`/${this.endpoint}/personal`));
   }

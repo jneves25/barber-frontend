@@ -89,18 +89,6 @@ export class AppointmentService extends BaseService {
     return this.handleResponse<Appointment>(apiClient.get(`/${this.endpoint}/${id}`));
   }
 
-  async getByCompany(companyId: number): Promise<ApiResponse<Appointment[]>> {
-    return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}/company/${companyId}`));
-  }
-
-  async getByBarber(userId: number): Promise<ApiResponse<Appointment[]>> {
-    return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}/barber/${userId}`));
-  }
-
-  async getByClient(clientId: number): Promise<ApiResponse<Appointment[]>> {
-    return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}/client/${clientId}`));
-  }
-
   async create(appointment: Appointment): Promise<ApiResponse<Appointment>> {
     const validationError = this.validateAppointment(appointment);
     if (validationError) {
@@ -135,59 +123,17 @@ export class AppointmentService extends BaseService {
     return this.handleResponse<Appointment>(apiClient.put(`/${this.endpoint}/${id}`, appointment));
   }
 
-  async updateStatus(id: number, status: AppointmentStatusEnum): Promise<ApiResponse<Appointment>> {
-    if (!Object.values(AppointmentStatusEnum).includes(status)) {
-      return { error: 'Invalid appointment status', status: 400, success: false };
-    }
-    
-    return this.handleResponse<Appointment>(apiClient.patch(`/${this.endpoint}/${id}/status`, { status }));
-  }
-
   async delete(id: number): Promise<ApiResponse<void>> {
     return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
-  }
-
-  // Add service to appointment
-  async addService(appointmentId: number, serviceAppointment: ServiceAppointment): Promise<ApiResponse<ServiceAppointment>> {
-    const validationError = this.validateServiceAppointment(serviceAppointment);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<ServiceAppointment>(
-      apiClient.post(`/${this.endpoint}/${appointmentId}/services`, serviceAppointment)
-    );
-  }
-
-  // Remove service from appointment
-  async removeService(appointmentId: number, serviceId: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(
-      apiClient.delete(`/${this.endpoint}/${appointmentId}/services/${serviceId}`)
-    );
-  }
-
-  // Add product to appointment
-  async addProduct(appointmentId: number, productAppointment: ProductAppointment): Promise<ApiResponse<ProductAppointment>> {
-    const validationError = this.validateProductAppointment(productAppointment);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<ProductAppointment>(
-      apiClient.post(`/${this.endpoint}/${appointmentId}/products`, productAppointment)
-    );
-  }
-
-  // Remove product from appointment
-  async removeProduct(appointmentId: number, productId: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(
-      apiClient.delete(`/${this.endpoint}/${appointmentId}/products/${productId}`)
-    );
   }
   
   // Client side appointments
   async getClientAppointments(): Promise<ApiResponse<Appointment[]>> {
     return this.handleResponse<Appointment[]>(apiClient.get(`/client/appointment`));
+  }
+  
+  async getClientAppointmentById(id: number): Promise<ApiResponse<Appointment>> {
+    return this.handleResponse<Appointment>(apiClient.get(`/client/appointment/${id}`));
   }
   
   async createClientAppointment(appointment: Appointment): Promise<ApiResponse<Appointment>> {
@@ -197,15 +143,6 @@ export class AppointmentService extends BaseService {
     }
     
     return this.handleResponse<Appointment>(apiClient.post(`/client/appointment`, appointment));
-  }
-  
-  async updateClientAppointment(id: number, appointment: Appointment): Promise<ApiResponse<Appointment>> {
-    const validationError = this.validateAppointment(appointment);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<Appointment>(apiClient.put(`/client/appointment/${id}`, appointment));
   }
   
   async cancelClientAppointment(id: number): Promise<ApiResponse<void>> {

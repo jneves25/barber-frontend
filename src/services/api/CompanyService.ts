@@ -106,14 +106,6 @@ export class CompanyService extends BaseService {
   }
 
   // Companies CRUD operations
-  async getAll(): Promise<ApiResponse<Company[]>> {
-    return this.handleResponse<Company[]>(apiClient.get(`/${this.endpoint}`));
-  }
-
-  async getById(id: number): Promise<ApiResponse<Company>> {
-    return this.handleResponse<Company>(apiClient.get(`/${this.endpoint}/${id}`));
-  }
-
   async create(company: Company): Promise<ApiResponse<Company>> {
     const validationError = this.validateCompany(company);
     if (validationError) {
@@ -134,6 +126,16 @@ export class CompanyService extends BaseService {
 
   async delete(id: number): Promise<ApiResponse<void>> {
     return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
+  }
+
+  // Get companies by user info
+  async getCompaniesByUserInfo(): Promise<ApiResponse<Company[]>> {
+    return this.handleResponse<Company[]>(apiClient.get(`/${this.endpoint}/user`));
+  }
+  
+  // Get company by ID
+  async getById(id: number): Promise<ApiResponse<Company>> {
+    return this.handleResponse<Company>(apiClient.get(`/${this.endpoint}/${id}`));
   }
 
   // Company Settings

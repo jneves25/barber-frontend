@@ -75,6 +75,11 @@ export class UserService extends BaseService {
     return this.handleResponse<User[]>(apiClient.get(`/${this.endpoint}`));
   }
 
+  // Get user info (current user)
+  async getUserInfo(): Promise<ApiResponse<User>> {
+    return this.handleResponse<User>(apiClient.get(`/${this.endpoint}/me`));
+  }
+
   // Get user by ID
   async getById(id: number): Promise<ApiResponse<User>> {
     return this.handleResponse<User>(apiClient.get(`/${this.endpoint}/${id}`));

@@ -56,6 +56,13 @@ apiClient.interceptors.response.use(
     else if (status && status >= 500) {
       toast.error('Erro no servidor. Por favor, tente novamente mais tarde.');
     }
+    // Handle other client errors with custom messages
+    else if (error.response?.data) {
+      const errorMessage = typeof error.response.data === 'string' 
+        ? error.response.data 
+        : 'Ocorreu um erro na requisição';
+      toast.error(errorMessage);
+    }
     
     return Promise.reject(error);
   }

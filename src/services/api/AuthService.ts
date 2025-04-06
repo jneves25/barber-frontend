@@ -7,7 +7,6 @@ import { Client } from './ClientService';
 export interface LoginRequest {
   email: string;
   password: string;
-  type: 'user' | 'client';
 }
 
 export interface AuthResponse {
@@ -35,15 +34,11 @@ export class AuthService extends BaseService {
   }
 
   validateLogin(loginRequest: LoginRequest): string | null {
-    const requiredError = this.validateRequired(loginRequest, ['email', 'password', 'type']);
+    const requiredError = this.validateRequired(loginRequest, ['email', 'password']);
     if (requiredError) return requiredError;
     
     const emailError = this.validateEmail(loginRequest.email);
     if (emailError) return emailError;
-    
-    if (!['user', 'client'].includes(loginRequest.type)) {
-      return 'Invalid login type';
-    }
     
     return null;
   }
@@ -82,24 +77,26 @@ export class AuthService extends BaseService {
     return null;
   }
 
-  async login(loginRequest: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    const validationError = this.validateLogin(loginRequest);
+  // User authentication (admin side)
+  async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+    const validationError = this.validateLogin(credentials);
     if (validationError) {
       return { error: validationError, status: 400, success: false };
     }
     
     const response = await this.handleResponse<AuthResponse>(
-      apiClient.post(`/${this.endpoint}/login`, loginRequest)
+      apiClient.post(`/${this.endpoint}/login`, credentials)
     );
     
     if (response.success && response.data?.token) {
       localStorage.setItem('auth_token', response.data.token);
+      localStorage.setItem('user_type', 'user');
     }
     
     return response;
   }
 
-  async registerUser(registerRequest: RegisterUserRequest): Promise<ApiResponse<AuthResponse>> {
+  async register(registerRequest: RegisterUserRequest): Promise<ApiResponse<AuthResponse>> {
     const validationError = this.validateRegisterUser(registerRequest);
     if (validationError) {
       return { error: validationError, status: 400, success: false };
@@ -111,6 +108,26 @@ export class AuthService extends BaseService {
     
     if (response.success && response.data?.token) {
       localStorage.setItem('auth_token', response.data.token);
+      localStorage.setItem('user_type', 'user');
+    }
+    
+    return response;
+  }
+
+  // Client authentication
+  async loginClient(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
+    const validationError = this.validateLogin(credentials);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    const response = await this.handleResponse<AuthResponse>(
+      apiClient.post(`/client/auth/login`, credentials)
+    );
+    
+    if (response.success && response.data?.token) {
+      localStorage.setItem('auth_token', response.data.token);
+      localStorage.setItem('user_type', 'client');
     }
     
     return response;
@@ -128,25 +145,6 @@ export class AuthService extends BaseService {
     
     if (response.success && response.data?.token) {
       localStorage.setItem('auth_token', response.data.token);
-    }
-    
-    return response;
-  }
-  
-  async loginClient(credentials: { email: string; password: string }): Promise<ApiResponse<AuthResponse>> {
-    if (!credentials.email || !credentials.password) {
-      return { error: 'Email and password are required', status: 400, success: false };
-    }
-    
-    const emailError = this.validateEmail(credentials.email);
-    if (emailError) return { error: emailError, status: 400, success: false };
-    
-    const response = await this.handleResponse<AuthResponse>(
-      apiClient.post(`/client/auth/login`, credentials)
-    );
-    
-    if (response.success && response.data?.token) {
-      localStorage.setItem('auth_token', response.data.token);
       localStorage.setItem('user_type', 'client');
     }
     
@@ -158,8 +156,8 @@ export class AuthService extends BaseService {
     localStorage.removeItem('user_type');
   }
 
-  async getCurrentUser(): Promise<ApiResponse<User | Client>> {
-    return this.handleResponse<User | Client>(apiClient.get(`/${this.endpoint}/me`));
+  async getCurrentUser(): Promise<ApiResponse<User>> {
+    return this.handleResponse<User>(apiClient.get(`/user/me`));
   }
 
   isAuthenticated(): boolean {
