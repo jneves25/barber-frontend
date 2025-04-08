@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,9 +27,8 @@ import {
 } from '@/components/ui/table';
 import { ShoppingCart, Package, X, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Product } from '@/pages/admin/Products';
+import { Product } from '@/services/api/ServiceProductService';
 
-// Mock data for products - now with stock property
 const mockProducts = [
   {
     id: '1',
@@ -98,12 +96,10 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
     const existingItemIndex = orderItems.findIndex(item => item.productId === selectedProduct.id);
     
     if (existingItemIndex >= 0) {
-      // Update existing item
       const updatedItems = [...orderItems];
       updatedItems[existingItemIndex].quantity += quantity;
       setOrderItems(updatedItems);
     } else {
-      // Add new item
       const newItem: OrderItem = {
         id: Math.random().toString(36).substring(2, 9),
         productId: selectedProduct.id,
@@ -136,7 +132,6 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
   };
 
   const handleFinishOrder = () => {
-    // In a real app, this would send the order to the server
     toast({
       title: "Comanda finalizada",
       description: `Comanda de ${clientName} finalizada no valor de R$ ${totalOrder.toFixed(2)}.`
@@ -231,7 +226,6 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
         </SheetContent>
       </Sheet>
 
-      {/* Dialog to select products */}
       <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -291,7 +285,6 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Quantity selection dialog */}
       <Dialog 
         open={isAddProductOpen && selectedProduct !== null} 
         onOpenChange={(open) => {
