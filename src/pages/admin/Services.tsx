@@ -2,15 +2,46 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scissors, Clock, DollarSign, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Scissors, Clock, DollarSign, Edit, Trash2, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import ServiceProductService, { Service } from '@/services/api/ServiceProductService';
 import { toast } from 'sonner';
+
+interface ServiceForm {
+  id?: number;
+  name: string;
+  description: string;
+  price: number;
+  duration: number;
+  companyId: number;
+}
 
 const AdminServices = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [newService, setNewService] = useState<ServiceForm>({
+    name: '',
+    description: '',
+    price: 0,
+    duration: 30,
+    companyId: 1
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchServices();
@@ -19,8 +50,8 @@ const AdminServices = () => {
   const fetchServices = async () => {
     setIsLoading(true);
     try {
-      // Assumindo que o usuário pertence à empresa 1
-      // Em um cenário real, isso viria do contexto do usuário
+      // Assuming user belongs to company 1
+      // In a real scenario, this would come from user context
       const companyId = 1;
       const response = await ServiceProductService.getAllServices(companyId);
       
@@ -50,10 +81,77 @@ const AdminServices = () => {
         }
       } catch (error) {
         toast.error('Erro ao conectar com o servidor');
+        console.error(error);
       } finally {
         setIsDeleting(null);
       }
     }
+  };
+
+  const handleAddService = async () => {
+    setIsSubmitting(true);
+    try {
+      // Validate service data on client-side before sending request
+      if (!newService.name || newService.price <= 0 || newService.duration <= 0) {
+        toast.error('Preencha todos os campos obrigatórios');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const response = await ServiceProductService.createService(newService);
+      
+      if (response.success && response.data) {
+        setServices([...services, response.data]);
+        setNewService({
+          name: '',
+          description: '',
+          price: 0,
+          duration: 30,
+          companyId: 1
+        });
+        setIsAddDialogOpen(false);
+        toast.success(`${response.data.name} foi adicionado com sucesso.`);
+        fetchServices();
+      } else {
+        toast.error(response.error || 'Erro ao adicionar serviço');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditService = async () => {
+    if (!selectedService || !selectedService.id) return;
+    
+    setIsSubmitting(true);
+    try {
+      const response = await ServiceProductService.updateService(selectedService.id, selectedService);
+      
+      if (response.success && response.data) {
+        const updatedServices = services.map(s => 
+          s.id === selectedService.id ? response.data! : s
+        );
+        setServices(updatedServices);
+        setSelectedService(null);
+        setIsEditDialogOpen(false);
+        toast.success(`${response.data.name} foi atualizado com sucesso.`);
+      } else {
+        toast.error(response.error || 'Erro ao atualizar serviço');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (service: Service) => {
+    setSelectedService(service);
+    setIsEditDialogOpen(true);
   };
 
   // Calculate statistics
@@ -70,7 +168,11 @@ const AdminServices = () => {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-800">Serviços</h1>
-          <Button className="bg-barber-500 hover:bg-barber-600">
+          <Button 
+            className="bg-barber-500 hover:bg-barber-600" 
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
             Novo Serviço
           </Button>
         </div>
@@ -106,7 +208,11 @@ const AdminServices = () => {
                         <td className="p-3 border-b border-gray-100">{service.description}</td>
                         <td className="p-3 border-b border-gray-100">
                           <div className="flex space-x-2">
-                            <button className="p-1 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                            <button 
+                              className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
+                              title="Editar"
+                              onClick={() => openEditDialog(service)}
+                            >
                               <Edit className="h-4 w-4" />
                             </button>
                             <button 
@@ -177,6 +283,140 @@ const AdminServices = () => {
           </Card>
         </div>
       </div>
+
+      {/* Add Service Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Serviço</DialogTitle>
+            <DialogDescription>
+              Preencha os detalhes do serviço abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome do Serviço</Label>
+              <Input
+                id="name"
+                value={newService.name}
+                onChange={(e) => setNewService({...newService, name: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={newService.description}
+                onChange={(e) => setNewService({...newService, description: e.target.value})}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="price">Preço (R$)</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newService.price}
+                  onChange={(e) => setNewService({...newService, price: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="duration">Duração (min)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min="1"
+                  value={newService.duration}
+                  onChange={(e) => setNewService({...newService, duration: parseInt(e.target.value) || 30})}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSubmitting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddService} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adicionando...
+                </>
+              ) : 'Adicionar Serviço'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Service Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Serviço</DialogTitle>
+            <DialogDescription>
+              Atualize os detalhes do serviço abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedService && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Nome do Serviço</Label>
+                <Input
+                  id="edit-name"
+                  value={selectedService.name}
+                  onChange={(e) => setSelectedService({...selectedService, name: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-description">Descrição</Label>
+                <Textarea
+                  id="edit-description"
+                  value={selectedService.description}
+                  onChange={(e) => setSelectedService({...selectedService, description: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-price">Preço (R$)</Label>
+                  <Input
+                    id="edit-price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={selectedService.price}
+                    onChange={(e) => setSelectedService({...selectedService, price: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-duration">Duração (min)</Label>
+                  <Input
+                    id="edit-duration"
+                    type="number"
+                    min="1"
+                    value={selectedService.duration}
+                    onChange={(e) => setSelectedService({...selectedService, duration: parseInt(e.target.value) || 30})}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditService} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

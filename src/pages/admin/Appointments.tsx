@@ -1,40 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarIcon, Clock, User, Edit, Trash2, Check, DollarSign, Filter } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Edit, Trash2, Check, DollarSign, Filter, Loader2 } from 'lucide-react';
 import { format, isBefore, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import OrderEditModal from '@/components/appointment/OrderEditModal';
-
-// Tipo para agendamentos e itens do pedido
-interface OrderItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-  type: 'service' | 'product';
-}
-
-interface Appointment {
-  id: number;
-  clientName: string;
-  service: string;
-  price: number;
-  barber: string;
-  date: string; // ISO string
-  time: string;
-  status: 'pending' | 'completed' | 'open';
-  orderItems?: OrderItem[];
-}
+import AppointmentService, { Appointment, AppointmentStatusEnum } from '@/services/api/AppointmentService';
 
 const AdminAppointments = () => {
   // Estado para data selecionada
@@ -45,27 +23,47 @@ const AdminAppointments = () => {
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   
-  // Estado para agendamentos (expandido com itens de comanda)
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    { id: 1, clientName: 'João Silva', service: 'Corte de Cabelo', price: 50, barber: 'Carlos Silva', date: '2023-10-10', time: '14:00', status: 'completed' },
-    { id: 2, clientName: 'Pedro Oliveira', service: 'Barba', price: 35, barber: 'Ricardo Gomes', date: '2023-10-10', time: '15:30', status: 'completed' },
-    { id: 3, clientName: 'Lucas Santos', service: 'Combo Completo', price: 80, barber: 'André Santos', date: new Date().toISOString().split('T')[0], time: '10:00', status: 'pending' },
-    { id: 4, clientName: 'Marcos Pereira', service: 'Corte Degradê', price: 60, barber: 'Felipe Costa', date: new Date().toISOString().split('T')[0], time: '16:00', status: 'open', orderItems: [
-      { id: 101, name: 'Corte Degradê', price: 60, quantity: 1, type: 'service' },
-      { id: 102, name: 'Pomada Modeladora', price: 39.90, quantity: 1, type: 'product' }
-    ]},
-    { id: 5, clientName: 'Rafael Dias', service: 'Corte e Barba', price: 70, barber: 'Carlos Silva', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], time: '09:00', status: 'pending' },
-    { id: 6, clientName: 'Fernando Lima', service: 'Hidratação', price: 45, barber: 'Ricardo Gomes', date: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0], time: '11:30', status: 'pending' },
-  ]);
+  // Estado para agendamentos
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
+  // Fetch appointments on component mount or when selected date changes
+  useEffect(() => {
+    fetchAppointments();
+  }, [selectedDate]);
+
+  const fetchAppointments = async () => {
+    setIsLoading(true);
+    try {
+      const response = await AppointmentService.getAll();
+      
+      if (response.success && response.data) {
+        setAppointments(response.data);
+      } else {
+        toast.error(response.error || 'Erro ao carregar agendamentos');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filtrar agendamentos pelo barbeiro atual se for um barbeiro
   const userAppointments = user?.role === 'barber' 
-    ? appointments.filter(app => app.barber === user.name) 
+    ? appointments.filter(app => app.userId === user.id) 
     : appointments;
 
   // Filtrar agendamentos pela data selecionada
   const filteredAppointments = selectedDate 
-    ? userAppointments.filter(app => app.date === format(selectedDate, 'yyyy-MM-dd'))
+    ? userAppointments.filter(app => {
+        // Extract date part from createdAt
+        const appDate = app.createdAt ? new Date(app.createdAt).toISOString().split('T')[0] : '';
+        const filterDate = format(selectedDate, 'yyyy-MM-dd');
+        return appDate === filterDate;
+      })
     : userAppointments;
 
   // Handler para abrir o modal de edição de comanda
@@ -75,31 +73,50 @@ const AdminAppointments = () => {
   };
 
   // Handler para salvar a comanda editada
-  const handleSaveOrder = (appointment: Appointment, items: OrderItem[]) => {
-    // Calcula o novo preço total baseado nos itens
-    const newTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    
-    setAppointments(appointments.map(app => 
-      app.id === appointment.id 
-        ? { 
-            ...app, 
-            price: newTotal,
-            orderItems: items,
-            // Se estava pendente, muda para comanda aberta
-            status: app.status === 'pending' ? 'open' : app.status
-          } 
-        : app
-    ));
+  const handleSaveOrder = async (appointment: Appointment) => {
+    try {
+      const response = await AppointmentService.update(appointment.id!, appointment);
+      
+      if (response.success && response.data) {
+        setAppointments(prev => 
+          prev.map(app => app.id === appointment.id ? response.data! : app)
+        );
+        toast.success('Comanda atualizada com sucesso!');
+      } else {
+        toast.error(response.error || 'Erro ao atualizar comanda');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    }
   };
 
-  // Handler para completar um agendamento aberto
-  const handleCompleteService = (id: number) => {
-    setAppointments(prev => 
-      prev.map(app => 
-        app.id === id ? { ...app, status: 'completed' } : app
-      )
-    );
-    toast.success('Serviço finalizado com sucesso!');
+  // Handler para completar um agendamento
+  const handleCompleteService = async (id: number) => {
+    const appointment = appointments.find(app => app.id === id);
+    if (!appointment) return;
+
+    const updatedAppointment = { 
+      ...appointment, 
+      status: AppointmentStatusEnum.COMPLETED,
+      completedAt: new Date().toISOString()
+    };
+
+    try {
+      const response = await AppointmentService.update(id, updatedAppointment);
+      
+      if (response.success) {
+        setAppointments(prev => 
+          prev.map(app => app.id === id ? { ...app, status: AppointmentStatusEnum.COMPLETED } : app)
+        );
+        toast.success('Serviço finalizado com sucesso!');
+      } else {
+        toast.error(response.error || 'Erro ao finalizar serviço');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    }
   };
 
   // Handler para abrir um agendamento pendente
@@ -111,44 +128,54 @@ const AdminAppointments = () => {
   };
 
   // Handler para excluir um agendamento
-  const handleDeleteAppointment = (id: number) => {
-    setAppointments(prev => prev.filter(app => app.id !== id));
-    toast.success('Agendamento removido com sucesso!');
+  const handleDeleteAppointment = async (id: number) => {
+    setIsDeleting(id);
+    try {
+      const response = await AppointmentService.delete(id);
+      
+      if (response.success) {
+        setAppointments(prev => prev.filter(app => app.id !== id));
+        toast.success('Agendamento removido com sucesso!');
+      } else {
+        toast.error(response.error || 'Erro ao remover agendamento');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsDeleting(null);
+    }
   };
 
   // Função para calcular estatísticas do dia
   const getDayStats = () => {
     // Filtrar agendamentos de hoje e pelo barbeiro atual, se aplicável
+    const today = format(new Date(), 'yyyy-MM-dd');
     const todayApps = user?.role === 'barber'
-      ? appointments.filter(app => app.date === format(new Date(), 'yyyy-MM-dd') && app.barber === user.name)
-      : appointments.filter(app => app.date === format(new Date(), 'yyyy-MM-dd'));
+      ? appointments.filter(app => {
+          const appDate = app.createdAt ? new Date(app.createdAt).toISOString().split('T')[0] : '';
+          return appDate === today && app.userId === user.id;
+        })
+      : appointments.filter(app => {
+          const appDate = app.createdAt ? new Date(app.createdAt).toISOString().split('T')[0] : '';
+          return appDate === today;
+        });
     
-    const pendingApps = todayApps.filter(app => app.status === 'pending').length;
-    const completedApps = todayApps.filter(app => app.status === 'completed').length;
-    const openApps = todayApps.filter(app => app.status === 'open').length;
+    const pendingApps = todayApps.filter(app => app.status === AppointmentStatusEnum.PENDING).length;
+    const completedApps = todayApps.filter(app => app.status === AppointmentStatusEnum.COMPLETED).length;
+    const canceledApps = todayApps.filter(app => app.status === AppointmentStatusEnum.CANCELED).length;
     
-    // Calcular o próximo horário
-    const futureApps = todayApps
-      .filter(app => {
-        const [hours, minutes] = app.time.split(':').map(Number);
-        const appTime = new Date();
-        appTime.setHours(hours, minutes);
-        return appTime > new Date();
-      })
-      .sort((a, b) => {
-        const [aHours, aMinutes] = a.time.split(':').map(Number);
-        const [bHours, bMinutes] = b.time.split(':').map(Number);
-        return (aHours * 60 + aMinutes) - (bHours * 60 + bMinutes);
-      });
-
-    const nextApp = futureApps.length > 0 ? futureApps[0] : null;
+    // Get total value from completed appointments
+    const totalValue = todayApps
+      .filter(app => app.status === AppointmentStatusEnum.COMPLETED)
+      .reduce((sum, app) => sum + app.value, 0);
     
     return {
       total: todayApps.length,
       pending: pendingApps,
       completed: completedApps,
-      open: openApps,
-      nextApp
+      canceled: canceledApps,
+      totalValue
     };
   };
 
@@ -206,133 +233,139 @@ const AdminAppointments = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <div className="inline-block min-w-full align-middle">
-                {filteredAppointments.length > 0 ? (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviço</th>
-                        {user?.role !== 'barber' && (
-                          <th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
-                        )}
-                        <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Horário</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredAppointments.map(appointment => {
-                        const isPast = isBefore(parseISO(`${appointment.date}T${appointment.time}`), new Date());
-                        const isToday = format(parseISO(appointment.date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-                        
-                        return (
-                          <tr key={appointment.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-3 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{appointment.clientName}</div>
-                            </td>
-                            <td className="px-3 py-3 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{appointment.service}</div>
-                            </td>
-                            {user?.role !== 'barber' && (
-                              <td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{appointment.barber}</div>
-                              </td>
-                            )}
-                            <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {format(parseISO(appointment.date), 'dd/MM/yyyy')}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{appointment.time}</div>
-                            </td>
-                            <td className="px-3 py-3 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">R$ {appointment.price.toFixed(2)}</div>
-                            </td>
-                            <td className="px-3 py-3 whitespace-nowrap">
-                              <div>
-                                {appointment.status === 'pending' && (
-                                  <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Pendente</Badge>
-                                )}
-                                {appointment.status === 'completed' && (
-                                  <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Finalizado</Badge>
-                                )}
-                                {appointment.status === 'open' && (
-                                  <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Comanda Aberta</Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 whitespace-nowrap">
-                              <div className="flex space-x-2">
-                                {appointment.status === 'pending' && isPast && (
-                                  <button 
-                                    onClick={() => handleOpenService(appointment.id)}
-                                    className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
-                                    title="Abrir comanda"
-                                  >
-                                    <Clock className="h-4 w-4" />
-                                  </button>
-                                )}
-                                
-                                {appointment.status === 'open' && (
-                                  <>
-                                    <button 
-                                      onClick={() => handleOpenOrderModal(appointment)}
-                                      className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
-                                      title="Editar comanda"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </button>
-                                    <button 
-                                      onClick={() => handleCompleteService(appointment.id)}
-                                      className="p-1 text-green-500 hover:text-green-700 transition-colors" 
-                                      title="Finalizar serviço"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </button>
-                                  </>
-                                )}
-                                
-                                {appointment.status === 'completed' && (
-                                  <button 
-                                    onClick={() => handleOpenOrderModal(appointment)}
-                                    className="p-1 text-gray-500 hover:text-gray-700 transition-colors" 
-                                    title="Ver detalhes"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </button>
-                                )}
-                                
-                                <button 
-                                  onClick={() => handleDeleteAppointment(appointment.id)}
-                                  className="p-1 text-red-500 hover:text-red-700 transition-colors" 
-                                  title="Cancelar"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-center py-12">
-                    <h3 className="text-lg font-medium text-gray-500 mb-2">
-                      Nenhum agendamento encontrado
-                    </h3>
-                    <p className="text-gray-400">
-                      Não há agendamentos para esta data.
-                    </p>
-                  </div>
-                )}
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-barber-500" />
               </div>
-            </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="inline-block min-w-full align-middle">
+                  {filteredAppointments.length > 0 ? (
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead>
+                        <tr>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
+                          {user?.role !== 'barber' && (
+                            <th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                          )}
+                          <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredAppointments.map(appointment => {
+                          const isCompleted = appointment.status === AppointmentStatusEnum.COMPLETED;
+                          const isCanceled = appointment.status === AppointmentStatusEnum.CANCELED;
+                          const isPending = appointment.status === AppointmentStatusEnum.PENDING;
+                          
+                          return (
+                            <tr key={appointment.id} className="hover:bg-gray-50">
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">Cliente #{appointment.clientId}</div>
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {appointment.services && appointment.services.length > 0
+                                    ? `${appointment.services.length} serviços`
+                                    : 'Nenhum serviço'
+                                  }
+                                </div>
+                              </td>
+                              {user?.role !== 'barber' && (
+                                <td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
+                                  <div className="text-sm text-gray-900">Barbeiro #{appointment.userId}</div>
+                                </td>
+                              )}
+                              <td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {appointment.createdAt ? format(new Date(appointment.createdAt), 'dd/MM/yyyy') : '-'}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">R$ {appointment.value.toFixed(2)}</div>
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <div>
+                                  {isPending && (
+                                    <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Pendente</Badge>
+                                  )}
+                                  {isCompleted && (
+                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Finalizado</Badge>
+                                  )}
+                                  {isCanceled && (
+                                    <Badge className="bg-red-100 text-red-800 hover:bg-red-200">Cancelado</Badge>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 whitespace-nowrap">
+                                <div className="flex space-x-2">
+                                  {isPending && (
+                                    <button 
+                                      onClick={() => handleOpenService(appointment.id!)}
+                                      className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
+                                      title="Abrir comanda"
+                                    >
+                                      <Clock className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  
+                                  {!isCanceled && (
+                                    <>
+                                      <button 
+                                        onClick={() => handleOpenOrderModal(appointment)}
+                                        className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
+                                        title="Editar comanda"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </button>
+                                      
+                                      {!isCompleted && (
+                                        <button 
+                                          onClick={() => handleCompleteService(appointment.id!)}
+                                          className="p-1 text-green-500 hover:text-green-700 transition-colors" 
+                                          title="Finalizar serviço"
+                                        >
+                                          <Check className="h-4 w-4" />
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                  
+                                  <button 
+                                    onClick={() => handleDeleteAppointment(appointment.id!)}
+                                    className="p-1 text-red-500 hover:text-red-700 transition-colors" 
+                                    title="Cancelar"
+                                    disabled={isDeleting === appointment.id}
+                                  >
+                                    {isDeleting === appointment.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-12">
+                      <h3 className="text-lg font-medium text-gray-500 mb-2">
+                        Nenhum agendamento encontrado
+                      </h3>
+                      <p className="text-gray-400">
+                        Não há agendamentos para esta data.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -347,44 +380,34 @@ const AdminAppointments = () => {
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
               <p className="text-xs text-gray-500 mt-1">
-                <span className="text-yellow-500">{stats.pending} pendentes</span> • <span className="text-green-500">{stats.completed} finalizados</span>
+                <span className="text-yellow-500">{stats.pending} pendentes</span> • 
+                <span className="text-green-500"> {stats.completed} finalizados</span>
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Próximo Horário</CardTitle>
+              <CardTitle className="text-sm font-medium">Agendamentos Pendentes</CardTitle>
               <Clock className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              {stats.nextApp ? (
-                <>
-                  <div className="text-2xl font-bold">{stats.nextApp.time}</div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {stats.nextApp.clientName} - {stats.nextApp.service}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">--:--</div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Nenhum agendamento pendente hoje
-                  </p>
-                </>
-              )}
+              <div className="text-2xl font-bold">{stats.pending}</div>
+              <p className="text-xs text-gray-500 mt-1">
+                Aguardando atendimento
+              </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Comandas Abertas</CardTitle>
-              <Clock className="h-4 w-4 text-gray-500" />
+              <CardTitle className="text-sm font-medium">Agendamentos Concluídos</CardTitle>
+              <Check className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.open}</div>
+              <div className="text-2xl font-bold">{stats.completed}</div>
               <p className="text-xs text-gray-500 mt-1">
-                Serviços aguardando finalização
+                Serviços finalizados hoje
               </p>
             </CardContent>
           </Card>
@@ -398,33 +421,10 @@ const AdminAppointments = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                R$ {(user?.role === 'barber' 
-                  ? appointments
-                      .filter(app => 
-                        app.date === format(new Date(), 'yyyy-MM-dd') && 
-                        app.status === 'completed' &&
-                        app.barber === user.name
-                      )
-                  : appointments
-                      .filter(app => 
-                        app.date === format(new Date(), 'yyyy-MM-dd') && 
-                        app.status === 'completed'
-                      )
-                  ).reduce((sum, app) => sum + app.price, 0)
-                  .toFixed(2)}
+                R$ {stats.totalValue.toFixed(2)}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {(user?.role === 'barber'
-                  ? appointments.filter(app => 
-                      app.date === format(new Date(), 'yyyy-MM-dd') && 
-                      app.status === 'completed' &&
-                      app.barber === user.name
-                    )
-                  : appointments.filter(app => 
-                      app.date === format(new Date(), 'yyyy-MM-dd') && 
-                      app.status === 'completed'
-                    )
-                ).length} serviços finalizados
+                {stats.completed} serviços finalizados
               </p>
             </CardContent>
           </Card>

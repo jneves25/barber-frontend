@@ -5,14 +5,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, Phone, Mail, User, Edit, Trash2, Loader2 } from 'lucide-react';
-import ClientService, { Client } from '@/services/api/ClientService';
+import ClientService, { Client, ClientRegisterRequest } from '@/services/api/ClientService';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const AdminClients = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  
+  // Add state for client form and modal
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [newClient, setNewClient] = useState<ClientRegisterRequest>({
+    name: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchClients();
@@ -29,6 +50,7 @@ const AdminClients = () => {
       }
     } catch (error) {
       toast.error('Erro ao conectar com o servidor');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -36,14 +58,13 @@ const AdminClients = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Filter clients by name or email containing searchTerm
-    // This is a client-side filter, in a real app you might want a server-side search
+    // Client-side filter - could be replaced with a server-side search in a real app
     if (!searchTerm) {
       fetchClients();
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteClient = async (id: number) => {
     if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
       setIsDeleting(id);
       try {
@@ -56,10 +77,78 @@ const AdminClients = () => {
         }
       } catch (error) {
         toast.error('Erro ao conectar com o servidor');
+        console.error(error);
       } finally {
         setIsDeleting(null);
       }
     }
+  };
+
+  // Function to create a new client
+  const handleAddClient = async () => {
+    setIsSubmitting(true);
+    try {
+      // Validate client data on client-side before sending request
+      if (!newClient.name || !newClient.email || !newClient.phone || !newClient.password) {
+        toast.error('Preencha todos os campos obrigatórios');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Backend already has validation methods too
+      const response = await ClientService.createClient(newClient);
+      
+      if (response.success && response.data) {
+        setClients([...clients, response.data]);
+        setNewClient({
+          name: '',
+          email: '',
+          phone: '',
+          password: ''
+        });
+        setIsAddDialogOpen(false);
+        toast.success(`${response.data.name} foi adicionado com sucesso.`);
+      } else {
+        toast.error(response.error || 'Erro ao adicionar cliente');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Function to edit a client
+  const handleEditClient = async () => {
+    if (!selectedClient || !selectedClient.id) return;
+    
+    setIsSubmitting(true);
+    try {
+      const response = await ClientService.updatePersonalInfo(selectedClient.id, selectedClient);
+      
+      if (response.success && response.data) {
+        const updatedClients = clients.map(c => 
+          c.id === selectedClient.id ? response.data! : c
+        );
+        setClients(updatedClients);
+        setSelectedClient(null);
+        setIsEditDialogOpen(false);
+        toast.success(`${response.data.name} foi atualizado com sucesso.`);
+      } else {
+        toast.error(response.error || 'Erro ao atualizar cliente');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (client: Client) => {
+    setSelectedClient(client);
+    setIsEditDialogOpen(true);
   };
 
   const filteredClients = searchTerm 
@@ -74,7 +163,10 @@ const AdminClients = () => {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-2xl font-bold">Clientes</h1>
-          <button className="bg-barber-500 text-white px-4 py-2 rounded-md w-full sm:w-auto">
+          <button 
+            className="bg-barber-500 text-white px-4 py-2 rounded-md w-full sm:w-auto"
+            onClick={() => setIsAddDialogOpen(true)}
+          >
             Novo Cliente
           </button>
         </div>
@@ -132,13 +224,17 @@ const AdminClients = () => {
                             </td>
                             <td className="px-3 py-3 whitespace-nowrap">
                               <div className="flex space-x-2">
-                                <button className="p-1 text-blue-500 hover:text-blue-700 transition-colors" title="Editar">
+                                <button 
+                                  className="p-1 text-blue-500 hover:text-blue-700 transition-colors" 
+                                  title="Editar"
+                                  onClick={() => openEditDialog(client)}
+                                >
                                   <Edit className="h-4 w-4" />
                                 </button>
                                 <button 
                                   className="p-1 text-red-500 hover:text-red-700 transition-colors" 
                                   title="Excluir" 
-                                  onClick={() => handleDelete(client.id!)}
+                                  onClick={() => handleDeleteClient(client.id!)}
                                   disabled={isDeleting === client.id}
                                 >
                                   {isDeleting === client.id ? (
@@ -221,6 +317,123 @@ const AdminClients = () => {
           </Card>
         </div>
       </div>
+
+      {/* Add Client Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Cliente</DialogTitle>
+            <DialogDescription>
+              Preencha os detalhes do cliente abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input
+                id="name"
+                value={newClient.name}
+                onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newClient.email}
+                onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={newClient.phone}
+                onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
+                placeholder="+55 (00) 00000-0000"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newClient.password}
+                onChange={(e) => setNewClient({...newClient, password: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSubmitting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddClient} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adicionando...
+                </>
+              ) : 'Adicionar Cliente'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Client Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>
+              Atualize os detalhes do cliente abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedClient && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input
+                  id="edit-name"
+                  value={selectedClient.name}
+                  onChange={(e) => setSelectedClient({...selectedClient, name: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={selectedClient.email}
+                  onChange={(e) => setSelectedClient({...selectedClient, email: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-phone">Telefone</Label>
+                <Input
+                  id="edit-phone"
+                  value={selectedClient.phone}
+                  onChange={(e) => setSelectedClient({...selectedClient, phone: e.target.value})}
+                  placeholder="+55 (00) 00000-0000"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditClient} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

@@ -78,6 +78,29 @@ export class ClientService extends BaseService {
   async getByBarber(): Promise<ApiResponse<Client[]>> {
     return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}/barber`));
   }
+  
+  // New methods for CRUD operations
+  async createClient(client: ClientRegisterRequest): Promise<ApiResponse<Client>> {
+    const validationError = this.validateClient(client as Client);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}`, client));
+  }
+  
+  async updateClient(id: number, client: Client): Promise<ApiResponse<Client>> {
+    const validationError = this.validateClient(client);
+    if (validationError) {
+      return { error: validationError, status: 400, success: false };
+    }
+    
+    return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/${id}`, client));
+  }
+  
+  async deleteClient(id: number): Promise<ApiResponse<void>> {
+    return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
+  }
 }
 
 export default new ClientService();
