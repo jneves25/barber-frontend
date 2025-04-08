@@ -2,6 +2,12 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { toast } from 'sonner';
 
+// Define an interface for the error response structure
+interface ErrorResponse {
+  message?: string;
+  [key: string]: any;
+}
+
 // Base API configuration
 const apiClient: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
@@ -58,9 +64,11 @@ apiClient.interceptors.response.use(
     }
     // Handle other client errors with custom messages
     else if (error.response?.data) {
-      const errorMessage = typeof error.response.data === 'string' 
-        ? error.response.data 
-        : error.response.data.message || 'Ocorreu um erro na requisição';
+      // Cast the data to our error response interface
+      const errorData = error.response.data as ErrorResponse | string;
+      const errorMessage = typeof errorData === 'string' 
+        ? errorData 
+        : errorData.message || 'Ocorreu um erro na requisição';
       toast.error(errorMessage);
     }
     
