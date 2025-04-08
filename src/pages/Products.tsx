@@ -1,48 +1,48 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { ProductCard } from '@/components/ProductCard';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-
-// Mock data - in a real app, this would come from an API
-// Updated to include stock property
-const mockProducts = [
-  {
-    id: '1',
-    name: 'Pomada Modeladora',
-    description: 'Pomada modeladora para cabelo com fixação forte',
-    price: 45.90,
-    image: 'https://images.unsplash.com/photo-1581075487814-fbcaa48eb06b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 24
-  },
-  {
-    id: '2',
-    name: 'Shampoo Anti-queda',
-    description: 'Shampoo especial para combater a queda de cabelo',
-    price: 38.50,
-    image: 'https://images.unsplash.com/photo-1583209814683-c023dd293cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 18
-  },
-  {
-    id: '3',
-    name: 'Óleo para Barba',
-    description: 'Óleo hidratante para barba com aroma de madeira',
-    price: 29.90,
-    image: 'https://images.unsplash.com/photo-1533484211272-98ffdb2a0cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 32
-  },
-];
+import ServiceProductService, { Product } from '@/services/api/ServiceProductService';
+import { toast } from 'sonner';
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { user, hasPermission } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Determinar se o usuário pode ver o estoque
   const canViewStock = user && (user.role === 'admin' || hasPermission('manage_products'));
   
-  const filteredProducts = mockProducts.filter(product => 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      // Assumindo que o usuário pertence à empresa 1 
+      // Em um cenário real, isso viria do contexto do usuário
+      const companyId = 1;
+      const response = await ServiceProductService.getAllProducts(companyId);
+      
+      if (response.success && response.data) {
+        setProducts(response.data);
+      } else {
+        toast.error(response.error || 'Erro ao carregar produtos');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -65,7 +65,11 @@ const ProductsPage = () => {
           />
         </div>
         
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-barber-500" />
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">Nenhum produto encontrado.</p>
           </div>
@@ -74,11 +78,11 @@ const ProductsPage = () => {
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
-                id={product.id}
+                id={String(product.id)}
                 name={product.name}
                 description={product.description}
                 price={product.price}
-                image={product.image}
+                image={product.imageUrl}
                 stock={product.stock}
                 viewOnly={!canViewStock}
               />

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,104 +20,135 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Loader2 } from 'lucide-react';
 import { ProductCard } from '@/components/ProductCard';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import ServiceProductService, { Product } from '@/services/api/ServiceProductService';
 
-// Mock data for products
-const mockProducts = [
-  {
-    id: '1',
-    name: 'Pomada Modeladora',
-    description: 'Pomada modeladora para cabelo com fixação forte',
-    price: 45.90,
-    image: 'https://images.unsplash.com/photo-1581075487814-fbcaa48eb06b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 24
-  },
-  {
-    id: '2',
-    name: 'Shampoo Anti-queda',
-    description: 'Shampoo especial para combater a queda de cabelo',
-    price: 38.50,
-    image: 'https://images.unsplash.com/photo-1583209814683-c023dd293cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 18
-  },
-  {
-    id: '3',
-    name: 'Óleo para Barba',
-    description: 'Óleo hidratante para barba com aroma de madeira',
-    price: 29.90,
-    image: 'https://images.unsplash.com/photo-1533484211272-98ffdb2a0cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 32
-  },
-];
-
-export interface Product {
-  id: string;
+interface ProductForm {
+  id?: number;
   name: string;
   description: string;
   price: number;
-  image?: string;
+  imageUrl: string;
   stock: number;
+  companyId: number;
 }
 
 const Products = () => {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [newProduct, setNewProduct] = useState<Omit<Product, 'id'>>({
+  const [newProduct, setNewProduct] = useState<ProductForm>({
     name: '',
     description: '',
     price: 0,
-    image: '',
-    stock: 0
+    imageUrl: '',
+    stock: 0,
+    companyId: 1
   });
-  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
-  const handleAddProduct = () => {
-    const id = Math.random().toString(36).substring(2, 9);
-    const productToAdd = { ...newProduct, id };
-    setProducts([...products, productToAdd]);
-    setNewProduct({
-      name: '',
-      description: '',
-      price: 0,
-      image: '',
-      stock: 0
-    });
-    setIsAddDialogOpen(false);
-    toast({
-      title: "Produto adicionado",
-      description: `${productToAdd.name} foi adicionado com sucesso.`,
-    });
-  };
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-  const handleEditProduct = () => {
-    if (selectedProduct) {
-      const updatedProducts = products.map(p => 
-        p.id === selectedProduct.id ? selectedProduct : p
-      );
-      setProducts(updatedProducts);
-      setSelectedProduct(null);
-      setIsAddDialogOpen(false);
-      toast({
-        title: "Produto atualizado",
-        description: `${selectedProduct.name} foi atualizado com sucesso.`,
-      });
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const companyId = 1;
+      const response = await ServiceProductService.getAllProducts(companyId);
+      
+      if (response.success && response.data) {
+        setProducts(response.data);
+      } else {
+        toast.error(response.error || 'Erro ao carregar produtos');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleDeleteProduct = () => {
-    if (selectedProduct) {
-      setProducts(products.filter(p => p.id !== selectedProduct.id));
-      setIsDeleteDialogOpen(false);
-      setSelectedProduct(null);
-      toast({
-        title: "Produto removido",
-        description: `O produto foi removido com sucesso.`,
-        variant: "destructive",
-      });
+  const handleAddProduct = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await ServiceProductService.createProduct(newProduct);
+      
+      if (response.success && response.data) {
+        setProducts([...products, response.data]);
+        setNewProduct({
+          name: '',
+          description: '',
+          price: 0,
+          imageUrl: '',
+          stock: 0,
+          companyId: 1
+        });
+        setIsAddDialogOpen(false);
+        toast.success(`${response.data.name} foi adicionado com sucesso.`);
+      } else {
+        toast.error(response.error || 'Erro ao adicionar produto');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditProduct = async () => {
+    if (!selectedProduct) return;
+    
+    setIsSubmitting(true);
+    try {
+      const response = await ServiceProductService.updateProduct(selectedProduct.id!, selectedProduct);
+      
+      if (response.success && response.data) {
+        const updatedProducts = products.map(p => 
+          p.id === selectedProduct.id ? response.data : p
+        );
+        setProducts(updatedProducts);
+        setSelectedProduct(null);
+        setIsAddDialogOpen(false);
+        toast.success(`${response.data.name} foi atualizado com sucesso.`);
+      } else {
+        toast.error(response.error || 'Erro ao atualizar produto');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return;
+    
+    setIsDeleting(selectedProduct.id!);
+    try {
+      const response = await ServiceProductService.deleteProduct(selectedProduct.id!);
+      
+      if (response.success) {
+        setProducts(products.filter(p => p.id !== selectedProduct.id));
+        setIsDeleteDialogOpen(false);
+        setSelectedProduct(null);
+        toast.success('O produto foi removido com sucesso.');
+      } else {
+        toast.error(response.error || 'Erro ao remover produto');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+      console.error(error);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -143,8 +173,9 @@ const Products = () => {
               name: '',
               description: '',
               price: 0,
-              image: '',
-              stock: 0
+              imageUrl: '',
+              stock: 0,
+              companyId: 1
             });
             setIsAddDialogOpen(true);
           }}
@@ -155,53 +186,74 @@ const Products = () => {
 
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Produtos Disponíveis</h2>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Imagem</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Preço</TableHead>
-                <TableHead>Estoque</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    {product.image ? (
-                      <img 
-                        src={product.image} 
-                        alt={product.name} 
-                        className="w-12 h-12 object-cover rounded"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                        <span className="text-gray-500 text-xs">Sem imagem</span>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell className="max-w-xs truncate">{product.description}</TableCell>
-                  <TableCell>R$ {product.price.toFixed(2)}</TableCell>
-                  <TableCell>{product.stock} unid.</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="ghost" onClick={() => openEditDialog(product)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => openDeleteDialog(product)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+        {isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-barber-500" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Imagem</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Preço</TableHead>
+                  <TableHead>Estoque</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {products.length > 0 ? products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      {product.imageUrl ? (
+                        <img 
+                          src={product.imageUrl} 
+                          alt={product.name} 
+                          className="w-12 h-12 object-cover rounded"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                          <span className="text-gray-500 text-xs">Sem imagem</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="max-w-xs truncate">{product.description}</TableCell>
+                    <TableCell>R$ {product.price.toFixed(2)}</TableCell>
+                    <TableCell>{product.stock} unid.</TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button size="sm" variant="ghost" onClick={() => openEditDialog(product)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => openDeleteDialog(product)}
+                          disabled={isDeleting === product.id}
+                        >
+                          {isDeleting === product.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">
+                      Nenhum produto encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
@@ -213,18 +265,18 @@ const Products = () => {
           {products.map((product) => (
             <ProductCard 
               key={product.id}
-              id={product.id}
+              id={String(product.id)}
               name={product.name}
               description={product.description}
               price={product.price}
-              image={product.image}
+              image={product.imageUrl}
+              stock={product.stock}
               viewOnly
             />
           ))}
         </div>
       </div>
 
-      {/* Dialog para adicionar/editar produto */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -295,27 +347,33 @@ const Products = () => {
               <Label htmlFor="image">URL da Imagem</Label>
               <Input
                 id="image"
-                value={selectedProduct ? (selectedProduct.image || '') : (newProduct.image || '')}
+                value={selectedProduct ? (selectedProduct.imageUrl || '') : (newProduct.imageUrl || '')}
                 onChange={(e) => selectedProduct 
-                  ? setSelectedProduct({...selectedProduct, image: e.target.value})
-                  : setNewProduct({...newProduct, image: e.target.value})
+                  ? setSelectedProduct({...selectedProduct, imageUrl: e.target.value})
+                  : setNewProduct({...newProduct, imageUrl: e.target.value})
                 }
                 placeholder="https://exemplo.com/imagem.jpg"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button onClick={selectedProduct ? handleEditProduct : handleAddProduct}>
-              {selectedProduct ? 'Salvar Alterações' : 'Adicionar Produto'}
+            <Button onClick={selectedProduct ? handleEditProduct : handleAddProduct} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {selectedProduct ? 'Salvando...' : 'Adicionando...'}
+                </>
+              ) : (
+                selectedProduct ? 'Salvar Alterações' : 'Adicionar Produto'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de confirmação para exclusão */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -326,11 +384,16 @@ const Products = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDeleteProduct}>
-              Excluir
+            <Button variant="destructive" onClick={handleDeleteProduct} disabled={isDeleting !== null}>
+              {isDeleting !== null ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : 'Excluir'}
             </Button>
           </DialogFooter>
         </DialogContent>
