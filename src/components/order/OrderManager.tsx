@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -25,40 +26,13 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { ShoppingCart, Package, X, Plus, Trash2 } from 'lucide-react';
+import { ShoppingCart, Package, X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Product } from '@/services/api/ServiceProductService';
-
-const mockProducts = [
-  {
-    id: '1',
-    name: 'Pomada Modeladora',
-    description: 'Pomada modeladora para cabelo com fixação forte',
-    price: 45.90,
-    image: 'https://images.unsplash.com/photo-1581075487814-fbcaa48eb06b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 24
-  },
-  {
-    id: '2',
-    name: 'Shampoo Anti-queda',
-    description: 'Shampoo especial para combater a queda de cabelo',
-    price: 38.50,
-    image: 'https://images.unsplash.com/photo-1583209814683-c023dd293cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 18
-  },
-  {
-    id: '3',
-    name: 'Óleo para Barba',
-    description: 'Óleo hidratante para barba com aroma de madeira',
-    price: 29.90,
-    image: 'https://images.unsplash.com/photo-1533484211272-98ffdb2a0cc6?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80',
-    stock: 32
-  },
-];
+import ServiceProductService, { Product } from '@/services/api/ServiceProductService';
 
 interface OrderItem {
   id: string;
-  productId: string;
+  productId: number;
   name: string;
   price: number;
   quantity: number;
@@ -76,9 +50,44 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const filteredProducts = mockProducts.filter(product => 
+  useEffect(() => {
+    // Load products when the order dialog is opened
+    if (isOpen) {
+      fetchProducts();
+    }
+  }, [isOpen]);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      // Using company ID 1 for demonstration - in a real app, this would come from a context or prop
+      const companyId = 1;
+      const response = await ServiceProductService.getAllProducts(companyId);
+      
+      if (response.success && response.data) {
+        setProducts(response.data);
+      } else {
+        toast({
+          title: "Erro",
+          description: response.error || "Não foi possível carregar os produtos"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao carregar os produtos"
+      });
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredProducts = products.filter(product => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -102,7 +111,7 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
     } else {
       const newItem: OrderItem = {
         id: Math.random().toString(36).substring(2, 9),
-        productId: selectedProduct.id,
+        productId: selectedProduct.id!,
         name: selectedProduct.name,
         price: selectedProduct.price,
         quantity: quantity
@@ -253,7 +262,13 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProducts.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-6">
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredProducts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center py-6 text-gray-500">
                         Nenhum produto encontrado
@@ -302,9 +317,9 @@ const OrderManager = ({ clientName = 'Cliente' }: OrderManagerProps) => {
           <div className="py-4">
             {selectedProduct && (
               <div className="flex items-center gap-4 mb-4">
-                {selectedProduct.image && (
+                {selectedProduct.imageUrl && (
                   <img
-                    src={selectedProduct.image}
+                    src={selectedProduct.imageUrl}
                     alt={selectedProduct.name}
                     className="w-16 h-16 object-cover rounded"
                   />
