@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Scissors } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import AuthService from '@/services/api/AuthService';
+import { toast } from 'sonner';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -20,10 +22,16 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
-      // O redirecionamento é feito no login
+      const response = await AuthService.login({ email, password });
+      
+      if (response.success && response.data?.token) {
+        toast.success('Login realizado com sucesso!');
+        navigate('/admin/dashboard');
+      } else {
+        toast.error(response.error || 'Erro ao realizar login');
+      }
     } catch (error) {
-      // Tratado no contexto
+      toast.error('Erro ao conectar com o servidor');
     } finally {
       setIsSubmitting(false);
     }

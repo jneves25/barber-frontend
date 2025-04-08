@@ -1,56 +1,22 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Scissors, Calendar, Clock, Star, MapPin, Phone } from 'lucide-react';
+import { Scissors, Calendar, Clock, Star, MapPin, Phone, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormControl } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import ServiceProductService, { Service } from '@/services/api/ServiceProductService';
+import AppointmentService, { Appointment, AppointmentStatusEnum, ServiceAppointment } from '@/services/api/AppointmentService';
+import CompanyService from '@/services/api/CompanyService';
 
-// Example data for services
-const SERVICES = [
-  {
-    id: '1',
-    name: 'Corte de Cabelo',
-    price: 35,
-    duration: 30,
-    image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: '2',
-    name: 'Barba',
-    price: 25,
-    duration: 20,
-    image: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: '3',
-    name: 'Combo (Cabelo + Barba)',
-    price: 55,
-    duration: 50,
-    image: 'https://images.unsplash.com/photo-1599351431613-18ef1fdd27e1?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-  },
-  {
-    id: '4',
-    name: 'Sobrancelha',
-    price: 15,
-    duration: 15,
-    image: 'https://images.unsplash.com/photo-1594516243133-ab71dbceb035?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
-  }
-];
-
-// Example data for barbers
 const BARBERS = [
   { id: '1', name: 'Carlos', image: 'https://randomuser.me/api/portraits/men/32.jpg' },
   { id: '2', name: 'Fernando', image: 'https://randomuser.me/api/portraits/men/35.jpg' },
   { id: '3', name: 'Ricardo', image: 'https://randomuser.me/api/portraits/men/33.jpg' }
 ];
 
-// Example data for time slots
 const TIME_SLOTS = [
   '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'
 ];
@@ -58,12 +24,35 @@ const TIME_SLOTS = [
 const ClientPortal = () => {
   const navigate = useNavigate();
   const form = useForm();
-  const [selectedService, setSelectedService] = React.useState('');
-  const [selectedBarber, setSelectedBarber] = React.useState('');
-  const [selectedDate, setSelectedDate] = React.useState('');
-  const [selectedTime, setSelectedTime] = React.useState('');
+  const [selectedService, setSelectedService] = useState('');
+  const [selectedBarber, setSelectedBarber] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [companyId, setCompanyId] = useState<number>(1);
 
-  // Helper function to safely click tab triggers
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    setIsLoading(true);
+    try {
+      const response = await ServiceProductService.getAllServices(companyId);
+      if (response.success && response.data) {
+        setServices(response.data);
+      } else {
+        toast.error(response.error || 'Erro ao carregar serviços');
+      }
+    } catch (error) {
+      toast.error('Erro ao conectar com o servidor');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const clickTabTrigger = (value: string) => {
     const element = document.querySelector(`[data-value="${value}"]`) as HTMLElement | null;
     if (element) {
@@ -71,21 +60,59 @@ const ClientPortal = () => {
     }
   };
 
-  const handleSubmit = (data: any) => {
-    console.log("Booking submitted:", {
-      service: selectedService,
-      barber: selectedBarber,
-      date: selectedDate,
-      time: selectedTime,
-      ...data
-    });
-    // Here you would typically submit the booking data to your backend
-    alert("Agendamento realizado com sucesso!");
+  const handleSubmit = async (data: any) => {
+    if (!selectedService || !selectedBarber || !selectedDate || !selectedTime) {
+      toast.error("Por favor, preencha todas as informações do agendamento");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const selectedServiceObj = services.find(s => s.id === parseInt(selectedService));
+    
+    if (!selectedServiceObj) {
+      toast.error("Serviço não encontrado");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const appointmentData: Appointment = {
+        clientId: 1,
+        userId: parseInt(selectedBarber),
+        companyId: companyId,
+        services: [{
+          serviceId: parseInt(selectedService),
+          quantity: 1
+        }],
+        products: [],
+        value: selectedServiceObj.price,
+        status: AppointmentStatusEnum.PENDING
+      };
+
+      const response = await AppointmentService.createClientAppointment(appointmentData);
+      
+      if (response.success) {
+        toast.success("Agendamento realizado com sucesso!");
+        form.reset();
+        setSelectedService('');
+        setSelectedBarber('');
+        setSelectedDate('');
+        setSelectedTime('');
+        clickTabTrigger("service");
+      } else {
+        toast.error(response.error || "Erro ao realizar agendamento");
+      }
+    } catch (error) {
+      toast.error("Erro ao processar o agendamento");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="container mx-auto py-4 px-4 flex justify-between items-center">
           <div className="flex items-center space-x-2">
@@ -101,10 +128,8 @@ const ClientPortal = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Shop Info */}
           <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <div className="w-20 h-20 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center">
@@ -134,7 +159,6 @@ const ClientPortal = () => {
             </div>
           </div>
 
-          {/* Booking Form */}
           <div className="bg-white rounded-lg shadow-sm mb-8">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold">Agende seu horário</h2>
@@ -150,39 +174,42 @@ const ClientPortal = () => {
               </TabsList>
 
               <TabsContent value="service" className="p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {SERVICES.map((service) => (
-                    <div 
-                      key={service.id}
-                      className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-                        selectedService === service.id ? 'ring-2 ring-barber-500' : 'hover:border-barber-300'
-                      }`}
-                      onClick={() => setSelectedService(service.id)}
-                    >
-                      <div className="h-32 overflow-hidden">
-                        <img 
-                          src={service.image} 
-                          alt={service.name} 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-medium">{service.name}</h3>
-                        <div className="flex justify-between items-center mt-2">
-                          <div className="flex items-center text-gray-600">
-                            <Clock className="h-4 w-4 mr-1" />
-                            <span className="text-sm">{service.duration} min</span>
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-barber-500" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {services.map((service) => (
+                      <div 
+                        key={service.id}
+                        className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
+                          selectedService === String(service.id) ? 'ring-2 ring-barber-500' : 'hover:border-barber-300'
+                        }`}
+                        onClick={() => setSelectedService(String(service.id))}
+                      >
+                        <div className="h-32 overflow-hidden bg-gray-100 flex items-center justify-center">
+                          <Scissors className="h-12 w-12 text-barber-300" />
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-medium">{service.name}</h3>
+                          <div className="flex justify-between items-center mt-2">
+                            <div className="flex items-center text-gray-600">
+                              <Clock className="h-4 w-4 mr-1" />
+                              <span className="text-sm">{service.duration} min</span>
+                            </div>
+                            <span className="font-bold">R$ {service.price.toFixed(2)}</span>
                           </div>
-                          <span className="font-bold">R$ {service.price}</span>
+                          <p className="text-sm text-gray-500 mt-2 line-clamp-2">{service.description}</p>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-6 flex justify-end">
                   <Button 
-                    disabled={!selectedService} 
+                    disabled={!selectedService || isLoading} 
                     onClick={() => clickTabTrigger("barber")}
                     className="bg-barber-500 hover:bg-barber-600"
                   >
@@ -292,7 +319,7 @@ const ClientPortal = () => {
                       <div>
                         <p className="text-sm text-gray-500">Serviço:</p>
                         <p className="font-medium">
-                          {SERVICES.find(s => s.id === selectedService)?.name || 'Não selecionado'}
+                          {services.find(s => String(s.id) === selectedService)?.name || 'Não selecionado'}
                         </p>
                       </div>
                       <div>
@@ -340,14 +367,23 @@ const ClientPortal = () => {
                       type="button"
                       variant="outline" 
                       onClick={() => clickTabTrigger("date")}
+                      disabled={isSubmitting}
                     >
                       Voltar
                     </Button>
                     <Button 
                       type="submit"
                       className="bg-barber-500 hover:bg-barber-600"
+                      disabled={isSubmitting}
                     >
-                      Confirmar agendamento
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                          Processando...
+                        </>
+                      ) : (
+                        'Confirmar agendamento'
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -357,7 +393,6 @@ const ClientPortal = () => {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="bg-white py-6 border-t border-gray-200">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center">
