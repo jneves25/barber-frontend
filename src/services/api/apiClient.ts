@@ -60,7 +60,7 @@ apiClient.interceptors.response.use(
     else if (error.response?.data) {
       const errorMessage = typeof error.response.data === 'string' 
         ? error.response.data 
-        : 'Ocorreu um erro na requisição';
+        : error.response.data.message || 'Ocorreu um erro na requisição';
       toast.error(errorMessage);
     }
     
