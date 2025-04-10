@@ -1,372 +1,204 @@
-
 import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, X, Check, DollarSign, Edit } from 'lucide-react';
+import { Plus, Minus, X, Check, DollarSign, Edit, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-
-// Tipos de dados
-interface Service {
-  id: number;
-  name: string;
-  price: number;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-}
-
-interface OrderItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-  type: 'service' | 'product';
-}
-
-interface Appointment {
-  id: number;
-  clientName: string;
-  service: string;
-  price: number;
-  barber: string;
-  date: string;
-  time: string;
-  status: 'pending' | 'completed' | 'open';
-  orderItems?: OrderItem[];
-}
+import { Appointment, ServiceAppointment, ProductAppointment } from '@/services/api/AppointmentService';
 
 interface OrderEditModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  appointment: Appointment | null;
-  onSave: (appointment: Appointment, items: OrderItem[]) => void;
+	isOpen: boolean;
+	onClose: () => void;
+	appointment: Appointment | null;
+	onSave: (appointment: Appointment) => Promise<void>;
 }
 
-const MOCK_SERVICES: Service[] = [
-  { id: 1, name: 'Corte de Cabelo', price: 50 },
-  { id: 2, name: 'Barba', price: 35 },
-  { id: 3, name: 'Combo Completo', price: 80 },
-  { id: 4, name: 'Corte Degradê', price: 60 },
-  { id: 5, name: 'Hidratação', price: 45 },
-];
-
-const MOCK_PRODUCTS: Product[] = [
-  { id: 1, name: 'Pomada Modeladora', price: 39.90 },
-  { id: 2, name: 'Cera para Barba', price: 29.90 },
-  { id: 3, name: 'Shampoo Anticaspa', price: 35.90 },
-  { id: 4, name: 'Condicionador', price: 31.90 },
-  { id: 5, name: 'Kit Completo', price: 129.90 },
-];
-
 export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose, appointment, onSave }) => {
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  const [showServiceList, setShowServiceList] = useState(false);
-  const [showProductList, setShowProductList] = useState(false);
-  const { hasPermission } = useAuth();
+	const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const { hasPermission } = useAuth();
 
-  // Inicializar os itens do pedido quando o modal é aberto
-  useEffect(() => {
-    if (appointment && appointment.orderItems) {
-      setOrderItems(appointment.orderItems);
-    } else if (appointment) {
-      // Se não tiver itens, adicionar o serviço principal como primeiro item
-      setOrderItems([
-        { 
-          id: Date.now(), 
-          name: appointment.service, 
-          price: appointment.price, 
-          quantity: 1, 
-          type: 'service' 
-        }
-      ]);
-    } else {
-      setOrderItems([]);
-    }
-  }, [appointment]);
+	useEffect(() => {
+		if (appointment) {
+			setEditedAppointment({ ...appointment });
+		}
+	}, [appointment]);
 
-  // Verificar se o pedido pode ser editado
-  const canEditOrder = (): boolean => {
-    if (!appointment) return false;
-    
-    // Se estiver completado, só pode editar com permissão especial
-    if (appointment.status === 'completed') {
-      return hasPermission('manage_appointments');
-    }
-    
-    // Se estiver aberto, qualquer um com acesso ao modal pode editar
-    return appointment.status === 'open';
-  };
+	const handleServiceQuantityChange = (serviceId: number, quantity: number) => {
+		if (!editedAppointment) return;
 
-  const addService = (service: Service) => {
-    // Verificar se o serviço já existe no pedido
-    const existingItem = orderItems.find(
-      item => item.type === 'service' && item.name === service.name
-    );
+		const updatedServices = editedAppointment.services.map(service => {
+			if (service.serviceId === serviceId) {
+				return { ...service, quantity };
+			}
+			return service;
+		});
 
-    if (existingItem) {
-      // Incrementar a quantidade se já existir
-      setOrderItems(orderItems.map(item => 
-        item.id === existingItem.id 
-          ? { ...item, quantity: item.quantity + 1 } 
-          : item
-      ));
-    } else {
-      // Adicionar novo item ao pedido
-      setOrderItems([
-        ...orderItems, 
-        { 
-          id: Date.now(), 
-          name: service.name, 
-          price: service.price, 
-          quantity: 1, 
-          type: 'service' 
-        }
-      ]);
-    }
-    
-    setShowServiceList(false);
-  };
+		setEditedAppointment({
+			...editedAppointment,
+			services: updatedServices,
+			value: updatedServices.reduce((total, service) =>
+				total + (service.service.price * service.quantity), 0
+			)
+		});
+	};
 
-  const addProduct = (product: Product) => {
-    // Verificar se o produto já existe no pedido
-    const existingItem = orderItems.find(
-      item => item.type === 'product' && item.name === product.name
-    );
+	const handleProductQuantityChange = (productId: number, quantity: number) => {
+		if (!editedAppointment) return;
 
-    if (existingItem) {
-      // Incrementar a quantidade se já existir
-      setOrderItems(orderItems.map(item => 
-        item.id === existingItem.id 
-          ? { ...item, quantity: item.quantity + 1 } 
-          : item
-      ));
-    } else {
-      // Adicionar novo item ao pedido
-      setOrderItems([
-        ...orderItems, 
-        { 
-          id: Date.now(), 
-          name: product.name, 
-          price: product.price, 
-          quantity: 1, 
-          type: 'product' 
-        }
-      ]);
-    }
-    
-    setShowProductList(false);
-  };
+		const updatedProducts = editedAppointment.products.map(product => {
+			if (product.productId === productId) {
+				return { ...product, quantity };
+			}
+			return product;
+		});
 
-  const removeItem = (itemId: number) => {
-    setOrderItems(orderItems.filter(item => item.id !== itemId));
-  };
+		setEditedAppointment({
+			...editedAppointment,
+			products: updatedProducts,
+			value: updatedProducts.reduce((total, product) =>
+				total + (product.product?.price || 0) * product.quantity,
+				editedAppointment.services.reduce((total, service) =>
+					total + (service.service.price * service.quantity), 0
+				)
+			)
+		});
+	};
 
-  const updateItemQuantity = (itemId: number, delta: number) => {
-    setOrderItems(orderItems.map(item => {
-      if (item.id === itemId) {
-        const newQuantity = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQuantity };
-      }
-      return item;
-    }));
-  };
+	const handleSave = async () => {
+		if (!editedAppointment) return;
 
-  const calculateTotal = (): number => {
-    return orderItems.reduce((total, item) => {
-      return total + (item.price * item.quantity);
-    }, 0);
-  };
+		setIsSubmitting(true);
+		try {
+			await onSave(editedAppointment);
+			toast.success('Comanda atualizada com sucesso');
+			onClose();
+		} catch (error) {
+			toast.error('Erro ao atualizar comanda');
+			console.error(error);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
 
-  const handleSave = () => {
-    if (!appointment) return;
-    
-    onSave(appointment, orderItems);
-    toast.success('Comanda atualizada com sucesso!');
-    onClose();
-  };
+	if (!editedAppointment) return null;
 
-  // Se não tiver appointment ou não puder editar, não mostra o modal
-  if (!appointment || (!canEditOrder() && !hasPermission('manage_appointments'))) {
-    return null;
-  }
+	return (
+		<Dialog open={isOpen} onOpenChange={onClose}>
+			<DialogContent className="sm:max-w-[600px]">
+				<DialogHeader>
+					<DialogTitle>
+						Comanda de {editedAppointment.client.name}
+						<span className="ml-2 text-sm font-normal text-gray-500">
+							({new Date(editedAppointment.scheduledTime).toLocaleTimeString()} - {editedAppointment.user.name})
+						</span>
+					</DialogTitle>
+					<DialogDescription>
+						Atualize os serviços e produtos da comanda.
+					</DialogDescription>
+				</DialogHeader>
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>
-            Comanda de {appointment.clientName} 
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              ({appointment.time} - {appointment.barber})
-            </span>
-          </DialogTitle>
-          <DialogDescription>
-            {canEditOrder() 
-              ? 'Adicione ou remova serviços e produtos da comanda.'
-              : 'Visualizando detalhes da comanda finalizada.'}
-          </DialogDescription>
-        </DialogHeader>
+				<div className="space-y-6 py-4">
+					{/* Serviços */}
+					<div className="space-y-4">
+						<h3 className="font-medium">Serviços</h3>
+						{editedAppointment.services.map((serviceAppointment) => (
+							<div key={serviceAppointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+								<div>
+									<p className="font-medium">{serviceAppointment.service.name}</p>
+									<p className="text-sm text-gray-500">R$ {serviceAppointment.service.price.toFixed(2)}</p>
+								</div>
+								<div className="flex items-center space-x-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => handleServiceQuantityChange(serviceAppointment.serviceId, serviceAppointment.quantity - 1)}
+										disabled={serviceAppointment.quantity <= 1}
+									>
+										<Minus className="h-4 w-4" />
+									</Button>
+									<span className="w-8 text-center">{serviceAppointment.quantity}</span>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => handleServiceQuantityChange(serviceAppointment.serviceId, serviceAppointment.quantity + 1)}
+									>
+										<Plus className="h-4 w-4" />
+									</Button>
+								</div>
+							</div>
+						))}
+					</div>
 
-        <div className="space-y-4 my-4">
-          <div className="flex flex-col space-y-2">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Itens da Comanda</h3>
-              <div className="flex space-x-2">
-                {canEditOrder() && (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex items-center" 
-                      onClick={() => setShowServiceList(!showServiceList)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Serviço
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex items-center" 
-                      onClick={() => setShowProductList(!showProductList)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Produto
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
+					{/* Produtos */}
+					<div className="space-y-4">
+						<h3 className="font-medium">Produtos</h3>
+						{editedAppointment.products.length > 0 ? (
+							editedAppointment.products.map((productAppointment) => (
+								<div key={productAppointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+									<div>
+										<p className="font-medium">{productAppointment.product?.name}</p>
+										<p className="text-sm text-gray-500">R$ {productAppointment.product?.price.toFixed(2)}</p>
+									</div>
+									<div className="flex items-center space-x-2">
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => handleProductQuantityChange(productAppointment.productId, productAppointment.quantity - 1)}
+											disabled={productAppointment.quantity <= 1}
+										>
+											<Minus className="h-4 w-4" />
+										</Button>
+										<span className="w-8 text-center">{productAppointment.quantity}</span>
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={() => handleProductQuantityChange(productAppointment.productId, productAppointment.quantity + 1)}
+										>
+											<Plus className="h-4 w-4" />
+										</Button>
+									</div>
+								</div>
+							))
+						) : (
+							<p className="text-sm text-gray-500">Nenhum produto adicionado</p>
+						)}
+					</div>
 
-            {showServiceList && (
-              <div className="border rounded-md p-3 bg-gray-50">
-                <h4 className="text-sm font-medium mb-2">Selecione um serviço:</h4>
-                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                  {MOCK_SERVICES.map(service => (
-                    <button
-                      key={service.id}
-                      className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md text-left"
-                      onClick={() => addService(service)}
-                    >
-                      <span>{service.name}</span>
-                      <span className="text-gray-600">R$ {service.price.toFixed(2)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+					{/* Total */}
+					<div className="border-t pt-4">
+						<div className="flex justify-between items-center">
+							<span className="font-medium">Total</span>
+							<span className="text-xl font-bold">R$ {editedAppointment.value.toFixed(2)}</span>
+						</div>
+					</div>
+				</div>
 
-            {showProductList && (
-              <div className="border rounded-md p-3 bg-gray-50">
-                <h4 className="text-sm font-medium mb-2">Selecione um produto:</h4>
-                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                  {MOCK_PRODUCTS.map(product => (
-                    <button
-                      key={product.id}
-                      className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-md text-left"
-                      onClick={() => addProduct(product)}
-                    >
-                      <span>{product.name}</span>
-                      <span className="text-gray-600">R$ {product.price.toFixed(2)}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="border rounded-md">
-              {orderItems.length > 0 ? (
-                <div className="divide-y">
-                  {orderItems.map(item => (
-                    <div key={item.id} className="flex justify-between items-center p-3">
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                            item.type === 'service' ? 'bg-blue-500' : 'bg-green-500'
-                          }`}></span>
-                          <span className="font-medium">{item.name}</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {item.type === 'service' ? 'Serviço' : 'Produto'} - R$ {item.price.toFixed(2)}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {canEditOrder() && (
-                          <button 
-                            onClick={() => updateItemQuantity(item.id, -1)}
-                            className="p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
-                            disabled={item.quantity <= 1}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </button>
-                        )}
-                        
-                        <span className="w-6 text-center">{item.quantity}</span>
-                        
-                        {canEditOrder() && (
-                          <>
-                            <button 
-                              onClick={() => updateItemQuantity(item.id, 1)}
-                              className="p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                            
-                            <button 
-                              onClick={() => removeItem(item.id)}
-                              className="p-1 text-red-500 hover:text-red-700 focus:outline-none"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 text-center text-gray-500">
-                  Nenhum item na comanda
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
-            <div className="font-medium">Valor Total:</div>
-            <div className="font-bold text-lg">R$ {calculateTotal().toFixed(2)}</div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          {canEditOrder() && (
-            <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
-              <Check className="h-4 w-4 mr-2" />
-              {appointment.status === 'open' ? 'Salvar Comanda' : 'Finalizar Atendimento'}
-            </Button>
-          )}
-          {appointment.status === 'completed' && hasPermission('manage_appointments') && (
-            <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-              <Edit className="h-4 w-4 mr-2" />
-              Atualizar Comanda
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+				<DialogFooter>
+					<Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+						Cancelar
+					</Button>
+					<Button onClick={handleSave} disabled={isSubmitting}>
+						{isSubmitting ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Salvando...
+							</>
+						) : (
+							'Salvar Alterações'
+						)}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
 };
 
 export default OrderEditModal;

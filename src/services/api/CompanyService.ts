@@ -3,189 +3,189 @@ import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 
 export interface Company {
-  id?: number;
-  name: string;
-  ownerId: number;
-  address: string;
-  logo?: string;
-  backgroundImage?: string;
-  phone?: string;
-  whatsapp?: string;
-  email?: string;
+	id?: number;
+	name: string;
+	ownerId: number;
+	address: string;
+	logo?: string;
+	backgroundImage?: string;
+	phone?: string;
+	whatsapp?: string;
+	email?: string;
 }
 
 export interface CompanySettings {
-  id?: number;
-  companyId?: number;
-  appointmentIntervalMinutes: number;
-  advanceNoticeDays: number;
-  preparationTimeMinutes: number;
-  sendReminderWhatsApp: boolean;
-  confirmAppointmentWhatsApp: boolean;
-  notifyBarberNewAppointments: boolean;
-  acceptedPaymentMethods: string;
-  commissionPercentage: number;
-  commissionPaymentFrequency: string;
-  allowEarlyPaymentOnline: boolean;
-  requireDepositConfirmation: boolean;
-  applyDiscountForCashPayment: boolean;
-  workingHoursId: number;
+	id?: number;
+	companyId?: number;
+	appointmentIntervalMinutes: number;
+	advanceNoticeDays: number;
+	preparationTimeMinutes: number;
+	sendReminderWhatsApp: boolean;
+	confirmAppointmentWhatsApp: boolean;
+	notifyBarberNewAppointments: boolean;
+	acceptedPaymentMethods: string;
+	commissionPercentage: number;
+	commissionPaymentFrequency: string;
+	allowEarlyPaymentOnline: boolean;
+	requireDepositConfirmation: boolean;
+	applyDiscountForCashPayment: boolean;
+	workingHoursId: number;
 }
 
 export interface WorkingHours {
-  id?: number;
-  mondayOpen: string;
-  mondayClose: string;
-  tuesdayOpen: string;
-  tuesdayClose: string;
-  wednesdayOpen: string;
-  wednesdayClose: string;
-  thursdayOpen: string;
-  thursdayClose: string;
-  fridayOpen: string;
-  fridayClose: string;
-  saturdayOpen: string;
-  saturdayClose: string;
-  sundayOpen: string;
-  sundayClose: string;
+	id?: number;
+	mondayOpen: string;
+	mondayClose: string;
+	tuesdayOpen: string;
+	tuesdayClose: string;
+	wednesdayOpen: string;
+	wednesdayClose: string;
+	thursdayOpen: string;
+	thursdayClose: string;
+	fridayOpen: string;
+	fridayClose: string;
+	saturdayOpen: string;
+	saturdayClose: string;
+	sundayOpen: string;
+	sundayClose: string;
 }
 
 export interface CompanyMember {
-  id?: number;
-  companyId: number;
-  userId: number;
+	id?: number;
+	companyId: number;
+	userId: number;
 }
 
 export class CompanyService extends BaseService {
-  constructor() {
-    super('company');
-  }
+	constructor() {
+		super('company');
+	}
 
-  validateCompany(company: Company): string | null {
-    const requiredError = this.validateRequired(company, ['name', 'ownerId', 'address']);
-    if (requiredError) return requiredError;
-    
-    if (company.email) {
-      const emailError = this.validateEmail(company.email);
-      if (emailError) return emailError;
-    }
-    
-    return null;
-  }
+	validateCompany(company: Company): string | null {
+		const requiredError = this.validateRequired(company, ['name', 'ownerId', 'address']);
+		if (requiredError) return requiredError;
 
-  validateSettings(settings: CompanySettings): string | null {
-    return this.validateRequired(settings, [
-      'appointmentIntervalMinutes', 
-      'commissionPercentage',
-      'workingHoursId'
-    ]);
-  }
+		if (company.email) {
+			const emailError = this.validateEmail(company.email);
+			if (emailError) return emailError;
+		}
 
-  validateWorkingHours(hours: WorkingHours): string | null {
-    // Validate time format (HH:MM)
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    const timeFields = [
-      'mondayOpen', 'mondayClose', 
-      'tuesdayOpen', 'tuesdayClose',
-      'wednesdayOpen', 'wednesdayClose',
-      'thursdayOpen', 'thursdayClose',
-      'fridayOpen', 'fridayClose',
-      'saturdayOpen', 'saturdayClose',
-      'sundayOpen', 'sundayClose'
-    ] as (keyof WorkingHours)[];
-    
-    for (const field of timeFields) {
-      // Fixed: Convert to string before testing with regex
-      const value = hours[field];
-      if (!timeRegex.test(String(value))) {
-        return `Invalid time format for ${String(field)}. Use HH:MM format`;
-      }
-    }
-    
-    return null;
-  }
+		return null;
+	}
 
-  // Companies CRUD operations
-  async create(company: Company): Promise<ApiResponse<Company>> {
-    const validationError = this.validateCompany(company);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<Company>(apiClient.post(`/${this.endpoint}`, company));
-  }
+	validateSettings(settings: CompanySettings): string | null {
+		return this.validateRequired(settings, [
+			'appointmentIntervalMinutes',
+			'commissionPercentage',
+			'workingHoursId'
+		]);
+	}
 
-  async update(id: number, company: Company): Promise<ApiResponse<Company>> {
-    const validationError = this.validateCompany(company);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<Company>(apiClient.put(`/${this.endpoint}/${id}`, company));
-  }
+	validateWorkingHours(hours: WorkingHours): string | null {
+		// Validate time format (HH:MM)
+		const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+		const timeFields = [
+			'mondayOpen', 'mondayClose',
+			'tuesdayOpen', 'tuesdayClose',
+			'wednesdayOpen', 'wednesdayClose',
+			'thursdayOpen', 'thursdayClose',
+			'fridayOpen', 'fridayClose',
+			'saturdayOpen', 'saturdayClose',
+			'sundayOpen', 'sundayClose'
+		] as (keyof WorkingHours)[];
 
-  async delete(id: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
-  }
+		for (const field of timeFields) {
+			// Fixed: Convert to string before testing with regex
+			const value = hours[field];
+			if (!timeRegex.test(String(value))) {
+				return `Invalid time format for ${String(field)}. Use HH:MM format`;
+			}
+		}
 
-  // Get companies by user info
-  async getCompaniesByUserInfo(): Promise<ApiResponse<Company[]>> {
-    return this.handleResponse<Company[]>(apiClient.get(`/${this.endpoint}/user`));
-  }
-  
-  // Get company by ID
-  async getById(id: number): Promise<ApiResponse<Company>> {
-    return this.handleResponse<Company>(apiClient.get(`/${this.endpoint}/${id}`));
-  }
+		return null;
+	}
 
-  // Company Settings
-  async getSettings(companyId: number): Promise<ApiResponse<CompanySettings>> {
-    return this.handleResponse<CompanySettings>(apiClient.get(`/${this.endpoint}/${companyId}/settings`));
-  }
+	// Companies CRUD operations
+	async create(company: Company): Promise<ApiResponse<Company>> {
+		const validationError = this.validateCompany(company);
+		if (validationError) {
+			return { error: validationError, status: 400, success: false };
+		}
 
-  async updateSettings(companyId: number, settings: CompanySettings): Promise<ApiResponse<CompanySettings>> {
-    const validationError = this.validateSettings(settings);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<CompanySettings>(
-      apiClient.put(`/${this.endpoint}/${companyId}/settings`, settings)
-    );
-  }
+		return this.handleResponse<Company>(apiClient.post(`/${this.endpoint}`, company));
+	}
 
-  // Working Hours
-  async getWorkingHours(companyId: number): Promise<ApiResponse<WorkingHours>> {
-    return this.handleResponse<WorkingHours>(apiClient.get(`/${this.endpoint}/${companyId}/working-hours`));
-  }
+	async update(id: number, company: Company): Promise<ApiResponse<Company>> {
+		const validationError = this.validateCompany(company);
+		if (validationError) {
+			return { error: validationError, status: 400, success: false };
+		}
 
-  async updateWorkingHours(companyId: number, hours: WorkingHours): Promise<ApiResponse<WorkingHours>> {
-    const validationError = this.validateWorkingHours(hours);
-    if (validationError) {
-      return { error: validationError, status: 400, success: false };
-    }
-    
-    return this.handleResponse<WorkingHours>(
-      apiClient.put(`/${this.endpoint}/${companyId}/working-hours`, hours)
-    );
-  }
+		return this.handleResponse<Company>(apiClient.put(`/${this.endpoint}/${id}`, company));
+	}
 
-  // Company Members
-  async getMembers(companyId: number): Promise<ApiResponse<CompanyMember[]>> {
-    return this.handleResponse<CompanyMember[]>(apiClient.get(`/${this.endpoint}/${companyId}/members`));
-  }
+	async delete(id: number): Promise<ApiResponse<void>> {
+		return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
+	}
 
-  async addMember(companyId: number, userId: number): Promise<ApiResponse<CompanyMember>> {
-    return this.handleResponse<CompanyMember>(
-      apiClient.post(`/${this.endpoint}/${companyId}/members`, { userId })
-    );
-  }
+	// Get companies by user info
+	async getCompaniesByUserInfo(): Promise<ApiResponse<Company[]>> {
+		return this.handleResponse<Company[]>(apiClient.get(`/${this.endpoint}/user`));
+	}
 
-  async removeMember(companyId: number, userId: number): Promise<ApiResponse<void>> {
-    return this.handleResponse<void>(
-      apiClient.delete(`/${this.endpoint}/${companyId}/members/${userId}`)
-    );
-  }
+	// Get company by ID
+	async getById(id: number): Promise<ApiResponse<Company>> {
+		return this.handleResponse<Company>(apiClient.get(`/${this.endpoint}/${id}`));
+	}
+
+	// Company Settings
+	async getSettings(companyId: number): Promise<ApiResponse<CompanySettings>> {
+		return this.handleResponse<CompanySettings>(apiClient.get(`/${this.endpoint}/${companyId}/settings`));
+	}
+
+	async updateSettings(companyId: number, settings: CompanySettings): Promise<ApiResponse<CompanySettings>> {
+		const validationError = this.validateSettings(settings);
+		if (validationError) {
+			return { error: validationError, status: 400, success: false };
+		}
+
+		return this.handleResponse<CompanySettings>(
+			apiClient.put(`/${this.endpoint}/${companyId}/settings`, settings)
+		);
+	}
+
+	// Working Hours
+	async getWorkingHours(companyId: number): Promise<ApiResponse<WorkingHours>> {
+		return this.handleResponse<WorkingHours>(apiClient.get(`/${this.endpoint}/${companyId}/working-hours`));
+	}
+
+	async updateWorkingHours(companyId: number, hours: WorkingHours): Promise<ApiResponse<WorkingHours>> {
+		const validationError = this.validateWorkingHours(hours);
+		if (validationError) {
+			return { error: validationError, status: 400, success: false };
+		}
+
+		return this.handleResponse<WorkingHours>(
+			apiClient.put(`/${this.endpoint}/${companyId}/working-hours`, hours)
+		);
+	}
+
+	// Company Members
+	async getMembers(companyId: number): Promise<ApiResponse<CompanyMember[]>> {
+		return this.handleResponse<CompanyMember[]>(apiClient.get(`/${this.endpoint}/${companyId}/members`));
+	}
+
+	async addMember(companyId: number, userId: number): Promise<ApiResponse<CompanyMember>> {
+		return this.handleResponse<CompanyMember>(
+			apiClient.post(`/${this.endpoint}/${companyId}/members`, { userId })
+		);
+	}
+
+	async removeMember(companyId: number, userId: number): Promise<ApiResponse<void>> {
+		return this.handleResponse<void>(
+			apiClient.delete(`/${this.endpoint}/${companyId}/members/${userId}`)
+		);
+	}
 }
 
 export default new CompanyService();

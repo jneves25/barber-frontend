@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,96 +39,96 @@ import BlogPost from "./pages/BlogPost";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Rotas públicas */}
-            <Route path="/" element={<Index />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/unauthorized" element={<Unauthorized />} />
-            
-            {/* Blog routes */}
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogPost />} />
-            
-            {/* Portal do cliente para agendamentos */}
-            <Route path="/portal" element={<ClientPortal />} />
-            <Route path="/portal/services" element={<Services />} />
-            <Route path="/portal/barbers" element={<Barbers />} />
-            <Route path="/portal/schedule" element={<Schedule />} />
-            <Route path="/portal/products" element={<Products />} />
-            
-            {/* Rotas administrativas - dashboard */}
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/appointments" element={
-              <ProtectedRoute requiredPermission="view_appointments">
-                <AdminAppointments />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/services" element={
-              <ProtectedRoute requiredPermission="view_services">
-                <AdminServices />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/clients" element={
-              <ProtectedRoute requiredPermission="view_clients">
-                <AdminClients />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/commissions" element={
-              <ProtectedRoute requiredPermission="view_commissions">
-                <AdminCommissions />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/goals" element={
-              <ProtectedRoute requiredPermission="view_goals">
-                <AdminGoals />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/revenue" element={
-              <ProtectedRoute requiredPermission="view_revenue">
-                <AdminRevenue />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/settings" element={
-              <ProtectedRoute requiredPermission="manage_user_settings">
-                <AdminSettings />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/products" element={
-              <ProtectedRoute requiredPermission="view_products">
-                <AdminProducts />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/permissions" element={
-              <ProtectedRoute requiredPermission="manage_permissions">
-                <Permissions />
-              </ProtectedRoute>
-            } />
-            
-            {/* Rota de fallback */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+	<QueryClientProvider client={queryClient}>
+		<TooltipProvider>
+			<Toaster />
+			<Sonner />
+			<BrowserRouter>
+				<AuthProvider>
+					<Routes>
+						{/* Rotas públicas */}
+						<Route path="/" element={<Index />} />
+						<Route path="/pricing" element={<Pricing />} />
+						<Route path="/about" element={<About />} />
+						<Route path="/contact" element={<Contact />} />
+						<Route path="/login" element={<Login />} />
+						<Route path="/unauthorized" element={<Unauthorized />} />
+
+						{/* Blog routes */}
+						<Route path="/blog" element={<Blog />} />
+						<Route path="/blog/:slug" element={<BlogPost />} />
+
+						{/* Portal do cliente para agendamentos */}
+						<Route path="/portal" element={<ClientPortal />} />
+						<Route path="/portal/services" element={<Services />} />
+						<Route path="/portal/barbers" element={<Barbers />} />
+						<Route path="/portal/schedule" element={<Schedule />} />
+						<Route path="/portal/products" element={<Products />} />
+
+						{/* Rotas administrativas - dashboard */}
+						<Route path="/admin" element={
+							<ProtectedRoute>
+								<Dashboard />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/dashboard" element={
+							<ProtectedRoute>
+								<Dashboard />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/appointments" element={
+							<ProtectedRoute requiredPermission="viewAllAppointments">
+								<AdminAppointments />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/services" element={
+							<ProtectedRoute requiredPermission="viewAllServices">
+								<AdminServices />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/clients" element={
+							<ProtectedRoute requiredPermission="viewAllClients">
+								<AdminClients />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/commissions" element={
+							<ProtectedRoute requiredPermission="viewAllCommissions">
+								<AdminCommissions />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/goals" element={
+							<ProtectedRoute requiredPermission="viewAllGoals">
+								<AdminGoals />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/revenue" element={
+							<ProtectedRoute requiredPermission="viewFullRevenue">
+								<AdminRevenue />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/settings" element={
+							<ProtectedRoute requiredPermission="manageSettings">
+								<AdminSettings />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/products" element={
+							<ProtectedRoute requiredPermission="viewAllProducts">
+								<AdminProducts />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/permissions" element={
+							<ProtectedRoute requiredPermission="managePermissions">
+								<Permissions />
+							</ProtectedRoute>
+						} />
+
+						{/* Rota de fallback */}
+						<Route path="*" element={<NotFound />} />
+					</Routes>
+				</AuthProvider>
+			</BrowserRouter>
+		</TooltipProvider>
+	</QueryClientProvider>
 );
 
 export default App;
