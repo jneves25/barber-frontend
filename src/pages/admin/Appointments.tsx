@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarIcon, Clock, Edit, Trash2, Check, DollarSign, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Edit, Trash2, Check, DollarSign, Loader2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import OrderEditModal from '@/components/appointment/OrderEditModal';
+import AppointmentCreateModal from '@/components/appointment/AppointmentCreateModal';
 import AppointmentService, { Appointment, AppointmentStatusEnum } from '@/services/api/AppointmentService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
@@ -23,6 +24,9 @@ const AdminAppointments = () => {
 	// Estado para o modal de edição de comanda
 	const [orderModalOpen, setOrderModalOpen] = useState(false);
 	const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+
+	// Estado para o modal de criação de agendamento
+	const [createModalOpen, setCreateModalOpen] = useState(false);
 
 	// Estado para agendamentos
 	const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -254,7 +258,11 @@ const AdminAppointments = () => {
 								/>
 							</PopoverContent>
 						</Popover>
-						<Button className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto">
+						<Button 
+							className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto"
+							onClick={() => setCreateModalOpen(true)}
+						>
+							<Plus className="h-4 w-4 mr-2" />
 							Novo Agendamento
 						</Button>
 					</div>
@@ -322,7 +330,7 @@ const AdminAppointments = () => {
 															)}
 															<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
 																<div className="text-sm text-gray-900">
-																	{appointment.createdAt ? format(new Date(appointment.createdAt), 'dd/MM/yyyy') : '-'}
+																	{appointment.scheduledTime ? format(new Date(appointment.scheduledTime), 'dd/MM/yyyy HH:mm') : '-'}
 																</div>
 															</td>
 															<td className="px-3 py-3 whitespace-nowrap">
@@ -492,6 +500,13 @@ const AdminAppointments = () => {
 				}}
 				appointment={selectedAppointment}
 				onSave={handleSaveOrder}
+			/>
+
+			{/* Modal para criação de agendamento */}
+			<AppointmentCreateModal
+				isOpen={createModalOpen}
+				onClose={() => setCreateModalOpen(false)}
+				onSuccess={fetchAppointments}
 			/>
 
 			{/* Cancel Appointment Dialog */}
