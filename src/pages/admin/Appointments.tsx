@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,7 +58,7 @@ const AdminAppointments = () => {
 
 	// Filtrar agendamentos pelo barbeiro atual se for um barbeiro
 	const userAppointments = user?.role === 'USER'
-		? appointments.filter(app => app.userId === user.id)
+		? appointments.filter(app => app.userId === Number(user.id))
 		: appointments;
 
 	// Filtrar agendamentos pela data selecionada
@@ -116,7 +117,7 @@ const AdminAppointments = () => {
 
 	// Handler para abrir um agendamento pendente
 	const handleOpenService = (id: number) => {
-		const appointment = appointments.find(app => app.id === id);
+		const appointment = appointments.find(app => app.id === Number(id));
 		if (appointment) {
 			handleOpenOrderModal(appointment);
 		}
