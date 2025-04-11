@@ -67,8 +67,8 @@ export class ClientService extends BaseService {
 	}
 
 	// Admin-side endpoints (require admin authentication)
-	async getAll(): Promise<ApiResponse<Client[]>> {
-		return this.handleResponse<Client[]>(apiClient.get(`/api/${this.endpoint}`));
+	async getAll(companyId: number): Promise<ApiResponse<Client[]>> {
+		return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}`, { params: { companyId } }));
 	}
 
 	async getById(id: number): Promise<ApiResponse<Client>> {

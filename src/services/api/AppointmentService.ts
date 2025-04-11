@@ -8,22 +8,21 @@ export enum AppointmentStatusEnum {
 }
 
 export interface Client {
-	id: number;
+	id?: number;
 	name: string;
 	email: string;
 	phone: string;
-	password: string;
-	createdAt: string;
+	createdAt?: string;
 }
 
 export interface User {
-	id: number;
+	id?: number;
 	name: string;
 	email: string;
 }
 
 export interface Service {
-	id: number;
+	id?: number;
 	name: string;
 	price: number;
 	duration: number;
@@ -48,7 +47,7 @@ export interface ProductAppointment {
 }
 
 export interface Product {
-	id: number;
+	id?: number;
 	name: string;
 	description: string;
 	price: number;
