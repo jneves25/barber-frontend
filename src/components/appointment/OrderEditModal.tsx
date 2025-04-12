@@ -13,6 +13,15 @@ import { Plus, Minus, X, Check, DollarSign, Edit, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { Appointment, ServiceAppointment, ProductAppointment } from '@/services/api/AppointmentService';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '@/components/ui/select';
+import ServiceService from '@/services/api/ServiceService';
+import ProductService from '@/services/api/ProductService';
 
 interface OrderEditModalProps {
 	isOpen: boolean;
@@ -24,7 +33,42 @@ interface OrderEditModalProps {
 export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose, appointment, onSave }) => {
 	const [editedAppointment, setEditedAppointment] = useState<Appointment | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const { hasPermission } = useAuth();
+	const { hasPermission, companySelected } = useAuth();
+	const [allServices, setAllServices] = useState<Array<{id: number, name: string, price: number}>>([]);
+	const [allProducts, setAllProducts] = useState<Array<{id: number, name: string, price: number, stock: number}>>([]);
+	const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+	const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
+
+	// Fetch available services and products when the modal opens
+	useEffect(() => {
+		if (isOpen && companySelected?.id) {
+			fetchServicesAndProducts();
+		}
+	}, [isOpen, companySelected?.id]);
+
+	const fetchServicesAndProducts = async () => {
+		setIsLoading(true);
+		try {
+			const [servicesRes, productsRes] = await Promise.all([
+				ServiceService.getAllServices(companySelected.id),
+				ProductService.getAllProducts(companySelected.id)
+			]);
+
+			if (servicesRes.success && servicesRes.data) {
+				setAllServices(servicesRes.data);
+			}
+			
+			if (productsRes.success && productsRes.data) {
+				setAllProducts(productsRes.data);
+			}
+		} catch (error) {
+			toast.error('Erro ao carregar serviços e produtos');
+			console.error(error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
 
 	useEffect(() => {
 		if (appointment) {
@@ -42,13 +86,7 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 			return service;
 		});
 
-		setEditedAppointment({
-			...editedAppointment,
-			services: updatedServices,
-			value: updatedServices.reduce((total, service) =>
-				total + (service.service.price * service.quantity), 0
-			)
-		});
+		updateAppointmentValue(updatedServices, editedAppointment.products);
 	};
 
 	const handleProductQuantityChange = (productId: number, quantity: number) => {
@@ -61,16 +99,121 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 			return product;
 		});
 
+		updateAppointmentValue(editedAppointment.services, updatedProducts);
+	};
+
+	const updateAppointmentValue = (services: ServiceAppointment[], products: ProductAppointment[]) => {
+		if (!editedAppointment) return;
+		
+		const servicesTotal = services.reduce((total, service) => 
+			total + (service.service.price * service.quantity), 0);
+		
+		const productsTotal = products.reduce((total, product) => 
+			total + (product.product?.price || 0) * product.quantity, 0);
+		
 		setEditedAppointment({
 			...editedAppointment,
-			products: updatedProducts,
-			value: updatedProducts.reduce((total, product) =>
-				total + (product.product?.price || 0) * product.quantity,
-				editedAppointment.services.reduce((total, service) =>
-					total + (service.service.price * service.quantity), 0
-				)
-			)
+			services,
+			products,
+			value: servicesTotal + productsTotal
 		});
+	};
+
+	const handleAddService = () => {
+		if (!editedAppointment || !selectedServiceId) return;
+		
+		// Check if service is already in the appointment
+		const existingService = editedAppointment.services.find(s => s.serviceId === selectedServiceId);
+		if (existingService) {
+			// Increase quantity of existing service
+			handleServiceQuantityChange(selectedServiceId, existingService.quantity + 1);
+			toast.info('Quantidade do serviço atualizada');
+			setSelectedServiceId(null);
+			return;
+		}
+		
+		// Find the service details
+		const serviceToAdd = allServices.find(s => s.id === selectedServiceId);
+		if (!serviceToAdd) return;
+		
+		// Create new service appointment
+		const newServiceAppointment: ServiceAppointment = {
+			id: 0, // Will be assigned by API
+			appointmentId: editedAppointment.id,
+			serviceId: selectedServiceId,
+			quantity: 1,
+			service: {
+				id: serviceToAdd.id,
+				name: serviceToAdd.name,
+				price: serviceToAdd.price,
+				duration: 30, // Default duration
+				description: '',
+				companyId: companySelected.id
+			}
+		};
+		
+		const updatedServices = [...editedAppointment.services, newServiceAppointment];
+		updateAppointmentValue(updatedServices, editedAppointment.products);
+		
+		setSelectedServiceId(null);
+		toast.success('Serviço adicionado');
+	};
+
+	const handleAddProduct = () => {
+		if (!editedAppointment || !selectedProductId) return;
+		
+		// Check if product is already in the appointment
+		const existingProduct = editedAppointment.products.find(p => p.productId === selectedProductId);
+		if (existingProduct) {
+			// Increase quantity of existing product
+			handleProductQuantityChange(selectedProductId, existingProduct.quantity + 1);
+			toast.info('Quantidade do produto atualizada');
+			setSelectedProductId(null);
+			return;
+		}
+		
+		// Find the product details
+		const productToAdd = allProducts.find(p => p.id === selectedProductId);
+		if (!productToAdd) return;
+		
+		// Create new product appointment
+		const newProductAppointment: ProductAppointment = {
+			id: 0, // Will be assigned by API
+			appointmentId: editedAppointment.id,
+			productId: selectedProductId,
+			quantity: 1,
+			product: {
+				id: productToAdd.id,
+				name: productToAdd.name,
+				price: productToAdd.price,
+				stock: productToAdd.stock,
+				description: '',
+				imageUrl: '',
+				companyId: companySelected.id
+			}
+		};
+		
+		const updatedProducts = [...editedAppointment.products, newProductAppointment];
+		updateAppointmentValue(editedAppointment.services, updatedProducts);
+		
+		setSelectedProductId(null);
+		toast.success('Produto adicionado');
+	};
+
+	const handleRemoveService = (serviceId: number) => {
+		if (!editedAppointment) return;
+		
+		const updatedServices = editedAppointment.services.filter(service => service.serviceId !== serviceId);
+		updateAppointmentValue(updatedServices, editedAppointment.products);
+		toast.info('Serviço removido');
+	};
+
+	const handleRemoveProduct = (productId: number) => {
+		if (!editedAppointment) return;
+		
+		const updatedProducts = editedAppointment.products.filter(product => product.productId !== productId);
+		updateAppointmentValue(editedAppointment.services, updatedProducts);
+		toast.info('Produto removido');
 	};
 
 	const handleSave = async () => {
@@ -91,6 +234,15 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 
 	if (!editedAppointment) return null;
 
+	// Filter out services and products that are already in the appointment
+	const availableServices = allServices.filter(service => 
+		!editedAppointment.services.some(s => s.serviceId === service.id)
+	);
+	
+	const availableProducts = allProducts.filter(product => 
+		!editedAppointment.products.some(p => p.productId === product.id)
+	);
+
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
 			<DialogContent className="sm:max-w-[600px]">
@@ -109,9 +261,36 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 				<div className="space-y-6 py-4">
 					{/* Serviços */}
 					<div className="space-y-4">
-						<h3 className="font-medium">Serviços</h3>
+						<div className="flex items-center justify-between">
+							<h3 className="font-medium">Serviços</h3>
+							<div className="flex items-center space-x-2">
+								<Select
+									value={selectedServiceId?.toString() || ""}
+									onValueChange={(value) => setSelectedServiceId(Number(value))}
+									disabled={isLoading}
+								>
+									<SelectTrigger className="w-[180px]">
+										<SelectValue placeholder="Selecionar serviço" />
+									</SelectTrigger>
+									<SelectContent>
+										{availableServices.map(service => (
+											<SelectItem key={service.id} value={service.id.toString()}>
+												{service.name} (R$ {service.price.toFixed(2)})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<Button 
+									size="sm" 
+									onClick={handleAddService} 
+									disabled={!selectedServiceId || isLoading}
+								>
+									<Plus className="h-4 w-4" />
+								</Button>
+							</div>
+						</div>
 						{editedAppointment.services.map((serviceAppointment) => (
-							<div key={serviceAppointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+							<div key={serviceAppointment.id || serviceAppointment.serviceId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
 								<div>
 									<p className="font-medium">{serviceAppointment.service.name}</p>
 									<p className="text-sm text-gray-500">R$ {serviceAppointment.service.price.toFixed(2)}</p>
@@ -133,17 +312,54 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 									>
 										<Plus className="h-4 w-4" />
 									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => handleRemoveService(serviceAppointment.serviceId)}
+									>
+										<X className="h-4 w-4 text-red-500" />
+									</Button>
 								</div>
 							</div>
 						))}
+						{editedAppointment.services.length === 0 && (
+							<p className="text-sm text-gray-500">Nenhum serviço adicionado</p>
+						)}
 					</div>
 
 					{/* Produtos */}
 					<div className="space-y-4">
-						<h3 className="font-medium">Produtos</h3>
+						<div className="flex items-center justify-between">
+							<h3 className="font-medium">Produtos</h3>
+							<div className="flex items-center space-x-2">
+								<Select
+									value={selectedProductId?.toString() || ""}
+									onValueChange={(value) => setSelectedProductId(Number(value))}
+									disabled={isLoading}
+								>
+									<SelectTrigger className="w-[180px]">
+										<SelectValue placeholder="Selecionar produto" />
+									</SelectTrigger>
+									<SelectContent>
+										{availableProducts.map(product => (
+											<SelectItem key={product.id} value={product.id.toString()}>
+												{product.name} (R$ {product.price.toFixed(2)})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<Button 
+									size="sm" 
+									onClick={handleAddProduct} 
+									disabled={!selectedProductId || isLoading}
+								>
+									<Plus className="h-4 w-4" />
+								</Button>
+							</div>
+						</div>
 						{editedAppointment.products.length > 0 ? (
 							editedAppointment.products.map((productAppointment) => (
-								<div key={productAppointment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+								<div key={productAppointment.id || productAppointment.productId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
 									<div>
 										<p className="font-medium">{productAppointment.product?.name}</p>
 										<p className="text-sm text-gray-500">R$ {productAppointment.product?.price.toFixed(2)}</p>
@@ -164,6 +380,13 @@ export const OrderEditModal: React.FC<OrderEditModalProps> = ({ isOpen, onClose,
 											onClick={() => handleProductQuantityChange(productAppointment.productId, productAppointment.quantity + 1)}
 										>
 											<Plus className="h-4 w-4" />
+										</Button>
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={() => handleRemoveProduct(productAppointment.productId)}
+										>
+											<X className="h-4 w-4 text-red-500" />
 										</Button>
 									</div>
 								</div>

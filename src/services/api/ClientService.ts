@@ -79,16 +79,7 @@ export class ClientService extends BaseService {
 		return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}/barber`));
 	}
 
-	// New methods for CRUD operations
-	async createClient(client: ClientRegisterRequest): Promise<ApiResponse<Client>> {
-		const validationError = this.validateClient(client as Client);
-		if (validationError) {
-			return { error: validationError, status: 400, success: false };
-		}
-
-		return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}`, client));
-	}
-
+	// Client management methods - createClient intentionally removed
 	async updateClient(id: number, client: Client): Promise<ApiResponse<Client>> {
 		const validationError = this.validateClient(client);
 		if (validationError) {
