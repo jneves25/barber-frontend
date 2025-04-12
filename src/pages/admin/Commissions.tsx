@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
+import { format } from 'date-fns';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Calendar, Scissors, BarChart, Edit, Eye, Settings } from 'lucide-react';
+import { DollarSign, Calendar, Scissors, BarChart, Edit, Eye, Settings, UserPlus } from 'lucide-react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -16,7 +17,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from '@/hooks/use-toast';
 import CommissionSettings from '@/components/commission/CommissionSettings';
 import ServiceCommissionForm from '@/components/commission/ServiceCommissionForm';
+import UserService, { RoleEnum } from '@/services/api/UserService';
+import { cn } from '@/lib/utils';
 
 // Dados de exemplo para comissões dos barbeiros
 const initialCommissions = [
@@ -62,12 +70,21 @@ const initialServiceCommissions = [
 ];
 
 const AdminCommissions = () => {
-  const [dateFilter, setDateFilter] = useState('month');
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date());
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [commissions, setCommissions] = useState(initialCommissions);
   const [serviceCommissions, setServiceCommissions] = useState(initialServiceCommissions);
   const [selectedBarber, setSelectedBarber] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: RoleEnum.USER
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleCommissionTypeChange = (barberId: number, type: 'geral' | 'por_servico') => {
@@ -147,30 +164,131 @@ const AdminCommissions = () => {
     });
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRoleChange = (value: string) => {
+    setNewUser(prev => ({ 
+      ...prev, 
+      role: value === 'MANAGER' ? RoleEnum.MANAGER : RoleEnum.USER 
+    }));
+  };
+
+  const handleCreateUser = async () => {
+    setIsLoading(true);
+    try {
+      // Validar campos
+      if (!newUser.name || !newUser.email || !newUser.password) {
+        toast({
+          title: "Erro",
+          description: "Por favor, preencha todos os campos",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Criar usuário
+      const response = await UserService.create({
+        ...newUser,
+        id: 0,
+        permissions: {}
+      });
+
+      if (response.success) {
+        toast({
+          title: "Sucesso",
+          description: "Usuário criado com sucesso"
+        });
+        setIsUserModalOpen(false);
+        // Reset form
+        setNewUser({
+          name: '',
+          email: '',
+          password: '',
+          role: RoleEnum.USER
+        });
+      } else {
+        toast({
+          title: "Erro",
+          description: response.error || "Erro ao criar usuário",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar usuário",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold">Comissões</h1>
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={() => setDateFilter('week')}
-              className={`px-3 py-1 rounded-md ${dateFilter === 'week' ? 'bg-barber-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-            >
-              Semana
-            </button>
-            <button 
-              onClick={() => setDateFilter('month')}
-              className={`px-3 py-1 rounded-md ${dateFilter === 'month' ? 'bg-barber-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-            >
-              Mês
-            </button>
-            <button 
-              onClick={() => setDateFilter('year')}
-              className={`px-3 py-1 rounded-md ${dateFilter === 'year' ? 'bg-barber-500 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-            >
-              Ano
-            </button>
+          <h1 className="text-2xl font-bold">Comissões da Equipe</h1>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center space-x-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, 'dd/MM/yyyy') : <span>Data inicial</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <span>até</span>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, 'dd/MM/yyyy') : <span>Data final</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <Button onClick={() => setIsUserModalOpen(true)} className="bg-barber-500 hover:bg-barber-600">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Novo Membro
+            </Button>
           </div>
         </div>
 
@@ -219,7 +337,7 @@ const AdminCommissions = () => {
             <CardContent>
               <div className="text-2xl font-bold">40%</div>
               <p className="text-xs text-muted-foreground">
-                Configurável por barbeiro e serviço
+                Configurável por membro e serviço
               </p>
             </CardContent>
           </Card>
@@ -227,11 +345,9 @@ const AdminCommissions = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Comissões por Barbeiro</CardTitle>
+            <CardTitle>Comissões da Equipe</CardTitle>
             <CardDescription>
-              {dateFilter === 'week' && 'Dados da semana atual'}
-              {dateFilter === 'month' && 'Dados do mês atual'}
-              {dateFilter === 'year' && 'Dados do ano atual'}
+              Dados do período selecionado: {startDate && format(startDate, 'dd/MM/yyyy')} até {endDate && format(endDate, 'dd/MM/yyyy')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -240,7 +356,7 @@ const AdminCommissions = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead>
                     <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profissional</th>
                       <th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faturamento</th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comissão</th>
@@ -353,6 +469,88 @@ const AdminCommissions = () => {
         serviceCommissions={selectedBarber ? getServiceCommissionsForBarber(selectedBarber) : []}
         onSave={updateServiceCommission}
       />
+
+      {/* Dialog para cadastro de novo usuário */}
+      <Dialog open={isUserModalOpen} onOpenChange={setIsUserModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Membro</DialogTitle>
+            <DialogDescription>
+              Preencha os dados para cadastrar um novo membro à equipe.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nome
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                value={newUser.name}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={newUser.email}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="password" className="text-right">
+                Senha
+              </Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={newUser.password}
+                onChange={handleInputChange}
+                className="col-span-3"
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="role" className="text-right">
+                Função
+              </Label>
+              <Select 
+                onValueChange={handleRoleChange} 
+                defaultValue={newUser.role === RoleEnum.MANAGER ? 'MANAGER' : 'USER'}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione a função" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USER">Funcionário</SelectItem>
+                  <SelectItem value="MANAGER">Gerência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUserModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateUser} disabled={isLoading}>
+              {isLoading ? 'Cadastrando...' : 'Cadastrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

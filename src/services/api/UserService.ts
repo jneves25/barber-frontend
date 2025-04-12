@@ -1,3 +1,4 @@
+
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 
@@ -20,6 +21,7 @@ export interface User {
 	password: string;
 	companies?: Company[];
 	role: RoleEnum;
+	avatar?: string;
 	permissions?: {
 		manageCompany: boolean;
 		viewCompanys: boolean;
