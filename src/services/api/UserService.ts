@@ -1,17 +1,12 @@
 
 import { BaseService, ApiResponse } from './BaseService';
+import { Company } from './CompanyService';
 import apiClient from './apiClient';
 
 export enum RoleEnum {
 	ADMIN = 'ADMIN',
 	USER = 'USER',
 	MANAGER = 'MANAGER'
-}
-
-export interface Company {
-	id: number;
-	name: string;
-	members: User[]; // ou outro tipo, dependendo do que representa `members`
 }
 
 export interface User {

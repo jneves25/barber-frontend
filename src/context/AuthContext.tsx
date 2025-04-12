@@ -3,12 +3,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import AuthService from '@/services/api/AuthService';
-import { User, RoleEnum } from '@/services/api/UserService';
+import { User } from '@/services/api/UserService';
 import { Company } from '@/services/api/CompanyService';
 
 interface AuthContextType {
 	user: User | null;
-	companySelected: Company | null;
+	companySelected: Company;
 	isAuthenticated: boolean;
 	isLoading: boolean;
 	login: (email: string, password: string) => Promise<void>;
