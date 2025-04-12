@@ -14,9 +14,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import ServiceProductService, { Service } from '@/services/api/ServiceProductService';
 import { toast } from 'sonner';
-import { ServiceService } from '@/services/api/ServiceService';
+import { Service, ServiceService } from '@/services/api/ServiceService';
 import { useAuth } from '@/context/AuthContext';
 
 interface ServiceForm {
@@ -55,7 +54,7 @@ const AdminServices = () => {
 	const fetchServices = async () => {
 		setIsLoading(true);
 		try {
-			const response = await serviceService.getAllServices(companySelected.id);
+			const response = await serviceService.getAll(companySelected.id);
 
 			if (response.success && response.data) {
 				setServices(response.data);
@@ -73,7 +72,7 @@ const AdminServices = () => {
 	const handleDelete = async (id: number) => {
 		setIsDeleting(id);
 		try {
-			const response = await serviceService.deleteService(id);
+			const response = await serviceService.delete(id);
 			if (response.success) {
 				toast.success('Serviço excluído com sucesso');
 				fetchServices();
@@ -101,7 +100,7 @@ const AdminServices = () => {
 				return;
 			}
 
-			const response = await serviceService.createService(newService);
+			const response = await serviceService.create(newService);
 
 			if (response.success && response.data) {
 				setServices([...services, response.data]);
@@ -131,7 +130,7 @@ const AdminServices = () => {
 
 		setIsSubmitting(true);
 		try {
-			const response = await serviceService.updateService(selectedService.id, selectedService);
+			const response = await serviceService.update(selectedService.id, selectedService);
 
 			if (response.success && response.data) {
 				const updatedServices = services.map(s =>
