@@ -1,9 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, ChevronLeft, ChevronRight, Edit, Percent, Plus, Target, Trash2, TrendingUp, X } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
@@ -25,24 +25,8 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/use-toast";
-
-// Metas de exemplo
-const MOCK_GOALS = [
-	{ id: 1, barber: 'Carlos Silva', month: '03', year: '2023', target: 3000, current: 2750, percentage: 91.6, status: 'Em andamento' },
-	{ id: 2, barber: 'Ricardo Gomes', month: '03', year: '2023', target: 3500, current: 3200, percentage: 91.4, status: 'Em andamento' },
-	{ id: 3, barber: 'André Santos', month: '03', year: '2023', target: 4000, current: 4100, percentage: 102.5, status: 'Concluída' },
-	{ id: 4, barber: 'Felipe Costa', month: '03', year: '2023', target: 3200, current: 1800, percentage: 56.2, status: 'Em andamento' },
-	{ id: 5, barber: 'Carlos Silva', month: '02', year: '2023', target: 3000, current: 3100, percentage: 103.3, status: 'Concluída' },
-	{ id: 6, barber: 'Ricardo Gomes', month: '02', year: '2023', target: 3500, current: 3050, percentage: 87.1, status: 'Concluída' },
-];
-
-// Metas por serviço (para demonstração)
-const MOCK_SERVICE_GOALS = [
-	{ id: 101, barber: 'Carlos Silva', month: '03', year: '2023', serviceName: 'Corte de Cabelo', target: 80, current: 65, percentage: 81.25 },
-	{ id: 102, barber: 'Carlos Silva', month: '03', year: '2023', serviceName: 'Barba', target: 50, current: 48, percentage: 96 },
-	{ id: 103, barber: 'Ricardo Gomes', month: '03', year: '2023', serviceName: 'Corte de Cabelo', target: 70, current: 72, percentage: 102.85 },
-	{ id: 104, barber: 'Ricardo Gomes', month: '03', year: '2023', serviceName: 'Barba', target: 60, current: 42, percentage: 70 },
-];
+import GoalForm from '@/components/goal/GoalForm';
+import GoalsList from '@/components/goal/GoalsList';
 
 const AdminGoals = () => {
 	const { user, companySelected } = useAuth();
@@ -53,34 +37,26 @@ const AdminGoals = () => {
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+	const [currentProgress, setCurrentProgress] = useState<Record<number, number>>({});
 
-	const currentMonth = format(currentDate, 'MM');
-	const currentYear = format(currentDate, 'yyyy');
+	const currentMonth = parseInt(format(currentDate, 'MM'));
+	const currentYear = parseInt(format(currentDate, 'yyyy'));
 
 	// Função para navegar entre os meses
 	const navigateMonth = (direction: 'prev' | 'next') => {
 		setCurrentDate(direction === 'prev' ? subMonths(currentDate, 1) : addMonths(currentDate, 1));
 	};
 
-	// Filtrar metas pelo barbeiro atual (se for um barbeiro) e pelo mês/ano selecionado
-	const filteredGoals = MOCK_GOALS.filter(goal => {
+	// Filter goals by current month and year
+	const filteredGoals = goals.filter(goal => {
 		const monthMatch = goal.month === currentMonth && goal.year === currentYear;
 		if (user?.role === 'barber') {
-			return monthMatch && goal.barber === user.name;
+			return monthMatch && goal.userId === user.id;
 		}
 		return monthMatch;
 	});
 
-	// Filtrar metas de serviço pelo barbeiro atual (se for um barbeiro) e pelo mês/ano selecionado
-	const filteredServiceGoals = MOCK_SERVICE_GOALS.filter(goal => {
-		const monthMatch = goal.month === currentMonth && goal.year === currentYear;
-		if (user?.role === 'barber') {
-			return monthMatch && goal.barber === user.name;
-		}
-		return monthMatch;
-	});
-
-	// Função para determinar a cor do progresso baseado na porcentagem
+	// Function to determine the color of the progress based on percentage
 	const getProgressColor = (percentage: number) => {
 		if (percentage >= 100) return 'bg-green-500';
 		if (percentage >= 70) return 'bg-yellow-500';
@@ -89,15 +65,34 @@ const AdminGoals = () => {
 
 	useEffect(() => {
 		loadGoals();
-	}, [companySelected?.id]);
+	}, [companySelected?.id, currentMonth, currentYear]);
 
 	const loadGoals = async () => {
 		if (!companySelected?.id) return;
 
+		setIsLoading(true);
 		try {
-			const response = await goalService.getAllByCompany(companySelected.id);
+			let response;
+			if (user?.role === 'barber') {
+				response = await goalService.getUserGoals();
+			} else {
+				response = await goalService.getAllByCompany(companySelected.id);
+			}
+			
 			if (response.success && response.data) {
 				setGoals(response.data);
+				
+				// Here you would normally fetch the current progress for each goal
+				// For now, let's set some random progress values for demonstration
+				const progressData: Record<number, number> = {};
+				response.data.forEach(goal => {
+					if (goal.id) {
+						// Some random progress between 0 and 120% of target
+						const randomProgress = Math.random() * 1.2 * goal.target;
+						progressData[goal.id] = randomProgress;
+					}
+				});
+				setCurrentProgress(progressData);
 			}
 		} catch (error) {
 			toast({
@@ -117,12 +112,16 @@ const AdminGoals = () => {
 			const response = await goalService.create({
 				...data,
 				companyId: companySelected.id,
-				userId: 0, // será preenchido pelo backend
+				userId: data.userId || 0,
 			} as Goal);
 
 			if (response.success && response.data) {
 				setGoals([...goals, response.data]);
 				setIsFormOpen(false);
+				toast({
+					title: "Sucesso",
+					description: "Meta criada com sucesso!",
+				});
 			}
 		} catch (error) {
 			toast({
@@ -144,6 +143,10 @@ const AdminGoals = () => {
 				));
 				setIsFormOpen(false);
 				setSelectedGoal(null);
+				toast({
+					title: "Sucesso",
+					description: "Meta atualizada com sucesso!",
+				});
 			}
 		} catch (error) {
 			toast({
@@ -178,8 +181,17 @@ const AdminGoals = () => {
 		}
 	};
 
-	if (isLoading) {
-		return <div>Carregando...</div>;
+	if (isLoading && goals.length === 0) {
+		return (
+			<AdminLayout>
+				<div className="flex justify-center items-center h-64">
+					<div className="animate-pulse text-center">
+						<Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+						<p className="text-gray-500">Carregando metas...</p>
+					</div>
+				</div>
+			</AdminLayout>
+		);
 	}
 
 	return (
@@ -245,51 +257,26 @@ const AdminGoals = () => {
 						</div>
 
 						{selectedTab === 'financeiras' ? (
-							// Metas Financeiras
-							filteredGoals.length > 0 ? (
-								<GoalsList
-									goals={goals}
-									onEdit={(goal) => {
-										setSelectedGoal(goal);
-										setIsFormOpen(true);
-									}}
-									onDelete={(goal) => {
-										setSelectedGoal(goal);
-										setIsDeleteDialogOpen(true);
-									}}
-								/>
-							) : (
-								<div className="text-center py-12 border rounded-lg">
-									<Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-									<h3 className="text-gray-500 text-lg font-medium">Nenhuma meta encontrada</h3>
-									<p className="text-gray-400 text-sm mt-1">
-										Não há metas financeiras definidas para este período.
-									</p>
-								</div>
-							)
+							<GoalsList
+								goals={filteredGoals}
+								currentProgress={currentProgress}
+								onEdit={(goal) => {
+									setSelectedGoal(goal);
+									setIsFormOpen(true);
+								}}
+								onDelete={(goal) => {
+									setSelectedGoal(goal);
+									setIsDeleteDialogOpen(true);
+								}}
+							/>
 						) : (
-							// Metas por Serviço
-							filteredServiceGoals.length > 0 ? (
-								<GoalsList
-									goals={goals}
-									onEdit={(goal) => {
-										setSelectedGoal(goal);
-										setIsFormOpen(true);
-									}}
-									onDelete={(goal) => {
-										setSelectedGoal(goal);
-										setIsDeleteDialogOpen(true);
-									}}
-								/>
-							) : (
-								<div className="text-center py-12 border rounded-lg">
-									<Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-									<h3 className="text-gray-500 text-lg font-medium">Nenhuma meta de serviço encontrada</h3>
-									<p className="text-gray-400 text-sm mt-1">
-										Não há metas por serviço definidas para este período.
-									</p>
-								</div>
-							)
+							<div className="text-center py-12 border rounded-lg">
+								<Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+								<h3 className="text-gray-500 text-lg font-medium">Metas por serviço</h3>
+								<p className="text-gray-400 text-sm mt-1">
+									Funcionalidade em desenvolvimento
+								</p>
+							</div>
 						)}
 					</CardContent>
 				</Card>

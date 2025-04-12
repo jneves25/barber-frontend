@@ -1,3 +1,4 @@
+
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 
@@ -8,8 +9,14 @@ export interface Goal {
 	month: number;
 	year: number;
 	target: number;
-	user?: any;
-	company?: any;
+	user?: {
+		id: number;
+		name: string;
+	};
+	company?: {
+		id: number;
+		name: string;
+	};
 }
 
 export class GoalService extends BaseService {
@@ -30,7 +37,7 @@ export class GoalService extends BaseService {
 	}
 
 	async getAllByCompany(companyId: number): Promise<ApiResponse<Goal[]>> {
-		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}?companyId=${companyId}`));
+		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}/company/${companyId}`));
 	}
 
 	async getUserGoals(): Promise<ApiResponse<Goal[]>> {
@@ -39,6 +46,18 @@ export class GoalService extends BaseService {
 
 	async getById(id: number): Promise<ApiResponse<Goal>> {
 		return this.handleResponse<Goal>(apiClient.get(`/${this.endpoint}/${id}`));
+	}
+
+	// Get the current progress for a specific goal
+	async getGoalProgress(goalId: number): Promise<ApiResponse<number>> {
+		return this.handleResponse<number>(apiClient.get(`/${this.endpoint}/${goalId}/progress`));
+	}
+
+	// Get progress for multiple goals at once
+	async getGoalsProgress(goalIds: number[]): Promise<ApiResponse<Record<number, number>>> {
+		return this.handleResponse<Record<number, number>>(
+			apiClient.post(`/${this.endpoint}/progress`, { goalIds })
+		);
 	}
 }
 
