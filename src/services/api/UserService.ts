@@ -21,7 +21,7 @@ export interface User {
 	companies?: Company[];
 	role: RoleEnum;
 	permissions?: {
-		createCompany: boolean;
+		manageCompany: boolean;
 		viewCompanys: boolean;
 		addMember: boolean;
 		managePermissions: boolean;
@@ -56,7 +56,7 @@ export interface User {
 
 export interface UserPermissions {
 	userId: number;
-	createCompany: boolean;
+	manageCompany: boolean;
 	viewCompanys: boolean;
 	addMember: boolean;
 	managePermissions: boolean;

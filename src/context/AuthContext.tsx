@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import AuthService from '@/services/api/AuthService';
-import { User, Company } from '@/services/api/UserService';
+import { User } from '@/services/api/UserService';
+import { Company } from '@/services/api/CompanyService';
 
 // Definição dos tipos
 export type UserRole = 'admin' | 'barber' | 'receptionist';
