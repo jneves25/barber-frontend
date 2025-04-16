@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Calendar, Scissors, BarChart, Eye, Settings, UserPlus, Percent, AlertCircle } from 'lucide-react';
 import {
 	DropdownMenu,
@@ -523,9 +522,6 @@ const AdminCommissions = () => {
 							<Percent className="h-5 w-5 text-barber-500" />
 							Comissões da Equipe
 						</CardTitle>
-						<CardDescription>
-							Dados do período selecionado: {startDate && format(startDate, 'dd/MM/yyyy')} até {endDate && format(endDate, 'dd/MM/yyyy')}
-						</CardDescription>
 					</CardHeader>
 					<CardContent className="pt-6">
 						<div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -611,18 +607,21 @@ const AdminCommissions = () => {
 																</DropdownMenuTrigger>
 																<DropdownMenuContent align="end" className="w-56">
 																	<DropdownMenuGroup>
-																		<DropdownMenuItem
-																			onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
-																			className="cursor-pointer"
-																		>
-																			Definir comissão geral
-																		</DropdownMenuItem>
-																		<DropdownMenuItem
-																			onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
-																			className="cursor-pointer"
-																		>
-																			Definir comissão por serviço
-																		</DropdownMenuItem>
+																		{commission.commissionType === CommissionTypeEnum.SERVICE ? (
+																			<DropdownMenuItem
+																				onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
+																				className="cursor-pointer"
+																			>
+																				Alterar para comissão geral
+																			</DropdownMenuItem>
+																		) : (
+																			<DropdownMenuItem
+																				onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
+																				className="cursor-pointer"
+																			>
+																				Alterar para comissão por serviço
+																			</DropdownMenuItem>
+																		)}
 																		{commission.commissionType === CommissionTypeEnum.GENERAL && (
 																			<DropdownMenuItem 
 																				onClick={() => handleOpenSettings(commission.id)}
@@ -645,28 +644,6 @@ const AdminCommissions = () => {
 						</div>
 					</CardContent>
 				</Card>
-
-				<div className="bg-gray-50 p-4 rounded-lg mt-8 border border-gray-200">
-					<h3 className="text-lg font-medium mb-2">Como funcionam as comissões?</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="bg-white p-4 rounded-lg border border-gray-200">
-							<h4 className="flex items-center gap-2 text-barber-500 font-medium mb-2">
-								<Percent className="h-4 w-4" />
-								Comissão Geral
-							</h4>
-							<p className="text-sm text-gray-600">É uma porcentagem única aplicada a todos os serviços realizados pelo profissional. 
-							Por exemplo, se configurado como 30%, o profissional receberá 30% do valor de qualquer serviço que realizar.</p>
-						</div>
-						<div className="bg-white p-4 rounded-lg border border-gray-200">
-							<h4 className="flex items-center gap-2 text-blue-500 font-medium mb-2">
-								<Scissors className="h-4 w-4" />
-								Comissão por Serviço
-							</h4>
-							<p className="text-sm text-gray-600">Permite definir porcentagens diferentes para cada tipo de serviço. 
-							Por exemplo, 20% para cortes, 30% para químicas, etc. Ideal para incentivar serviços específicos.</p>
-						</div>
-					</div>
-				</div>
 			</div>
 
 			{/* Dialog para configuração de comissão geral */}
