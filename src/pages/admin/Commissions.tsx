@@ -124,12 +124,10 @@ const AdminCommissions = () => {
 	const { toast } = useToast();
 	const [services, setServices] = useState<Service[]>([]);
 
-	// Fetch initial data
 	useEffect(() => {
 		fetchCommissionData();
 	}, [startDate, endDate]);
 
-	// Add new useEffect to fetch services
 	useEffect(() => {
 		fetchServices();
 	}, [companySelected.id]);
@@ -155,7 +153,7 @@ const AdminCommissions = () => {
 	};
 
 	const calculateTotalStats = (commissionData: CommissionConfig[]) => {
-		const totalRevenue = 0; // Implementar cálculo baseado nos dados reais
+		const totalRevenue = 0;
 		const totalCommissions = commissionData.reduce((sum, item) => {
 			if (item.commissionMode === CommissionModeEnum.FIXED) {
 				return sum + item.commissionValue;
@@ -244,7 +242,7 @@ const AdminCommissions = () => {
 
 			const rule: CreateCommissionRule = {
 				configId: commission.id,
-				serviceType: serviceId.toString(), // Converter para string conforme esperado pelo backend
+				serviceType: serviceId.toString(),
 				percentage
 			};
 
@@ -325,7 +323,6 @@ const AdminCommissions = () => {
 			setError("A senha deve ter pelo menos 6 caracteres");
 			return false;
 		}
-		// Basic email validation
 		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		if (!emailRegex.test(newUser.email)) {
 			setError("Email inválido");
@@ -348,13 +345,12 @@ const AdminCommissions = () => {
 			});
 
 			if (response.success && response.data) {
-				// Create commission configuration with default values
 				await CommissionService.createCommissionConfig({
 					userId: response.data.id,
 					companyId: companySelected.id,
 					commissionType: CommissionTypeEnum.GENERAL,
 					commissionMode: CommissionModeEnum.PERCENTAGE,
-					commissionValue: 40 // Default percentage
+					commissionValue: 40
 				});
 
 				toast({
@@ -381,7 +377,6 @@ const AdminCommissions = () => {
 		}
 	};
 
-	// Add function to fetch services
 	const fetchServices = async () => {
 		try {
 			const response = await ServiceService.getAll(companySelected.id);
@@ -466,10 +461,10 @@ const AdminCommissions = () => {
 				</div>
 
 				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-					<Card className="bg-white border-l-4 border-barber-500">
+					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
-							<DollarSign className="h-4 w-4 text-barber-500" />
+							<DollarSign className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">R$ {totalStats.totalRevenue.toFixed(2)}</div>
@@ -478,10 +473,10 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
-					<Card className="bg-white border-l-4 border-green-500">
+					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Comissões Pagas</CardTitle>
-							<DollarSign className="h-4 w-4 text-green-500" />
+							<DollarSign className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">R$ {totalStats.totalCommissions.toFixed(2)}</div>
@@ -490,10 +485,10 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
-					<Card className="bg-white border-l-4 border-blue-500">
+					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Total de Serviços</CardTitle>
-							<Scissors className="h-4 w-4 text-blue-500" />
+							<Scissors className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">{totalStats.totalServices}</div>
@@ -502,10 +497,10 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
-					<Card className="bg-white border-l-4 border-amber-500">
+					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">% Média Comissão</CardTitle>
-							<BarChart className="h-4 w-4 text-amber-500" />
+							<BarChart className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">{totalStats.averageCommission.toFixed(2)}%</div>
@@ -646,7 +641,6 @@ const AdminCommissions = () => {
 				</Card>
 			</div>
 
-			{/* Dialog para configuração de comissão geral */}
 			<CommissionSettings
 				isOpen={isSettingsOpen}
 				onOpenChange={setIsSettingsOpen}
@@ -654,7 +648,6 @@ const AdminCommissions = () => {
 				onSave={updateBarberGeneralCommission}
 			/>
 
-			{/* Dialog para visualização e edição de comissões por serviço */}
 			<ServiceCommissionForm
 				isOpen={isServiceFormOpen}
 				onOpenChange={setIsServiceFormOpen}
@@ -664,7 +657,6 @@ const AdminCommissions = () => {
 				onSave={updateServiceCommission}
 			/>
 
-			{/* Dialog para cadastro de novo usuário */}
 			<Dialog open={isUserModalOpen} onOpenChange={setIsUserModalOpen}>
 				<DialogContent className="sm:max-w-[425px]">
 					<DialogHeader>
