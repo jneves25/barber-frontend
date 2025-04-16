@@ -1,87 +1,123 @@
-
 import React, { useState, useEffect } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CommissionConfig, CommissionModeEnum } from '@/services/api/CommissionService';
 
 interface CommissionSettingsProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  barber: {
-    id: number;
-    barber: string;
-    percentage: number;
-  } | null;
-  onSave: (barberId: number, percentage: number) => void;
+	isOpen: boolean;
+	onOpenChange: (open: boolean) => void;
+	barber: CommissionConfig | null;
+	onSave: (barberId: number, value: number, mode: CommissionModeEnum) => void;
 }
 
 const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: CommissionSettingsProps) => {
-  const [percentage, setPercentage] = useState<number>(0);
+	const [value, setValue] = useState<string>('');
+	const [selectedType, setSelectedType] = useState<'R$' | '%'>('%');
 
-  useEffect(() => {
-    if (barber) {
-      setPercentage(barber.percentage);
-    }
-  }, [barber]);
+	useEffect(() => {
+		if (barber) {
+			setValue(barber.commissionValue.toString());
+			setSelectedType(barber.commissionMode === CommissionModeEnum.FIXED ? 'R$' : '%');
+		}
+	}, [barber, isOpen]);
 
-  const handleSave = () => {
-    if (barber) {
-      onSave(barber.id, percentage);
-      onOpenChange(false);
-    }
-  };
+	const handleSave = () => {
+		if (barber && value) {
+			const numericValue = parseFloat(value);
+			const mode = selectedType === 'R$' ? CommissionModeEnum.FIXED : CommissionModeEnum.PERCENTAGE;
 
-  if (!barber) return null;
+			if (selectedType === '%' && (numericValue < 0 || numericValue > 100)) {
+				alert('Porcentagem deve estar entre 0 e 100');
+				return;
+			}
+			if (selectedType === 'R$' && numericValue < 0) {
+				alert('Valor não pode ser negativo');
+				return;
+			}
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Configurar Comissão Geral</DialogTitle>
-          <DialogDescription>
-            Defina a porcentagem de comissão geral para {barber.barber}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="percentage" className="text-right">
-              Porcentagem
-            </Label>
-            <div className="col-span-3 flex items-center">
-              <Input
-                id="percentage"
-                type="number"
-                min={0}
-                max={100}
-                value={percentage}
-                onChange={(e) => setPercentage(Number(e.target.value))}
-                className="w-full"
-              />
-              <span className="ml-2">%</span>
-            </div>
-          </div>
-        </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="submit" onClick={handleSave}>
-            Salvar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+			onSave(barber.id, numericValue, mode);
+			onOpenChange(false);
+		}
+	};
+
+	const handleTypeChange = (newType: 'R$' | '%') => {
+		setSelectedType(newType);
+		setValue('');
+	};
+
+	return (
+		<Dialog open={isOpen} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-[425px]">
+				<DialogHeader>
+					<DialogTitle>Configurar Comissão Geral</DialogTitle>
+					<DialogDescription>
+						Defina o tipo e valor da comissão para {barber?.user.name}
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="grid gap-4 py-4">
+					<div className="grid grid-cols-4 items-center gap-4">
+						<Label htmlFor="type" className="text-right">
+							Tipo
+						</Label>
+						<Select
+							value={selectedType}
+							onValueChange={(value: 'R$' | '%') => handleTypeChange(value)}
+						>
+							<SelectTrigger className="col-span-3">
+								<SelectValue placeholder="Selecione o tipo" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="R$">Valor Fixo (R$)</SelectItem>
+								<SelectItem value="%">Porcentagem (%)</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="grid grid-cols-4 items-center gap-4">
+						<Label htmlFor="value" className="text-right">
+							Valor
+						</Label>
+						<div className="col-span-3 relative">
+							<Input
+								id="value"
+								type="number"
+								value={value}
+								onChange={(e) => setValue(e.target.value)}
+								className="pr-8"
+								placeholder={selectedType === 'R$' ? "0.00" : "0"}
+								step={selectedType === 'R$' ? "0.01" : "1"}
+								min={0}
+								max={selectedType === '%' ? 100 : undefined}
+							/>
+							<span className="absolute right-3 top-2 text-gray-500">
+								{selectedType}
+							</span>
+						</div>
+					</div>
+				</div>
+
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)}>
+						Cancelar
+					</Button>
+					<Button onClick={handleSave}>
+						Salvar
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
 };
 
 export default CommissionSettings;

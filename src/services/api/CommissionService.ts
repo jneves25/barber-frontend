@@ -1,11 +1,21 @@
 import { BaseService, ApiResponse } from './BaseService';
+import { User } from './UserService';
 import apiClient from './apiClient';
+
+export enum CommissionTypeEnum {
+	GENERAL = 'GENERAL',
+	SERVICE = 'SERVICE'
+}
+
+export enum CommissionModeEnum {
+	FIXED = 'FIXED',
+	PERCENTAGE = 'PERCENTAGE'
+}
 
 export interface CommissionRule {
 	id: number;
 	configId: number;
-	minValue: number;
-	maxValue: number;
+	serviceType: string;
 	percentage: number;
 }
 
@@ -13,22 +23,38 @@ export interface CommissionConfig {
 	id: number;
 	userId: number;
 	companyId: number;
-	name: string;
-	description?: string;
-	rules?: CommissionRule[];
+	commissionType: CommissionTypeEnum;
+	commissionMode: CommissionModeEnum;
+	commissionValue: number;
+	createdAt: string;
+	updatedAt: string;
+	rules: CommissionRule[];
+	user: User;
+	company: {
+		id: number;
+		name: string;
+		ownerId: number;
+		settingsId: number;
+		address: string;
+		logo: string;
+		backgroundImage: string;
+		phone: string;
+		whatsapp: string;
+		email: string;
+	};
 }
 
 export interface CreateCommissionConfig {
 	userId: number;
 	companyId: number;
-	name: string;
-	description?: string;
+	commissionType: CommissionTypeEnum;
+	commissionMode: CommissionModeEnum;
+	commissionValue?: number;
 }
 
 export interface CreateCommissionRule {
 	configId: number;
-	minValue: number;
-	maxValue: number;
+	serviceType: string;
 	percentage: number;
 }
 
@@ -39,7 +65,7 @@ export class CommissionService extends BaseService {
 
 	// Validate commission config
 	validateCommissionConfig(config: CreateCommissionConfig): string | null {
-		const requiredError = this.validateRequired(config, ['userId', 'companyId', 'name']);
+		const requiredError = this.validateRequired(config, ['userId', 'companyId', 'commissionType', 'commissionMode']);
 		if (requiredError) return requiredError;
 
 		return null;
@@ -47,12 +73,8 @@ export class CommissionService extends BaseService {
 
 	// Validate commission rule
 	validateCommissionRule(rule: CreateCommissionRule): string | null {
-		const requiredError = this.validateRequired(rule, ['configId', 'minValue', 'maxValue', 'percentage']);
+		const requiredError = this.validateRequired(rule, ['configId', 'serviceType', 'percentage']);
 		if (requiredError) return requiredError;
-
-		if (rule.minValue > rule.maxValue) {
-			return 'Minimum value cannot be greater than maximum value';
-		}
 
 		if (rule.percentage < 0 || rule.percentage > 100) {
 			return 'Percentage must be between 0 and 100';
@@ -79,7 +101,7 @@ export class CommissionService extends BaseService {
 
 	async getCommissionConfigsByCompany(companyId: number): Promise<ApiResponse<CommissionConfig[]>> {
 		return this.handleResponse<CommissionConfig[]>(
-			apiClient.get(`/commission/company/${companyId}`)
+			apiClient.get(`/commission`, { params: { companyId } })
 		);
 	}
 

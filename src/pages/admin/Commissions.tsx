@@ -40,20 +40,26 @@ import { useToast } from '@/hooks/use-toast';
 import CommissionSettings from '@/components/commission/CommissionSettings';
 import ServiceCommissionForm from '@/components/commission/ServiceCommissionForm';
 import UserService, { RoleEnum, User } from '@/services/api/UserService';
-import CommissionService, { CommissionConfig, CommissionRule, CreateCommissionRule } from '@/services/api/CommissionService';
+import CommissionService, {
+	CommissionConfig,
+	CommissionRule,
+	CommissionTypeEnum,
+	CommissionModeEnum,
+	CreateCommissionRule
+} from '@/services/api/CommissionService';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import ServiceService, { Service } from '@/services/api/ServiceService';
 
 interface CommissionData {
 	id: number;
-	barber: string;
 	services: number;
 	revenue: number;
 	commission: number;
 	percentage: number;
 	commissionType: 'geral' | 'por_servico';
 	userId: number;
+	user: User;
 	configId?: number;
 }
 
@@ -94,7 +100,7 @@ const AdminCommissions = () => {
 	const { companySelected } = useAuth();
 	const [startDate, setStartDate] = useState<Date | undefined>(new Date());
 	const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-	const [commissions, setCommissions] = useState<CommissionData[]>([]);
+	const [commissions, setCommissions] = useState<CommissionConfig[]>([]);
 	const [serviceCommissions, setServiceCommissions] = useState<CommissionRule[]>([]);
 	const [selectedBarber, setSelectedBarber] = useState<number | null>(null);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -132,21 +138,8 @@ const AdminCommissions = () => {
 			const response = await CommissionService.getCommissionConfigsByCompany(companySelected.id);
 
 			if (response.success && response.data) {
-				// Transform commission configs into display data
-				const commissionData: CommissionData[] = response.data.map(config => ({
-					id: config.id,
-					barber: config.name,
-					services: 0, // These would come from a separate API call for statistics
-					revenue: 0,
-					commission: 0,
-					percentage: config.rules?.[0]?.percentage || 0,
-					commissionType: config.rules?.length ? 'por_servico' : 'geral',
-					userId: config.userId,
-					configId: config.id
-				}));
-
-				setCommissions(commissionData);
-				calculateTotalStats(commissionData);
+				setCommissions(response.data);
+				calculateTotalStats(response.data);
 			}
 		} catch (error) {
 			toast({
@@ -159,10 +152,15 @@ const AdminCommissions = () => {
 		}
 	};
 
-	const calculateTotalStats = (commissionData: CommissionData[]) => {
-		const totalRevenue = commissionData.reduce((sum, item) => sum + item.revenue, 0);
-		const totalCommissions = commissionData.reduce((sum, item) => sum + item.commission, 0);
-		const totalServices = commissionData.reduce((sum, item) => sum + item.services, 0);
+	const calculateTotalStats = (commissionData: CommissionConfig[]) => {
+		const totalRevenue = 0; // Implementar cálculo baseado nos dados reais
+		const totalCommissions = commissionData.reduce((sum, item) => {
+			if (item.commissionMode === CommissionModeEnum.FIXED) {
+				return sum + item.commissionValue;
+			}
+			return sum + (totalRevenue * (item.commissionValue / 100));
+		}, 0);
+		const totalServices = commissionData.reduce((sum, item) => sum + item.rules.length, 0);
 		const averageCommission = totalCommissions / totalRevenue * 100 || 0;
 
 		setTotalStats({
@@ -173,35 +171,33 @@ const AdminCommissions = () => {
 		});
 	};
 
-	const handleCommissionTypeChange = async (barberId: number, type: 'geral' | 'por_servico') => {
+	const handleCommissionTypeChange = async (barberId: number, type: CommissionTypeEnum) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
-			if (!commission?.configId) return;
+			if (!commission) return;
 
-			if (type === 'geral') {
-				// Update to use general commission
-				await CommissionService.updateCommissionConfig(commission.configId, {
-					rules: [{
-						id: 0,
-						configId: commission.configId,
-						percentage: 40,
-						minValue: 0,
-						maxValue: 999999
-					}]
-				});
-			} else {
-				// Clear rules to indicate per-service commission
-				await CommissionService.updateCommissionConfig(commission.configId, {
-					rules: []
-				});
-			}
+			await CommissionService.updateCommissionConfig(commission.id, {
+				commissionType: type,
+				userId: commission.userId,
+				companyId: commission.companyId,
+				commissionMode: CommissionModeEnum.PERCENTAGE,
+				commissionValue: type === CommissionTypeEnum.GENERAL ? 40 : 0
+			});
 
 			await fetchCommissionData();
 
 			toast({
 				title: "Tipo de comissão alterado",
-				description: `Tipo de comissão alterado para ${type === 'geral' ? 'geral' : 'por serviço'}`
+				description: type === CommissionTypeEnum.GENERAL
+					? "Alterado para comissão geral. Configure a porcentagem desejada."
+					: "Alterado para comissão por serviço. Configure as porcentagens para cada serviço."
 			});
+
+			if (type === CommissionTypeEnum.GENERAL) {
+				handleOpenSettings(barberId);
+			} else {
+				handleOpenServiceForm(barberId);
+			}
 		} catch (error) {
 			toast({
 				title: "Erro",
@@ -222,9 +218,9 @@ const AdminCommissions = () => {
 	const handleOpenServiceForm = async (barberId: number) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
-			if (!commission?.configId) return;
+			if (!commission) return;
 
-			const rulesResponse = await CommissionService.getCommissionRulesByConfig(commission.configId);
+			const rulesResponse = await CommissionService.getCommissionRulesByConfig(commission.id);
 			if (rulesResponse.success) {
 				setServiceCommissions(rulesResponse.data || []);
 				setSelectedBarber(barberId);
@@ -239,16 +235,15 @@ const AdminCommissions = () => {
 		}
 	};
 
-	const updateServiceCommission = async (barberId: number, serviceId: number, percentage: number) => {
+	const updateServiceCommission = async (barberId: number, serviceId: string, percentage: number) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
-			if (!commission?.configId) return;
+			if (!commission) return;
 
 			const rule: CreateCommissionRule = {
-				configId: commission.configId,
-				percentage,
-				minValue: 0,
-				maxValue: 999999
+				configId: commission.id,
+				serviceType: serviceId.toString(), // Converter para string conforme esperado pelo backend
+				percentage
 			};
 
 			await CommissionService.createCommissionRule(rule);
@@ -268,26 +263,26 @@ const AdminCommissions = () => {
 		}
 	};
 
-	const updateBarberGeneralCommission = async (barberId: number, percentage: number) => {
+	const updateBarberGeneralCommission = async (barberId: number, value: number, mode: CommissionModeEnum) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
-			if (!commission?.configId) return;
+			if (!commission) return;
 
-			await CommissionService.updateCommissionConfig(commission.configId, {
-				rules: [{
-					id: 0, // Temporary ID, will be replaced by backend
-					configId: commission.configId,
-					percentage: 40,
-					minValue: 0,
-					maxValue: 999999
-				}]
+			await CommissionService.updateCommissionConfig(commission.id, {
+				commissionValue: value,
+				commissionType: CommissionTypeEnum.GENERAL,
+				userId: commission.userId,
+				companyId: commission.companyId,
+				commissionMode: mode
 			});
 
 			await fetchCommissionData();
 
 			toast({
 				title: "Comissão geral atualizada",
-				description: `Comissão geral atualizada para ${percentage}%`
+				description: mode === CommissionModeEnum.FIXED
+					? `Comissão geral definida para R$ ${value.toFixed(2)} em todos os serviços`
+					: `Comissão geral definida para ${value}% em todos os serviços`
 			});
 		} catch (error) {
 			toast({
@@ -329,12 +324,13 @@ const AdminCommissions = () => {
 			});
 
 			if (response.success) {
-				// Create default commission config for new user
+				// Criar configuração de comissão com os valores corretos
 				await CommissionService.createCommissionConfig({
 					userId: response.data.id,
-					companyId: 1, // Replace with actual company ID
-					name: response.data.name,
-					description: "Configuração padrão de comissão"
+					companyId: companySelected.id, // Usar o ID da empresa selecionada
+					commissionType: CommissionTypeEnum.GENERAL,
+					commissionMode: CommissionModeEnum.PERCENTAGE,
+					commissionValue: 40 // Porcentagem padrão inicial
 				});
 
 				toast({
@@ -443,7 +439,8 @@ const AdminCommissions = () => {
 							</Popover>
 						</div>
 
-						<Button onClick={() => setIsUserModalOpen(true)} className="bg-barber-500 hover:bg-barber-600">
+						<Button onClick={() => setIsUserModalOpen(true)} className="bg-barber-500 hover:bg-b
+						arber-600">
 							<UserPlus className="h-4 w-4 mr-2" />
 							Novo Membro
 						</Button>
@@ -514,59 +511,54 @@ const AdminCommissions = () => {
 								<table className="min-w-full divide-y divide-gray-200">
 									<thead>
 										<tr>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profissional</th>
-											<th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faturamento</th>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comissão</th>
-											<th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-											<th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">%</th>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												Profissional
+											</th>
+											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												Tipo de Comissão
+											</th>
+											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												Valor/Regras
+											</th>
+											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+												Ações
+											</th>
 										</tr>
 									</thead>
 									<tbody className="bg-white divide-y divide-gray-200">
 										{commissions.map(commission => (
 											<tr key={commission.id} className="hover:bg-gray-50">
 												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="text-sm font-medium text-gray-900">{commission.barber}</div>
-												</td>
-												<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
-													<div className="text-sm text-gray-900">{commission.services}</div>
-												</td>
-												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="text-sm text-gray-900">R$ {commission.revenue.toFixed(2)}</div>
-												</td>
-												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="text-sm text-gray-900">R$ {commission.commission.toFixed(2)}</div>
-												</td>
-												<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
-													<div className="text-sm text-gray-900">
-														{commission.commissionType === 'geral'
-															? 'Geral'
-															: 'Por serviço'}
+													<div className="text-sm font-medium text-gray-900">
+														{commission.user.name}
 													</div>
 												</td>
-												<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
+												<td className="px-3 py-3 whitespace-nowrap">
 													<div className="text-sm text-gray-900">
-														{commission.commissionType === 'geral'
-															? `${commission.percentage}%`
-															: 'Variado'}
+														{commission.commissionType === CommissionTypeEnum.GENERAL ? 'Geral' : 'Por serviço'}
+													</div>
+												</td>
+												<td className="px-3 py-3 whitespace-nowrap">
+													<div className="text-sm text-gray-900">
+														{commission.commissionType === CommissionTypeEnum.GENERAL
+															? commission.commissionMode === CommissionModeEnum.FIXED
+																? `R$ ${commission.commissionValue.toFixed(2)} em todos os serviços`
+																: `${commission.commissionValue}% em todos os serviços`
+															: `${commission.rules.length} serviços configurados`
+														}
 													</div>
 												</td>
 												<td className="px-3 py-3 whitespace-nowrap">
 													<div className="flex space-x-2">
-														<button
-															className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-															title="Detalhes"
-															onClick={() => handleOpenServiceForm(commission.id)}
-														>
-															<Eye className="h-4 w-4" />
-														</button>
-														<button
-															className="p-1 text-green-500 hover:text-green-700 transition-colors"
-															title="Pagar"
-														>
-															<DollarSign className="h-4 w-4" />
-														</button>
+														{commission.commissionType === CommissionTypeEnum.SERVICE && (
+															<button
+																className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+																title="Configurar Comissões por Serviço"
+																onClick={() => handleOpenServiceForm(commission.id)}
+															>
+																<Eye className="h-4 w-4" />
+															</button>
+														)}
 														<DropdownMenu>
 															<DropdownMenuTrigger asChild>
 																<button className="p-1 text-gray-500 hover:text-gray-700 transition-colors">
@@ -575,15 +567,21 @@ const AdminCommissions = () => {
 															</DropdownMenuTrigger>
 															<DropdownMenuContent className="w-56">
 																<DropdownMenuGroup>
-																	<DropdownMenuItem onClick={() => handleCommissionTypeChange(commission.id, 'geral')}>
-																		Usar comissão geral
+																	<DropdownMenuItem
+																		onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
+																	>
+																		Definir comissão geral
 																	</DropdownMenuItem>
-																	<DropdownMenuItem onClick={() => handleCommissionTypeChange(commission.id, 'por_servico')}>
-																		Usar comissão por serviço
+																	<DropdownMenuItem
+																		onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
+																	>
+																		Definir comissão por serviço
 																	</DropdownMenuItem>
-																	<DropdownMenuItem onClick={() => handleOpenSettings(commission.id)}>
-																		Configurar comissão
-																	</DropdownMenuItem>
+																	{commission.commissionType === CommissionTypeEnum.GENERAL && (
+																		<DropdownMenuItem onClick={() => handleOpenSettings(commission.id)}>
+																			Configurar porcentagem geral
+																		</DropdownMenuItem>
+																	)}
 																</DropdownMenuGroup>
 															</DropdownMenuContent>
 														</DropdownMenu>
@@ -592,17 +590,6 @@ const AdminCommissions = () => {
 											</tr>
 										))}
 									</tbody>
-									<tfoot>
-										<tr className="bg-gray-50 font-semibold">
-											<td className="px-3 py-3 whitespace-nowrap">Total</td>
-											<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">{totalStats.totalServices}</td>
-											<td className="px-3 py-3 whitespace-nowrap">R$ {totalStats.totalRevenue.toFixed(2)}</td>
-											<td className="px-3 py-3 whitespace-nowrap">R$ {totalStats.totalCommissions.toFixed(2)}</td>
-											<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">-</td>
-											<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">{totalStats.averageCommission.toFixed(2)}%</td>
-											<td className="px-3 py-3 whitespace-nowrap"></td>
-										</tr>
-									</tfoot>
 								</table>
 							</div>
 						</div>

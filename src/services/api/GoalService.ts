@@ -37,7 +37,7 @@ export class GoalService extends BaseService {
 	}
 
 	async getAllByCompany(companyId: number): Promise<ApiResponse<Goal[]>> {
-		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}/company/${companyId}`));
+		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}`, { params: { companyId } }));
 	}
 
 	async getUserGoals(): Promise<ApiResponse<Goal[]>> {
