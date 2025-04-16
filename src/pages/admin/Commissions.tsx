@@ -235,22 +235,28 @@ const AdminCommissions = () => {
 		}
 	};
 
-	const updateServiceCommission = async (barberId: number, serviceId: string, percentage: number) => {
+	const updateServiceCommission = async (barberId: number, serviceId: number, value: number, mode: CommissionModeEnum) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
 			if (!commission) return;
 
 			const rule: CreateCommissionRule = {
 				configId: commission.id,
+				serviceId: serviceId,
 				serviceType: serviceId.toString(),
-				percentage
+				percentage: value,
+				mode
 			};
 
 			await CommissionService.createCommissionRule(rule);
 
+			const message = mode === CommissionModeEnum.PERCENTAGE 
+				? `Comissão do serviço atualizada para ${value}%`
+				: `Comissão do serviço atualizada para R$ ${value.toFixed(2)}`;
+			
 			toast({
 				title: "Comissão atualizada",
-				description: `Comissão do serviço atualizada para ${percentage}%`
+				description: message
 			});
 
 			await fetchCommissionData();

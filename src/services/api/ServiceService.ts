@@ -1,3 +1,4 @@
+
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 
@@ -44,6 +45,11 @@ export class ServiceService extends BaseService {
 		return this.handleResponse<Service[]>(
 			apiClient.get(`/${this.endpoint}`, { params: { companyId } })
 		);
+	}
+
+	async getAllServices(companyId: number): Promise<ApiResponse<Service[]>> {
+		// This is an alias for getAll for compatibility with other components
+		return this.getAll(companyId);
 	}
 
 	async getById(id: number): Promise<ApiResponse<Service>> {

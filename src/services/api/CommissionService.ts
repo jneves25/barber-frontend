@@ -15,8 +15,10 @@ export enum CommissionModeEnum {
 export interface CommissionRule {
 	id: number;
 	configId: number;
+	serviceId: number;
 	serviceType: string;
 	percentage: number;
+	mode: CommissionModeEnum;
 }
 
 export interface CommissionConfig {
@@ -54,8 +56,10 @@ export interface CreateCommissionConfig {
 
 export interface CreateCommissionRule {
 	configId: number;
+	serviceId: number;
 	serviceType: string;
 	percentage: number;
+	mode: CommissionModeEnum;
 }
 
 export class CommissionService extends BaseService {
@@ -76,8 +80,14 @@ export class CommissionService extends BaseService {
 		const requiredError = this.validateRequired(rule, ['configId', 'serviceType', 'percentage']);
 		if (requiredError) return requiredError;
 
-		if (rule.percentage < 0 || rule.percentage > 100) {
-			return 'Percentage must be between 0 and 100';
+		if (rule.mode === CommissionModeEnum.PERCENTAGE) {
+			if (rule.percentage < 0 || rule.percentage > 100) {
+				return 'Percentage must be between 0 and 100';
+			}
+		} else if (rule.mode === CommissionModeEnum.FIXED) {
+			if (rule.percentage < 0) {
+				return 'Fixed value must be greater than 0';
+			}
 		}
 
 		return null;
@@ -158,4 +168,4 @@ export class CommissionService extends BaseService {
 	}
 }
 
-export default new CommissionService(); 
+export default new CommissionService();
