@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
 	Dialog,
@@ -12,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CommissionConfig, CommissionModeEnum } from '@/services/api/CommissionService';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface CommissionSettingsProps {
 	isOpen: boolean;
@@ -23,12 +26,14 @@ interface CommissionSettingsProps {
 const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: CommissionSettingsProps) => {
 	const [value, setValue] = useState<string>('');
 	const [selectedType, setSelectedType] = useState<'R$' | '%'>('%');
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (barber) {
 			setValue(barber.commissionValue.toString());
 			setSelectedType(barber.commissionMode === CommissionModeEnum.FIXED ? 'R$' : '%');
 		}
+		setError(null);
 	}, [barber, isOpen]);
 
 	const handleSave = () => {
@@ -37,11 +42,11 @@ const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: Commission
 			const mode = selectedType === 'R$' ? CommissionModeEnum.FIXED : CommissionModeEnum.PERCENTAGE;
 
 			if (selectedType === '%' && (numericValue < 0 || numericValue > 100)) {
-				alert('Porcentagem deve estar entre 0 e 100');
+				setError('Porcentagem deve estar entre 0 e 100');
 				return;
 			}
 			if (selectedType === 'R$' && numericValue < 0) {
-				alert('Valor não pode ser negativo');
+				setError('Valor não pode ser negativo');
 				return;
 			}
 
@@ -53,6 +58,7 @@ const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: Commission
 	const handleTypeChange = (newType: 'R$' | '%') => {
 		setSelectedType(newType);
 		setValue('');
+		setError(null);
 	};
 
 	return (
@@ -64,6 +70,13 @@ const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: Commission
 						Defina o tipo e valor da comissão para {barber?.user.name}
 					</DialogDescription>
 				</DialogHeader>
+
+				{error && (
+					<Alert variant="destructive" className="mb-4">
+						<AlertCircle className="h-4 w-4" />
+						<AlertDescription>{error}</AlertDescription>
+					</Alert>
+				)}
 
 				<div className="grid gap-4 py-4">
 					<div className="grid grid-cols-4 items-center gap-4">
@@ -93,7 +106,10 @@ const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: Commission
 								id="value"
 								type="number"
 								value={value}
-								onChange={(e) => setValue(e.target.value)}
+								onChange={(e) => {
+									setValue(e.target.value);
+									setError(null);
+								}}
 								className="pr-8"
 								placeholder={selectedType === 'R$' ? "0.00" : "0"}
 								step={selectedType === 'R$' ? "0.01" : "1"}
@@ -111,7 +127,7 @@ const CommissionSettings = ({ isOpen, onOpenChange, barber, onSave }: Commission
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
 						Cancelar
 					</Button>
-					<Button onClick={handleSave}>
+					<Button onClick={handleSave} className="bg-barber-500 hover:bg-barber-600">
 						Salvar
 					</Button>
 				</DialogFooter>

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Calendar, Scissors, BarChart, Edit, Eye, Settings, UserPlus } from 'lucide-react';
+import { DollarSign, Calendar, Scissors, BarChart, Eye, Settings, UserPlus, Percent, AlertCircle } from 'lucide-react';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -36,6 +37,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import CommissionSettings from '@/components/commission/CommissionSettings';
 import ServiceCommissionForm from '@/components/commission/ServiceCommissionForm';
@@ -107,6 +109,7 @@ const AdminCommissions = () => {
 	const [isServiceFormOpen, setIsServiceFormOpen] = useState(false);
 	const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const [totalStats, setTotalStats] = useState({
 		totalRevenue: 0,
 		totalCommissions: 0,
@@ -296,6 +299,7 @@ const AdminCommissions = () => {
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 		setNewUser(prev => ({ ...prev, [name]: value }));
+		setError(null);
 	};
 
 	const handleRoleChange = (value: string) => {
@@ -305,37 +309,58 @@ const AdminCommissions = () => {
 		}));
 	};
 
+	const validateUserForm = () => {
+		if (!newUser.name) {
+			setError("O nome é obrigatório");
+			return false;
+		}
+		if (!newUser.email) {
+			setError("O email é obrigatório");
+			return false;
+		}
+		if (!newUser.password) {
+			setError("A senha é obrigatória");
+			return false;
+		}
+		if (newUser.password.length < 6) {
+			setError("A senha deve ter pelo menos 6 caracteres");
+			return false;
+		}
+		// Basic email validation
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!emailRegex.test(newUser.email)) {
+			setError("Email inválido");
+			return false;
+		}
+		return true;
+	};
+
 	const handleCreateUser = async () => {
+		if (!validateUserForm()) {
+			return;
+		}
+
 		setIsLoading(true);
 		try {
-			if (!newUser.name || !newUser.email || !newUser.password) {
-				toast({
-					title: "Erro",
-					description: "Por favor, preencha todos os campos",
-					variant: "destructive"
-				});
-				return;
-			}
-
 			const response = await UserService.create({
 				...newUser,
 				id: 0,
 				permissions: DEFAULT_PERMISSIONS
 			});
 
-			if (response.success) {
-				// Criar configuração de comissão com os valores corretos
+			if (response.success && response.data) {
+				// Create commission configuration with default values
 				await CommissionService.createCommissionConfig({
 					userId: response.data.id,
-					companyId: companySelected.id, // Usar o ID da empresa selecionada
+					companyId: companySelected.id,
 					commissionType: CommissionTypeEnum.GENERAL,
 					commissionMode: CommissionModeEnum.PERCENTAGE,
-					commissionValue: 40 // Porcentagem padrão inicial
+					commissionValue: 40 // Default percentage
 				});
 
 				toast({
 					title: "Sucesso",
-					description: "Usuário criado com sucesso"
+					description: `${newUser.name} adicionado à equipe com sucesso`
 				});
 
 				setIsUserModalOpen(false);
@@ -348,18 +373,10 @@ const AdminCommissions = () => {
 
 				await fetchCommissionData();
 			} else {
-				toast({
-					title: "Erro",
-					description: response.error || "Erro ao criar usuário",
-					variant: "destructive"
-				});
+				setError(response.error || "Erro ao criar usuário");
 			}
 		} catch (error) {
-			toast({
-				title: "Erro",
-				description: "Erro ao criar usuário",
-				variant: "destructive"
-			});
+			setError("Erro ao criar usuário");
 		} finally {
 			setIsLoading(false);
 		}
@@ -385,7 +402,10 @@ const AdminCommissions = () => {
 		<AdminLayout>
 			<div className="space-y-4">
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-					<h1 className="text-2xl font-bold">Comissões da Equipe</h1>
+					<div>
+						<h1 className="text-2xl font-bold text-gray-800">Comissões da Equipe</h1>
+						<p className="text-sm text-gray-500">Gerencie as comissões dos membros da sua equipe</p>
+					</div>
 					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
 						<div className="flex items-center space-x-2">
 							<Popover>
@@ -439,8 +459,7 @@ const AdminCommissions = () => {
 							</Popover>
 						</div>
 
-						<Button onClick={() => setIsUserModalOpen(true)} className="bg-barber-500 hover:bg-b
-						arber-600">
+						<Button onClick={() => setIsUserModalOpen(true)} className="bg-barber-500 hover:bg-barber-600 transition-all">
 							<UserPlus className="h-4 w-4 mr-2" />
 							Novo Membro
 						</Button>
@@ -448,10 +467,10 @@ const AdminCommissions = () => {
 				</div>
 
 				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-					<Card>
+					<Card className="bg-white border-l-4 border-barber-500">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
-							<DollarSign className="h-4 w-4 text-gray-500" />
+							<DollarSign className="h-4 w-4 text-barber-500" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">R$ {totalStats.totalRevenue.toFixed(2)}</div>
@@ -460,10 +479,10 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
-					<Card>
+					<Card className="bg-white border-l-4 border-green-500">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Comissões Pagas</CardTitle>
-							<DollarSign className="h-4 w-4 text-gray-500" />
+							<DollarSign className="h-4 w-4 text-green-500" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">R$ {totalStats.totalCommissions.toFixed(2)}</div>
@@ -472,10 +491,10 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
-					<Card>
+					<Card className="bg-white border-l-4 border-blue-500">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Total de Serviços</CardTitle>
-							<Scissors className="h-4 w-4 text-gray-500" />
+							<Scissors className="h-4 w-4 text-blue-500" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">{totalStats.totalServices}</div>
@@ -484,10 +503,10 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
-					<Card>
+					<Card className="bg-white border-l-4 border-amber-500">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">% Média Comissão</CardTitle>
-							<BarChart className="h-4 w-4 text-gray-500" />
+							<BarChart className="h-4 w-4 text-amber-500" />
 						</CardHeader>
 						<CardContent>
 							<div className="text-2xl font-bold">{totalStats.averageCommission.toFixed(2)}%</div>
@@ -498,103 +517,156 @@ const AdminCommissions = () => {
 					</Card>
 				</div>
 
-				<Card>
-					<CardHeader>
-						<CardTitle>Comissões da Equipe</CardTitle>
+				<Card className="bg-white shadow-sm">
+					<CardHeader className="bg-gray-50 rounded-t-lg">
+						<CardTitle className="flex items-center gap-2">
+							<Percent className="h-5 w-5 text-barber-500" />
+							Comissões da Equipe
+						</CardTitle>
 						<CardDescription>
 							Dados do período selecionado: {startDate && format(startDate, 'dd/MM/yyyy')} até {endDate && format(endDate, 'dd/MM/yyyy')}
 						</CardDescription>
 					</CardHeader>
-					<CardContent>
+					<CardContent className="pt-6">
 						<div className="overflow-x-auto -mx-4 sm:mx-0">
 							<div className="inline-block min-w-full align-middle">
-								<table className="min-w-full divide-y divide-gray-200">
-									<thead>
-										<tr>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Profissional
-											</th>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Tipo de Comissão
-											</th>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Valor/Regras
-											</th>
-											<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												Ações
-											</th>
-										</tr>
-									</thead>
-									<tbody className="bg-white divide-y divide-gray-200">
-										{commissions.map(commission => (
-											<tr key={commission.id} className="hover:bg-gray-50">
-												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="text-sm font-medium text-gray-900">
-														{commission.user.name}
+								<Table>
+									<TableHeader className="bg-gray-50">
+										<TableRow>
+											<TableHead>Profissional</TableHead>
+											<TableHead>Tipo de Comissão</TableHead>
+											<TableHead>Valor/Regras</TableHead>
+											<TableHead className="text-right">Ações</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{commissions.length === 0 ? (
+											<TableRow>
+												<TableCell colSpan={4} className="text-center py-8 text-gray-500">
+													<div className="flex flex-col items-center gap-2">
+														<Percent className="h-8 w-8 text-gray-400" />
+														<p>Nenhum membro com comissão configurada</p>
+														<Button 
+															variant="outline" 
+															size="sm" 
+															className="mt-2"
+															onClick={() => setIsUserModalOpen(true)}
+														>
+															<UserPlus className="h-4 w-4 mr-2" />
+															Adicionar Membro
+														</Button>
 													</div>
-												</td>
-												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="text-sm text-gray-900">
-														{commission.commissionType === CommissionTypeEnum.GENERAL ? 'Geral' : 'Por serviço'}
-													</div>
-												</td>
-												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="text-sm text-gray-900">
-														{commission.commissionType === CommissionTypeEnum.GENERAL
-															? commission.commissionMode === CommissionModeEnum.FIXED
-																? `R$ ${commission.commissionValue.toFixed(2)} em todos os serviços`
-																: `${commission.commissionValue}% em todos os serviços`
-															: `${commission.rules.length} serviços configurados`
-														}
-													</div>
-												</td>
-												<td className="px-3 py-3 whitespace-nowrap">
-													<div className="flex space-x-2">
-														{commission.commissionType === CommissionTypeEnum.SERVICE && (
-															<button
-																className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																title="Configurar Comissões por Serviço"
-																onClick={() => handleOpenServiceForm(commission.id)}
-															>
-																<Eye className="h-4 w-4" />
-															</button>
-														)}
-														<DropdownMenu>
-															<DropdownMenuTrigger asChild>
-																<button className="p-1 text-gray-500 hover:text-gray-700 transition-colors">
-																	<Settings className="h-4 w-4" />
-																</button>
-															</DropdownMenuTrigger>
-															<DropdownMenuContent className="w-56">
-																<DropdownMenuGroup>
-																	<DropdownMenuItem
-																		onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
+												</TableCell>
+											</TableRow>
+										) : (
+											commissions.map(commission => (
+												<TableRow key={commission.id} className="hover:bg-gray-50 transition-colors">
+													<TableCell className="font-medium">{commission.user.name}</TableCell>
+													<TableCell>
+														<div className="flex items-center">
+															<span className={cn(
+																"px-2 py-1 rounded-full text-xs font-medium",
+																commission.commissionType === CommissionTypeEnum.GENERAL
+																	? "bg-green-100 text-green-800"
+																	: "bg-blue-100 text-blue-800"
+															)}>
+																{commission.commissionType === CommissionTypeEnum.GENERAL ? 'Geral' : 'Por serviço'}
+															</span>
+														</div>
+													</TableCell>
+													<TableCell>
+														<div className="text-sm">
+															{commission.commissionType === CommissionTypeEnum.GENERAL
+																? commission.commissionMode === CommissionModeEnum.FIXED
+																	? <span className="text-gray-800">Recebe <span className="font-semibold">R$ {commission.commissionValue.toFixed(2)}</span> em todos os serviços</span>
+																	: <span className="text-gray-800">Recebe <span className="font-semibold">{commission.commissionValue}%</span> em todos os serviços</span>
+																: <span className="text-gray-800">
+																	<span className="font-semibold">{commission.rules.length}</span> serviços configurados
+																</span>
+															}
+														</div>
+													</TableCell>
+													<TableCell className="text-right">
+														<div className="flex justify-end space-x-2">
+															{commission.commissionType === CommissionTypeEnum.SERVICE && (
+																<Button
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-8 p-0"
+																	title="Configurar Comissões por Serviço"
+																	onClick={() => handleOpenServiceForm(commission.id)}
+																>
+																	<Eye className="h-4 w-4 text-blue-500" />
+																</Button>
+															)}
+															<DropdownMenu>
+																<DropdownMenuTrigger asChild>
+																	<Button
+																		variant="ghost"
+																		size="sm"
+																		className="h-8 w-8 p-0"
 																	>
-																		Definir comissão geral
-																	</DropdownMenuItem>
-																	<DropdownMenuItem
-																		onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
-																	>
-																		Definir comissão por serviço
-																	</DropdownMenuItem>
-																	{commission.commissionType === CommissionTypeEnum.GENERAL && (
-																		<DropdownMenuItem onClick={() => handleOpenSettings(commission.id)}>
-																			Configurar porcentagem geral
+																		<Settings className="h-4 w-4 text-gray-500" />
+																	</Button>
+																</DropdownMenuTrigger>
+																<DropdownMenuContent align="end" className="w-56">
+																	<DropdownMenuGroup>
+																		<DropdownMenuItem
+																			onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
+																			className="cursor-pointer"
+																		>
+																			Definir comissão geral
 																		</DropdownMenuItem>
-																	)}
-																</DropdownMenuGroup>
-															</DropdownMenuContent>
-														</DropdownMenu>
-													</div>
-												</td>
-											</tr>
-										))}
-									</tbody>
-								</table>
+																		<DropdownMenuItem
+																			onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
+																			className="cursor-pointer"
+																		>
+																			Definir comissão por serviço
+																		</DropdownMenuItem>
+																		{commission.commissionType === CommissionTypeEnum.GENERAL && (
+																			<DropdownMenuItem 
+																				onClick={() => handleOpenSettings(commission.id)}
+																				className="cursor-pointer"
+																			>
+																				Configurar porcentagem geral
+																			</DropdownMenuItem>
+																		)}
+																	</DropdownMenuGroup>
+																</DropdownMenuContent>
+															</DropdownMenu>
+														</div>
+													</TableCell>
+												</TableRow>
+											))
+										)}
+									</TableBody>
+								</Table>
 							</div>
 						</div>
 					</CardContent>
 				</Card>
+
+				<div className="bg-gray-50 p-4 rounded-lg mt-8 border border-gray-200">
+					<h3 className="text-lg font-medium mb-2">Como funcionam as comissões?</h3>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div className="bg-white p-4 rounded-lg border border-gray-200">
+							<h4 className="flex items-center gap-2 text-barber-500 font-medium mb-2">
+								<Percent className="h-4 w-4" />
+								Comissão Geral
+							</h4>
+							<p className="text-sm text-gray-600">É uma porcentagem única aplicada a todos os serviços realizados pelo profissional. 
+							Por exemplo, se configurado como 30%, o profissional receberá 30% do valor de qualquer serviço que realizar.</p>
+						</div>
+						<div className="bg-white p-4 rounded-lg border border-gray-200">
+							<h4 className="flex items-center gap-2 text-blue-500 font-medium mb-2">
+								<Scissors className="h-4 w-4" />
+								Comissão por Serviço
+							</h4>
+							<p className="text-sm text-gray-600">Permite definir porcentagens diferentes para cada tipo de serviço. 
+							Por exemplo, 20% para cortes, 30% para químicas, etc. Ideal para incentivar serviços específicos.</p>
+						</div>
+					</div>
+				</div>
 			</div>
 
 			{/* Dialog para configuração de comissão geral */}
@@ -624,6 +696,13 @@ const AdminCommissions = () => {
 							Preencha os dados para cadastrar um novo membro à equipe.
 						</DialogDescription>
 					</DialogHeader>
+
+					{error && (
+						<Alert variant="destructive">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					)}
 
 					<div className="grid gap-4 py-4">
 						<div className="grid grid-cols-4 items-center gap-4">
@@ -690,7 +769,11 @@ const AdminCommissions = () => {
 						<Button variant="outline" onClick={() => setIsUserModalOpen(false)}>
 							Cancelar
 						</Button>
-						<Button onClick={handleCreateUser} disabled={isLoading}>
+						<Button 
+							onClick={handleCreateUser} 
+							disabled={isLoading}
+							className="bg-barber-500 hover:bg-barber-600"
+						>
 							{isLoading ? 'Cadastrando...' : 'Cadastrar'}
 						</Button>
 					</DialogFooter>
