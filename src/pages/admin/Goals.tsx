@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,7 +30,6 @@ import GoalsList from '@/components/goal/GoalsList';
 const AdminGoals = () => {
 	const { user, companySelected } = useAuth();
 	const [currentDate, setCurrentDate] = useState(new Date());
-	const [selectedTab, setSelectedTab] = useState<'financeiras' | 'servicos'>('financeiras');
 	const [goals, setGoals] = useState<Goal[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isFormOpen, setIsFormOpen] = useState(false);
@@ -50,7 +48,7 @@ const AdminGoals = () => {
 	// Filter goals by current month and year
 	const filteredGoals = goals.filter(goal => {
 		const monthMatch = goal.month === currentMonth && goal.year === currentYear;
-		if (user?.role === 'barber') {
+		if (user?.role === 'USER') {
 			return monthMatch && goal.userId === user.id;
 		}
 		return monthMatch;
@@ -63,6 +61,7 @@ const AdminGoals = () => {
 		return 'bg-red-500';
 	};
 
+	// Recarregar metas quando a data mudar
 	useEffect(() => {
 		loadGoals();
 	}, [companySelected?.id, currentMonth, currentYear]);
@@ -73,26 +72,29 @@ const AdminGoals = () => {
 		setIsLoading(true);
 		try {
 			let response;
-			if (user?.role === 'barber') {
-				response = await goalService.getUserGoals();
+			if (user?.role === 'USER') {
+				response = await goalService.getUserGoals(currentMonth, currentYear);
 			} else {
-				response = await goalService.getAllByCompany(companySelected.id);
+				response = await goalService.getAllByCompany(companySelected.id, currentMonth, currentYear);
 			}
-			
+
 			if (response.success && response.data) {
 				setGoals(response.data);
-				
-				// Here you would normally fetch the current progress for each goal
-				// For now, let's set some random progress values for demonstration
-				const progressData: Record<number, number> = {};
-				response.data.forEach(goal => {
-					if (goal.id) {
-						// Some random progress between 0 and 120% of target
-						const randomProgress = Math.random() * 1.2 * goal.target;
-						progressData[goal.id] = randomProgress;
+
+				// Fetch real progress data for the goals
+				if (response.data.length > 0) {
+					const goalIds = response.data
+						.filter(goal => goal.id !== undefined)
+						.map(goal => goal.id as number);
+
+					if (goalIds.length > 0) {
+						const progressResponse = await goalService.getGoalsProgress(goalIds);
+
+						if (progressResponse.success && progressResponse.data) {
+							setCurrentProgress(progressResponse.data);
+						}
 					}
-				});
-				setCurrentProgress(progressData);
+				}
 			}
 		} catch (error) {
 			toast({
@@ -108,12 +110,39 @@ const AdminGoals = () => {
 	const handleCreateGoal = async (data: Partial<Goal>) => {
 		if (!companySelected?.id) return;
 
+		console.log('Dados do formulário de meta:', data);
+
+		// Converter valores para números
+		const goalData = {
+			...data,
+			companyId: Number(companySelected.id),
+			userId: Number(data.userId || 0),
+			month: Number(data.month || 0),
+			year: Number(data.year || 0),
+			target: Number(data.target || 0)
+		};
+
+		console.log('Dados convertidos:', goalData);
+
+		// Check if a goal already exists for this user, month and year locally
+		const duplicateGoal = goals.find(goal =>
+			goal.userId === goalData.userId &&
+			goal.month === goalData.month &&
+			goal.year === goalData.year
+		);
+
+		if (duplicateGoal) {
+			console.log('Meta duplicada encontrada no frontend:', duplicateGoal);
+			toast({
+				title: "Erro",
+				description: "Já existe uma meta para este profissional neste mês e ano. Por favor, edite a meta existente.",
+				variant: "destructive",
+			});
+			return;
+		}
+
 		try {
-			const response = await goalService.create({
-				...data,
-				companyId: companySelected.id,
-				userId: data.userId || 0,
-			} as Goal);
+			const response = await goalService.create(goalData as Goal);
 
 			if (response.success && response.data) {
 				setGoals([...goals, response.data]);
@@ -122,11 +151,18 @@ const AdminGoals = () => {
 					title: "Sucesso",
 					description: "Meta criada com sucesso!",
 				});
+			} else if (response.error) {
+				toast({
+					title: "Erro",
+					description: response.error || "Erro ao criar meta",
+					variant: "destructive",
+				});
 			}
-		} catch (error) {
+		} catch (error: any) {
+			console.error('Erro ao criar meta:', error);
 			toast({
 				title: "Erro",
-				description: "Não foi possível criar a meta.",
+				description: error?.message || "Não foi possível criar a meta.",
 				variant: "destructive",
 			});
 		}
@@ -199,9 +235,9 @@ const AdminGoals = () => {
 			<div className="space-y-4">
 				<div className="flex justify-between items-center">
 					<h1 className="text-2xl font-bold">
-						{user?.role === 'barber' ? 'Minhas Metas' : 'Metas'}
+						{user?.role === 'USER' ? 'Minhas Metas' : 'Metas'}
 					</h1>
-					{user?.role !== 'barber' && (
+					{user?.role !== 'USER' && (
 						<Button className="bg-blue-500 hover:bg-blue-600 text-white" onClick={() => setIsFormOpen(true)}>
 							<Plus className="h-4 w-4 mr-2" />
 							Nova Meta
@@ -212,7 +248,7 @@ const AdminGoals = () => {
 				<Card>
 					<CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
 						<CardTitle>
-							{user?.role === 'barber' ? 'Suas Metas do Mês' : 'Metas do Mês'}
+							{user?.role === 'USER' ? 'Suas Metas do Mês' : 'Metas do Mês'}
 						</CardTitle>
 						<div className="flex items-center space-x-2">
 							<Button
@@ -235,49 +271,18 @@ const AdminGoals = () => {
 						</div>
 					</CardHeader>
 					<CardContent>
-						<div className="flex border-b mb-4">
-							<button
-								className={`px-4 py-2 text-sm font-medium ${selectedTab === 'financeiras'
-									? 'text-blue-600 border-b-2 border-blue-600'
-									: 'text-gray-500 hover:text-gray-700'
-									}`}
-								onClick={() => setSelectedTab('financeiras')}
-							>
-								Metas Financeiras
-							</button>
-							<button
-								className={`px-4 py-2 text-sm font-medium ${selectedTab === 'servicos'
-									? 'text-blue-600 border-b-2 border-blue-600'
-									: 'text-gray-500 hover:text-gray-700'
-									}`}
-								onClick={() => setSelectedTab('servicos')}
-							>
-								Metas por Serviço
-							</button>
-						</div>
-
-						{selectedTab === 'financeiras' ? (
-							<GoalsList
-								goals={filteredGoals}
-								currentProgress={currentProgress}
-								onEdit={(goal) => {
-									setSelectedGoal(goal);
-									setIsFormOpen(true);
-								}}
-								onDelete={(goal) => {
-									setSelectedGoal(goal);
-									setIsDeleteDialogOpen(true);
-								}}
-							/>
-						) : (
-							<div className="text-center py-12 border rounded-lg">
-								<Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-								<h3 className="text-gray-500 text-lg font-medium">Metas por serviço</h3>
-								<p className="text-gray-400 text-sm mt-1">
-									Funcionalidade em desenvolvimento
-								</p>
-							</div>
-						)}
+						<GoalsList
+							goals={filteredGoals}
+							currentProgress={currentProgress}
+							onEdit={(goal) => {
+								setSelectedGoal(goal);
+								setIsFormOpen(true);
+							}}
+							onDelete={(goal) => {
+								setSelectedGoal(goal);
+								setIsDeleteDialogOpen(true);
+							}}
+						/>
 					</CardContent>
 				</Card>
 			</div>

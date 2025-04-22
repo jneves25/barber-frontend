@@ -1,4 +1,3 @@
-
 import { BaseService, ApiResponse } from './BaseService';
 import { Company } from './CompanyService';
 import apiClient from './apiClient';
@@ -10,7 +9,7 @@ export enum RoleEnum {
 }
 
 export interface User {
-	id: number;
+	id?: number;
 	email: string;
 	name: string;
 	password: string;
@@ -163,6 +162,11 @@ export class UserService extends BaseService {
 		return this.handleResponse<UserPermissions>(
 			apiClient.put(`/permission/${userId}`, permissions)
 		);
+	}
+
+	// Get users by company
+	async getUsersByCompany(companyId: number): Promise<ApiResponse<User[]>> {
+		return this.handleResponse<User[]>(apiClient.get(`/${this.endpoint}/company`, { params: { companyId } }));
 	}
 }
 

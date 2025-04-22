@@ -4,11 +4,16 @@ import apiClient from './apiClient';
 
 export enum CommissionTypeEnum {
 	GENERAL = 'GENERAL',
-	SERVICE = 'SERVICE'
+	SERVICE = 'SERVICES'
 }
 
 export enum CommissionModeEnum {
 	FIXED = 'FIXED',
+	DIVERSE = 'DIVERSE'
+}
+
+export enum CommissionRuleTypeEnum {
+	MONEY = 'MONEY',
 	PERCENTAGE = 'PERCENTAGE'
 }
 
@@ -16,7 +21,7 @@ export interface CommissionRule {
 	id: number;
 	configId: number;
 	serviceId: number;
-	serviceType: string;
+	serviceType: CommissionRuleTypeEnum;
 	percentage: number;
 	mode: CommissionModeEnum;
 }
@@ -80,7 +85,7 @@ export class CommissionService extends BaseService {
 		const requiredError = this.validateRequired(rule, ['configId', 'serviceType', 'percentage']);
 		if (requiredError) return requiredError;
 
-		if (rule.mode === CommissionModeEnum.PERCENTAGE) {
+		if (rule.mode === CommissionModeEnum.DIVERSE) {
 			if (rule.percentage < 0 || rule.percentage > 100) {
 				return 'Percentage must be between 0 and 100';
 			}
@@ -145,25 +150,25 @@ export class CommissionService extends BaseService {
 		}
 
 		return this.handleResponse<CommissionRule>(
-			apiClient.post('/rule', rule)
+			apiClient.post('/commission/rule', rule)
 		);
 	}
 
-	async getCommissionRulesByConfig(configId: number): Promise<ApiResponse<CommissionRule[]>> {
+	async getCommissionRulesByConfig(commissionId: number): Promise<ApiResponse<CommissionRule[]>> {
 		return this.handleResponse<CommissionRule[]>(
-			apiClient.get(`/config/${configId}/rules`)
+			apiClient.get(`/commission/${commissionId}/rules`)
 		);
 	}
 
 	async updateCommissionRule(id: number, rule: Partial<CommissionRule>): Promise<ApiResponse<CommissionRule>> {
 		return this.handleResponse<CommissionRule>(
-			apiClient.put(`/rule/${id}`, rule)
+			apiClient.put(`/commission/rule/${id}`, rule)
 		);
 	}
 
 	async deleteCommissionRule(id: number): Promise<ApiResponse<void>> {
 		return this.handleResponse<void>(
-			apiClient.delete(`/rule/${id}`)
+			apiClient.delete(`/commission/rule/${id}`)
 		);
 	}
 }

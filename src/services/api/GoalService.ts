@@ -1,4 +1,3 @@
-
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 
@@ -36,12 +35,16 @@ export class GoalService extends BaseService {
 		return this.handleResponse<void>(apiClient.delete(`/${this.endpoint}/${id}`));
 	}
 
-	async getAllByCompany(companyId: number): Promise<ApiResponse<Goal[]>> {
-		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}`, { params: { companyId } }));
+	async getAllByCompany(companyId: number, month: number, year: number): Promise<ApiResponse<Goal[]>> {
+		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}`, {
+			params: { companyId, month, year }
+		}));
 	}
 
-	async getUserGoals(): Promise<ApiResponse<Goal[]>> {
-		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}/user`));
+	async getUserGoals(month: number, year: number): Promise<ApiResponse<Goal[]>> {
+		return this.handleResponse<Goal[]>(apiClient.get(`/${this.endpoint}/user`, {
+			params: { month, year }
+		}));
 	}
 
 	async getById(id: number): Promise<ApiResponse<Goal>> {

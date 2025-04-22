@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -47,7 +46,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 		{ path: '/admin/services', icon: Scissors, label: 'Serviços', permission: 'viewAllServices' },
 		{ path: '/admin/products', icon: Package, label: 'Produtos', permission: 'viewAllProducts' },
 		{ path: '/admin/clients', icon: Users, label: 'Clientes', permission: 'viewAllClients' },
-		{ path: '/admin/commissions', icon: DollarSign, label: 'Comissões', permission: 'viewAllCommissions' },
+		{ path: '/admin/commissions', icon: DollarSign, label: 'Equipe', permission: 'viewAllCommissions' },
 		{ path: '/admin/goals', icon: Target, label: 'Metas', permission: 'viewAllGoals' },
 		{ path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'viewFullRevenue' },
 		{ path: '/admin/permissions', icon: Shield, label: 'Permissões', permission: 'managePermissions' },

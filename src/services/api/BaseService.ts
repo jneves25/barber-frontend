@@ -36,8 +36,26 @@ export class BaseService {
 			};
 		} catch (error) {
 			const axiosError = error as AxiosError;
+			console.log('Erro da API:', axiosError.response?.data);
+
+			let errorMessage: string;
+
+			if (axiosError.response?.data) {
+				const errorData = axiosError.response.data as any;
+				// Verificar se a resposta contém um objeto com campo message ou uma string direta
+				if (typeof errorData === 'object' && errorData.message) {
+					errorMessage = errorData.message;
+				} else if (typeof errorData === 'string') {
+					errorMessage = errorData;
+				} else {
+					errorMessage = JSON.stringify(errorData);
+				}
+			} else {
+				errorMessage = axiosError.message || 'Erro desconhecido na comunicação com o servidor';
+			}
+
 			return {
-				error: axiosError.response?.data as string || axiosError.message,
+				error: errorMessage,
 				status: axiosError.response?.status || 500,
 				success: false
 			};

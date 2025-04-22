@@ -46,7 +46,8 @@ import CommissionService, {
 	CommissionRule,
 	CommissionTypeEnum,
 	CommissionModeEnum,
-	CreateCommissionRule
+	CreateCommissionRule,
+	CommissionRuleTypeEnum
 } from '@/services/api/CommissionService';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -112,14 +113,15 @@ const AdminCommissions = () => {
 	const [totalStats, setTotalStats] = useState({
 		totalRevenue: 0,
 		totalCommissions: 0,
-		totalServices: 0,
-		averageCommission: 0
+		totalBarbers: 0,
+		averageCommissionRate: 0
 	});
 	const [newUser, setNewUser] = useState({
 		name: '',
 		email: '',
 		password: '',
-		role: RoleEnum.USER
+		role: RoleEnum.USER,
+		companyId: companySelected.id
 	});
 	const { toast } = useToast();
 	const [services, setServices] = useState<Service[]>([]);
@@ -153,21 +155,26 @@ const AdminCommissions = () => {
 	};
 
 	const calculateTotalStats = (commissionData: CommissionConfig[]) => {
-		const totalRevenue = 0;
+		const totalBarbers = commissionData.length;
+
 		const totalCommissions = commissionData.reduce((sum, item) => {
 			if (item.commissionMode === CommissionModeEnum.FIXED) {
 				return sum + item.commissionValue;
 			}
-			return sum + (totalRevenue * (item.commissionValue / 100));
+			return sum + (item.commissionValue / 100);
 		}, 0);
-		const totalServices = commissionData.reduce((sum, item) => sum + item.rules.length, 0);
-		const averageCommission = totalCommissions / totalRevenue * 100 || 0;
+
+		const averageCommissionRate = commissionData.reduce((sum, item) => {
+			return sum + (item.commissionType === CommissionTypeEnum.GENERAL ? item.commissionValue : 0);
+		}, 0) / (commissionData.filter(item => item.commissionType === CommissionTypeEnum.GENERAL).length || 1);
+
+		const totalRevenue = 0;
 
 		setTotalStats({
 			totalRevenue,
 			totalCommissions,
-			totalServices,
-			averageCommission
+			totalBarbers,
+			averageCommissionRate
 		});
 	};
 
@@ -180,7 +187,7 @@ const AdminCommissions = () => {
 				commissionType: type,
 				userId: commission.userId,
 				companyId: commission.companyId,
-				commissionMode: CommissionModeEnum.PERCENTAGE,
+				commissionMode: CommissionModeEnum.DIVERSE,
 				commissionValue: type === CommissionTypeEnum.GENERAL ? 40 : 0
 			});
 
@@ -235,29 +242,51 @@ const AdminCommissions = () => {
 		}
 	};
 
-	const updateServiceCommission = async (barberId: number, serviceId: number, value: number, mode: CommissionModeEnum) => {
+	const updateServiceCommission = async (barberId: number, serviceId: number, value: number, serviceType: CommissionRuleTypeEnum) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
 			if (!commission) return;
 
-			const rule: CreateCommissionRule = {
+			// Busca a regra existente para este serviço
+			const rulesResponse = await CommissionService.getCommissionRulesByConfig(commission.id);
+			if (!rulesResponse.success) {
+				throw new Error("Erro ao buscar regras de comissão");
+			}
+
+			// Procura a regra específica para este serviço
+			const existingRule = rulesResponse.data.find(rule => rule.serviceId === serviceId);
+
+			if (!existingRule) {
+				toast({
+					title: "Erro",
+					description: "Regra de comissão não encontrada para este serviço",
+					variant: "destructive"
+				});
+				return;
+			}
+
+			// Atualiza a regra existente
+			await CommissionService.updateCommissionRule(existingRule.id, {
 				configId: commission.id,
 				serviceId: serviceId,
-				serviceType: serviceId.toString(),
+				serviceType: serviceType,
 				percentage: value,
-				mode
-			};
+			});
 
-			await CommissionService.createCommissionRule(rule);
-
-			const message = mode === CommissionModeEnum.PERCENTAGE 
+			const message = serviceType === CommissionRuleTypeEnum.PERCENTAGE
 				? `Comissão do serviço atualizada para ${value}%`
 				: `Comissão do serviço atualizada para R$ ${value.toFixed(2)}`;
-			
+
 			toast({
 				title: "Comissão atualizada",
 				description: message
 			});
+
+			// Atualiza a lista de comissões do barbeiro
+			const updatedRulesResponse = await CommissionService.getCommissionRulesByConfig(commission.id);
+			if (updatedRulesResponse.success) {
+				setServiceCommissions(updatedRulesResponse.data || []);
+			}
 
 			await fetchCommissionData();
 		} catch (error) {
@@ -269,7 +298,7 @@ const AdminCommissions = () => {
 		}
 	};
 
-	const updateBarberGeneralCommission = async (barberId: number, value: number, mode: CommissionModeEnum) => {
+	const updateBarberGeneralCommission = async (barberId: number, value: number) => {
 		try {
 			const commission = commissions.find(c => c.id === barberId);
 			if (!commission) return;
@@ -279,16 +308,14 @@ const AdminCommissions = () => {
 				commissionType: CommissionTypeEnum.GENERAL,
 				userId: commission.userId,
 				companyId: commission.companyId,
-				commissionMode: mode
+				commissionMode: CommissionModeEnum.DIVERSE
 			});
 
 			await fetchCommissionData();
 
 			toast({
 				title: "Comissão geral atualizada",
-				description: mode === CommissionModeEnum.FIXED
-					? `Comissão geral definida para R$ ${value.toFixed(2)} em todos os serviços`
-					: `Comissão geral definida para ${value}% em todos os serviços`
+				description: `Comissão geral definida para ${value}% em todos os serviços`
 			});
 		} catch (error) {
 			toast({
@@ -346,19 +373,10 @@ const AdminCommissions = () => {
 		try {
 			const response = await UserService.create({
 				...newUser,
-				id: 0,
 				permissions: DEFAULT_PERMISSIONS
 			});
 
 			if (response.success && response.data) {
-				await CommissionService.createCommissionConfig({
-					userId: response.data.id,
-					companyId: companySelected.id,
-					commissionType: CommissionTypeEnum.GENERAL,
-					commissionMode: CommissionModeEnum.PERCENTAGE,
-					commissionValue: 40
-				});
-
 				toast({
 					title: "Sucesso",
 					description: `${newUser.name} adicionado à equipe com sucesso`
@@ -369,7 +387,8 @@ const AdminCommissions = () => {
 					name: '',
 					email: '',
 					password: '',
-					role: RoleEnum.USER
+					role: RoleEnum.USER,
+					companyId: companySelected.id
 				});
 
 				await fetchCommissionData();
@@ -403,7 +422,7 @@ const AdminCommissions = () => {
 			<div className="space-y-4">
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<div>
-						<h1 className="text-2xl font-bold text-gray-800">Comissões da Equipe</h1>
+						<h1 className="text-2xl font-bold text-gray-800">Informações da Equipe e Comissões</h1>
 						<p className="text-sm text-gray-500">Gerencie as comissões dos membros da sua equipe</p>
 					</div>
 					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -466,52 +485,46 @@ const AdminCommissions = () => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+				<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
-							<CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
-							<DollarSign className="h-4 w-4 text-muted-foreground" />
+							<CardTitle className="text-sm font-medium">Total de Profissionais</CardTitle>
+							<UserPlus className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">R$ {totalStats.totalRevenue.toFixed(2)}</div>
+							<div className="text-2xl font-bold">{totalStats.totalBarbers}</div>
 							<p className="text-xs text-muted-foreground">
-								+{totalStats.averageCommission.toFixed(2)}% comparado ao período anterior
+								Profissionais com comissão configurada
 							</p>
 						</CardContent>
 					</Card>
+
 					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
-							<CardTitle className="text-sm font-medium">Comissões Pagas</CardTitle>
-							<DollarSign className="h-4 w-4 text-muted-foreground" />
-						</CardHeader>
-						<CardContent>
-							<div className="text-2xl font-bold">R$ {totalStats.totalCommissions.toFixed(2)}</div>
-							<p className="text-xs text-muted-foreground">
-								{totalStats.averageCommission.toFixed(2)}% do faturamento total
-							</p>
-						</CardContent>
-					</Card>
-					<Card className="shadow-md">
-						<CardHeader className="flex flex-row items-center justify-between pb-2">
-							<CardTitle className="text-sm font-medium">Total de Serviços</CardTitle>
-							<Scissors className="h-4 w-4 text-muted-foreground" />
-						</CardHeader>
-						<CardContent>
-							<div className="text-2xl font-bold">{totalStats.totalServices}</div>
-							<p className="text-xs text-muted-foreground">
-								+{totalStats.averageCommission.toFixed(2)}% comparado ao período anterior
-							</p>
-						</CardContent>
-					</Card>
-					<Card className="shadow-md">
-						<CardHeader className="flex flex-row items-center justify-between pb-2">
-							<CardTitle className="text-sm font-medium">% Média Comissão</CardTitle>
+							<CardTitle className="text-sm font-medium">Comissão Geral</CardTitle>
 							<BarChart className="h-4 w-4 text-muted-foreground" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">{totalStats.averageCommission.toFixed(2)}%</div>
+							<div className="text-2xl font-bold">
+								{commissions.filter(c => c.commissionType === CommissionTypeEnum.GENERAL).length}
+							</div>
 							<p className="text-xs text-muted-foreground">
-								Configurável por membro e serviço
+								Profissionais com comissão geral
+							</p>
+						</CardContent>
+					</Card>
+
+					<Card className="shadow-md">
+						<CardHeader className="flex flex-row items-center justify-between pb-2">
+							<CardTitle className="text-sm font-medium">Comissão por Serviço</CardTitle>
+							<Scissors className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">
+								{commissions.filter(c => c.commissionType === CommissionTypeEnum.SERVICE).length}
+							</div>
+							<p className="text-xs text-muted-foreground">
+								Profissionais com comissão por serviço
 							</p>
 						</CardContent>
 					</Card>
@@ -543,9 +556,9 @@ const AdminCommissions = () => {
 													<div className="flex flex-col items-center gap-2">
 														<Percent className="h-8 w-8 text-gray-400" />
 														<p>Nenhum membro com comissão configurada</p>
-														<Button 
-															variant="outline" 
-															size="sm" 
+														<Button
+															variant="outline"
+															size="sm"
 															className="mt-2"
 															onClick={() => setIsUserModalOpen(true)}
 														>
@@ -574,9 +587,7 @@ const AdminCommissions = () => {
 													<TableCell>
 														<div className="text-sm">
 															{commission.commissionType === CommissionTypeEnum.GENERAL
-																? commission.commissionMode === CommissionModeEnum.FIXED
-																	? <span className="text-gray-800">Recebe <span className="font-semibold">R$ {commission.commissionValue.toFixed(2)}</span> em todos os serviços</span>
-																	: <span className="text-gray-800">Recebe <span className="font-semibold">{commission.commissionValue}%</span> em todos os serviços</span>
+																? <span className="text-gray-800">Recebe <span className="font-semibold">{commission.commissionValue}%</span> em todos os serviços</span>
 																: <span className="text-gray-800">
 																	<span className="font-semibold">{commission.rules.length}</span> serviços configurados
 																</span>
@@ -624,11 +635,11 @@ const AdminCommissions = () => {
 																			</DropdownMenuItem>
 																		)}
 																		{commission.commissionType === CommissionTypeEnum.GENERAL && (
-																			<DropdownMenuItem 
+																			<DropdownMenuItem
 																				onClick={() => handleOpenSettings(commission.id)}
 																				className="cursor-pointer"
 																			>
-																				Configurar porcentagem geral
+																				Configurar comissão
 																			</DropdownMenuItem>
 																		)}
 																	</DropdownMenuGroup>
@@ -744,8 +755,8 @@ const AdminCommissions = () => {
 						<Button variant="outline" onClick={() => setIsUserModalOpen(false)}>
 							Cancelar
 						</Button>
-						<Button 
-							onClick={handleCreateUser} 
+						<Button
+							onClick={handleCreateUser}
 							disabled={isLoading}
 							className="bg-barber-500 hover:bg-barber-600"
 						>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
 	Dialog,
@@ -21,14 +20,14 @@ import {
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Service } from '@/services/api/ServiceService';
-import { CommissionRule, CommissionModeEnum } from '@/services/api/CommissionService';
+import { CommissionModeEnum, CommissionRuleTypeEnum } from '@/services/api/CommissionService';
 
-interface ServiceCommission {
-	barberId: number;
+interface CommissionRule {
+	id: number;
+	configId: number;
 	serviceId: number;
+	serviceType: CommissionRuleTypeEnum;
 	percentage: number;
-	fixedValue?: number;
-	mode: CommissionModeEnum;
 }
 
 interface ServiceCommissionFormProps {
@@ -37,7 +36,7 @@ interface ServiceCommissionFormProps {
 	barber: any; // Update this type based on your barber interface
 	services: Service[];
 	serviceCommissions: CommissionRule[];
-	onSave: (barberId: number, serviceId: number, value: number, mode: CommissionModeEnum) => void;
+	onSave: (barberId: number, serviceId: number, value: number, serviceType: CommissionRuleTypeEnum) => void;
 }
 
 const ServiceCommissionForm = ({
@@ -49,63 +48,63 @@ const ServiceCommissionForm = ({
 	onSave
 }: ServiceCommissionFormProps) => {
 	const [editValues, setEditValues] = useState<Record<number, number>>({});
-	const [commissionModes, setCommissionModes] = useState<Record<number, CommissionModeEnum>>({});
+	const [commissionTypes, setCommissionTypes] = useState<Record<number, CommissionRuleTypeEnum>>({});
 	const [errors, setErrors] = useState<Record<number, string | null>>({});
+	const [originalValues, setOriginalValues] = useState<Record<number, { value: number, type: CommissionRuleTypeEnum }>>({});
 
-	// Initialize edit values with current values
 	useEffect(() => {
 		const initialValues: Record<number, number> = {};
-		const initialModes: Record<number, CommissionModeEnum> = {};
-		
-		if (barber) {
-			serviceCommissions.forEach(commission => {
-				initialValues[commission.serviceId] = commission.percentage;
-				initialModes[commission.serviceId] = commission.mode || CommissionModeEnum.PERCENTAGE;
-			});
+		const initialTypes: Record<number, CommissionRuleTypeEnum> = {};
+		const originalData: Record<number, { value: number, type: CommissionRuleTypeEnum }> = {};
 
-			// For services that don't have a commission defined yet, use 0 or default value
+		if (barber && services) {
 			services.forEach(service => {
-				if (initialValues[service.id] === undefined) {
-					initialValues[service.id] = 0;
-				}
-				if (initialModes[service.id] === undefined) {
-					initialModes[service.id] = CommissionModeEnum.PERCENTAGE;
-				}
+				const existingCommission = serviceCommissions.find(
+					commission => commission.serviceId === service.id
+				);
+
+				initialValues[service.id] = existingCommission ? existingCommission.percentage : 0;
+				initialTypes[service.id] = existingCommission?.serviceType || CommissionRuleTypeEnum.PERCENTAGE;
+				originalData[service.id] = {
+					value: existingCommission ? existingCommission.percentage : 0,
+					type: existingCommission?.serviceType || CommissionRuleTypeEnum.PERCENTAGE
+				};
 			});
 
 			setEditValues(initialValues);
-			setCommissionModes(initialModes);
+			setCommissionTypes(initialTypes);
+			setOriginalValues(originalData);
 		}
 	}, [barber, serviceCommissions, services]);
 
 	const handleInputChange = (serviceId: number, value: string) => {
 		const numValue = Number(value);
-		setEditValues({
-			...editValues,
+		setEditValues(prev => ({
+			...prev,
 			[serviceId]: numValue
-		});
-		validateCommission(serviceId, numValue, commissionModes[serviceId]);
+		}));
+		validateCommission(serviceId, numValue, commissionTypes[serviceId]);
 	};
 
-	const handleModeChange = (serviceId: number, mode: CommissionModeEnum) => {
-		setCommissionModes({
-			...commissionModes,
-			[serviceId]: mode
-		});
-		validateCommission(serviceId, editValues[serviceId], mode);
+	const handleTypeChange = (serviceId: number, type: CommissionRuleTypeEnum) => {
+		setCommissionTypes(prev => ({
+			...prev,
+			[serviceId]: type
+		}));
+		validateCommission(serviceId, editValues[serviceId], type);
 	};
 
-	const validateCommission = (serviceId: number, value: number, mode: CommissionModeEnum) => {
+	const validateCommission = (serviceId: number, value: number, type: CommissionRuleTypeEnum) => {
 		let errorMessage: string | null = null;
 		const service = services.find(s => s.id === serviceId);
-		
+
 		if (!service) return;
 
-		if (mode === CommissionModeEnum.PERCENTAGE) {
+		if (type === CommissionRuleTypeEnum.PERCENTAGE) {
 			if (value < 0 || value > 100) {
 				errorMessage = 'Porcentagem deve estar entre 0 e 100';
 			}
-		} else if (mode === CommissionModeEnum.FIXED) {
+		} else {
 			if (value < 0) {
 				errorMessage = 'Valor deve ser maior que 0';
 			} else if (value > service.price) {
@@ -113,21 +112,35 @@ const ServiceCommissionForm = ({
 			}
 		}
 
-		setErrors({
-			...errors,
+		setErrors(prev => ({
+			...prev,
 			[serviceId]: errorMessage
-		});
+		}));
 	};
 
 	const handleSave = (serviceId: number) => {
 		if (barber && !errors[serviceId]) {
 			onSave(
-				barber.id, 
-				serviceId, 
+				barber.id,
+				serviceId,
 				editValues[serviceId],
-				commissionModes[serviceId]
+				commissionTypes[serviceId]
 			);
+
+			setOriginalValues(prev => ({
+				...prev,
+				[serviceId]: {
+					value: editValues[serviceId],
+					type: commissionTypes[serviceId]
+				}
+			}));
 		}
+	};
+
+	const hasChanges = (serviceId: number) => {
+		const original = originalValues[serviceId];
+		return original?.value !== editValues[serviceId] ||
+			original?.type !== commissionTypes[serviceId];
 	};
 
 	if (!barber) return null;
@@ -159,7 +172,7 @@ const ServiceCommissionForm = ({
 								<TableHead>Preço (R$)</TableHead>
 								<TableHead>Tipo</TableHead>
 								<TableHead>Comissão</TableHead>
-								<TableHead className="text-right">Ações</TableHead>
+								<TableHead className="text-right">Ação</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -169,15 +182,15 @@ const ServiceCommissionForm = ({
 									<TableCell>R$ {service.price.toFixed(2)}</TableCell>
 									<TableCell>
 										<Select
-											value={commissionModes[service.id] || CommissionModeEnum.PERCENTAGE}
-											onValueChange={(value) => handleModeChange(service.id, value as CommissionModeEnum)}
+											value={commissionTypes[service.id]}
+											onValueChange={(value) => handleTypeChange(service.id, value as CommissionRuleTypeEnum)}
 										>
 											<SelectTrigger className="w-[110px]">
 												<SelectValue placeholder="Tipo" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value={CommissionModeEnum.PERCENTAGE}>Porcentagem</SelectItem>
-												<SelectItem value={CommissionModeEnum.FIXED}>Valor Fixo</SelectItem>
+												<SelectItem value={CommissionRuleTypeEnum.PERCENTAGE}>Porcentagem</SelectItem>
+												<SelectItem value={CommissionRuleTypeEnum.MONEY}>Valor Fixo</SelectItem>
 											</SelectContent>
 										</Select>
 									</TableCell>
@@ -186,12 +199,12 @@ const ServiceCommissionForm = ({
 											<Input
 												type="number"
 												min={0}
-												max={commissionModes[service.id] === CommissionModeEnum.PERCENTAGE ? 100 : service.price}
-												value={editValues[service.id] || 0}
+												max={service.price}
+												value={editValues[service.id]}
 												onChange={(e) => handleInputChange(service.id, e.target.value)}
 												className={`w-24 ${errors[service.id] ? 'border-red-500' : ''}`}
 											/>
-											<span>{commissionModes[service.id] === CommissionModeEnum.PERCENTAGE ? '%' : 'R$'}</span>
+											<span>{commissionTypes[service.id] === CommissionRuleTypeEnum.PERCENTAGE ? '%' : 'R$'}</span>
 										</div>
 										{errors[service.id] && (
 											<p className="text-xs text-red-500 mt-1">{errors[service.id]}</p>
@@ -202,9 +215,9 @@ const ServiceCommissionForm = ({
 											variant="outline"
 											size="sm"
 											onClick={() => handleSave(service.id)}
-											disabled={!!errors[service.id]}
+											disabled={!!errors[service.id] || !hasChanges(service.id)}
 										>
-											Salvar
+											Alterar
 										</Button>
 									</TableCell>
 								</TableRow>
