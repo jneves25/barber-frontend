@@ -11,8 +11,8 @@ interface ErrorResponse {
 // Base API configuration
 const apiClient: AxiosInstance = axios.create({
 	baseURL: import.meta.env.VITE_API_URL ||
-		// 'http://localhost:3000/api',
-		'https://backend-proud-moon-9701.fly.dev/api',
+		'http://localhost:3000/api',
+	// 'https://backend-proud-moon-9701.fly.dev/api',
 	headers: {
 		'Content-Type': 'application/json',
 	},
