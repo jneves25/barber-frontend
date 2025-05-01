@@ -32,8 +32,7 @@ const AdminClients = () => {
 	const [newClient, setNewClient] = useState<ClientRegisterRequest>({
 		name: '',
 		email: '',
-		phone: '',
-		password: ''
+		phone: ''
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,24 +90,24 @@ const AdminClients = () => {
 		setIsSubmitting(true);
 		try {
 			// Validate client data on client-side before sending request
-			if (!newClient.name || !newClient.email || !newClient.phone || !newClient.password) {
+			if (!newClient.name || !newClient.email || !newClient.phone) {
 				toast.error('Preencha todos os campos obrigatórios');
 				setIsSubmitting(false);
 				return;
 			}
 
 			// Backend already has validation methods too
-			const response = await ClientService.createClient(newClient);
+			const response = await ClientService.createClient(newClient, companySelected.id);
 
 			if (response.success && response.data) {
-				setClients([...clients, response.data]);
+				fetchClients()
 				setNewClient({
 					name: '',
 					email: '',
 					phone: '',
-					password: ''
 				});
 				setIsAddDialogOpen(false);
+				console.log(response)
 				toast.success(`${response.data.name} foi adicionado com sucesso.`);
 			} else {
 				toast.error(response.error || 'Erro ao adicionar cliente');
@@ -354,15 +353,6 @@ const AdminClients = () => {
 								value={newClient.phone}
 								onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
 								placeholder="+55 (00) 00000-0000"
-							/>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="password">Senha</Label>
-							<Input
-								id="password"
-								type="password"
-								value={newClient.password}
-								onChange={(e) => setNewClient({ ...newClient, password: e.target.value })}
 							/>
 						</div>
 					</div>

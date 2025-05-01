@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Service, ServiceService } from '@/services/api/ServiceService';
 import { useAuth } from '@/context/AuthContext';
+import { formatCurrency } from '@/utils/currency';
 
 interface ServiceForm {
 	id?: number;
@@ -149,6 +150,17 @@ const AdminServices = () => {
 		} finally {
 			setIsSubmitting(false);
 		}
+	};
+
+	const closeDialog = () => {
+		setIsAddDialogOpen(false);
+		setNewService({
+			name: '',
+			description: '',
+			price: 0,
+			duration: 30,
+			companyId: companySelected.id
+		});
 	};
 
 	const openEditDialog = (service: Service) => {
@@ -302,7 +314,7 @@ const AdminServices = () => {
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid gap-2">
-							<Label htmlFor="name">Nome do Serviço</Label>
+							<Label htmlFor="name">Nome do Serviço <span className="text-red-500">*</span></Label>
 							<Input
 								id="name"
 								value={newService.name}
@@ -310,7 +322,7 @@ const AdminServices = () => {
 							/>
 						</div>
 						<div className="grid gap-2">
-							<Label htmlFor="description">Descrição</Label>
+							<Label htmlFor="description">Descrição <span className="text-red-500">*</span></Label>
 							<Textarea
 								id="description"
 								value={newService.description}
@@ -319,30 +331,57 @@ const AdminServices = () => {
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div className="grid gap-2">
-								<Label htmlFor="price">Preço (R$)</Label>
+								<Label htmlFor="price">Preço (R$) <span className="text-red-500">*</span></Label>
+
 								<Input
 									id="price"
-									type="number"
-									step="0.01"
-									min="0"
-									value={newService.price}
-									onChange={(e) => setNewService({ ...newService, price: parseFloat(e.target.value) || 0 })}
+									type="text"
+									inputMode="decimal"
+									value={formatCurrency(newService.price)}
+									onChange={(e) => {
+										const onlyNumbers = e.target.value.replace(/\D/g, "");
+										const numericValue = parseFloat(onlyNumbers) / 100;
+
+										if (!isNaN(numericValue)) {
+											setNewService({ ...newService, price: numericValue });
+										}
+									}}
 								/>
 							</div>
 							<div className="grid gap-2">
-								<Label htmlFor="duration">Duração (min)</Label>
+								<Label htmlFor="duration">Duração (min) <span className="text-red-500">*</span></Label>
 								<Input
 									id="duration"
 									type="number"
 									min="1"
-									value={newService.duration}
-									onChange={(e) => setNewService({ ...newService, duration: parseInt(e.target.value) || 30 })}
+									value={newService.duration === 0 ? "" : newService.duration}
+									onChange={(e) => {
+										const value = e.target.value;
+
+										// Permite apagar o campo sem bugar
+										if (value === "") {
+											setNewService({ ...newService, duration: 0 });
+											return;
+										}
+
+										// Converte e valida número
+										const parsed = parseInt(value);
+										if (!isNaN(parsed) && parsed > 0) {
+											setNewService({ ...newService, duration: parsed });
+										}
+									}}
+									onBlur={() => {
+										// Garante que não fique em branco ao sair do campo
+										if (newService.duration === 0) {
+											setNewService({ ...newService, duration: 30 });
+										}
+									}}
 								/>
 							</div>
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSubmitting}>
+						<Button variant="outline" onClick={() => closeDialog()} disabled={isSubmitting}>
 							Cancelar
 						</Button>
 						<Button onClick={handleAddService} disabled={isSubmitting}>

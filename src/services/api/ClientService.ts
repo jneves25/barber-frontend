@@ -20,7 +20,7 @@ export interface ClientRegisterRequest {
 	name: string;
 	email: string;
 	phone: string;
-	password: string;
+	password?: string;
 }
 
 export class ClientService extends BaseService {
@@ -87,6 +87,16 @@ export class ClientService extends BaseService {
 		}
 
 		return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/${id}`, client));
+	}
+
+	// Client management methods - createClient intentionally removed
+	async createClient(client: Client, companyId: Number): Promise<ApiResponse<Client>> {
+		const validationError = this.validateClient(client);
+		if (validationError) {
+			return { error: validationError, status: 400, success: false };
+		}
+
+		return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}`, client, { params: { companyId } }));
 	}
 
 	async deleteClient(id: number): Promise<ApiResponse<void>> {

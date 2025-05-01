@@ -417,6 +417,17 @@ const AdminCommissions = () => {
 		}
 	};
 
+	const closeDialog = () => {
+		setIsUserModalOpen(false)
+		setNewUser({
+			name: '',
+			email: '',
+			password: '',
+			role: RoleEnum.USER,
+			companyId: companySelected.id
+		})
+	}
+
 	return (
 		<AdminLayout>
 			<div className="space-y-4">
@@ -752,7 +763,7 @@ const AdminCommissions = () => {
 					</div>
 
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsUserModalOpen(false)}>
+						<Button variant="outline" onClick={() => closeDialog()}>
 							Cancelar
 						</Button>
 						<Button

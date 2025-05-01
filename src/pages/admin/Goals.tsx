@@ -110,8 +110,6 @@ const AdminGoals = () => {
 	const handleCreateGoal = async (data: Partial<Goal>) => {
 		if (!companySelected?.id) return;
 
-		console.log('Dados do formulário de meta:', data);
-
 		// Converter valores para números
 		const goalData = {
 			...data,
@@ -121,8 +119,6 @@ const AdminGoals = () => {
 			year: Number(data.year || 0),
 			target: Number(data.target || 0)
 		};
-
-		console.log('Dados convertidos:', goalData);
 
 		// Check if a goal already exists for this user, month and year locally
 		const duplicateGoal = goals.find(goal =>

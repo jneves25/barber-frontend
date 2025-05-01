@@ -25,6 +25,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { toast } from 'sonner';
 import { Product, ProductService } from '@/services/api/ProductService';
 import { useAuth } from '@/context/AuthContext';
+import { formatCurrency } from '@/utils/currency';
 
 
 interface ProductForm {
@@ -325,15 +326,18 @@ const Products = () => {
 								</Label>
 								<Input
 									id="price"
-									type="number"
-									step="0.01"
-									min="0"
-									value={selectedProduct ? selectedProduct.price : newProduct.price}
+									type="text"
+									inputMode="numeric"
+									value={formatCurrency(selectedProduct ? selectedProduct.price : newProduct.price)}
 									onChange={(e) => {
-										const value = parseFloat(e.target.value);
-										selectedProduct
-											? setSelectedProduct({ ...selectedProduct, price: value || 0 })
-											: setNewProduct({ ...newProduct, price: value || 0 });
+										const rawValue = e.target.value.replace(/\D/g, ""); // remove tudo que não for número
+										const numericValue = parseFloat(rawValue) / 100;
+
+										if (!isNaN(numericValue)) {
+											selectedProduct
+												? setSelectedProduct({ ...selectedProduct, price: numericValue })
+												: setNewProduct({ ...newProduct, price: numericValue });
+										}
 									}}
 								/>
 							</div>
@@ -345,12 +349,27 @@ const Products = () => {
 									id="stock"
 									type="number"
 									min="0"
-									value={selectedProduct ? selectedProduct.stock : newProduct.stock}
-									onChange={(e) => {
-										const value = parseInt(e.target.value);
+									value={
 										selectedProduct
-											? setSelectedProduct({ ...selectedProduct, stock: value || 0 })
-											: setNewProduct({ ...newProduct, stock: value || 0 });
+											? selectedProduct.stock === 0 ? "" : selectedProduct.stock
+											: newProduct.stock === 0 ? "" : newProduct.stock
+									}
+									onChange={(e) => {
+										const value = e.target.value;
+
+										if (value === "") {
+											selectedProduct
+												? setSelectedProduct({ ...selectedProduct, stock: 0 })
+												: setNewProduct({ ...newProduct, stock: 0 });
+											return;
+										}
+
+										const numberValue = parseInt(value);
+										if (numberValue >= 0) {
+											selectedProduct
+												? setSelectedProduct({ ...selectedProduct, stock: numberValue })
+												: setNewProduct({ ...newProduct, stock: numberValue });
+										}
 									}}
 								/>
 							</div>

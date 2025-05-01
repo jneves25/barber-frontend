@@ -13,6 +13,7 @@ const fieldNameMapping: Record<string, string> = {
 	name: 'nome',
 	description: 'descrição',
 	price: 'preço',
+	duration: 'duração',
 	stock: 'estoque',
 	imageUrl: 'URL da imagem',
 	companyId: 'ID da empresa',
