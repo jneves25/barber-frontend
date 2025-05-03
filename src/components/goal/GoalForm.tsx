@@ -61,6 +61,12 @@ const GoalForm: React.FC<GoalFormProps> = ({
 		year: initialData?.year || new Date().getFullYear(),
 		target: initialData?.target || 0,
 	});
+	const [errors, setErrors] = useState<{
+		userId?: string;
+		month?: string;
+		year?: string;
+		target?: string;
+	}>({});
 
 	// Added to check if editing mode
 	const isEditing = !!initialData;
@@ -95,11 +101,54 @@ const GoalForm: React.FC<GoalFormProps> = ({
 			...formData,
 			[field]: value,
 		});
+
+		// Limpar erro quando o campo é alterado
+		if (errors[field as keyof typeof errors]) {
+			setErrors({
+				...errors,
+				[field]: undefined
+			});
+		}
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setIsLoading(true);
+
+		// Validar formulário
+		let hasErrors = false;
+		const newErrors: {
+			userId?: string;
+			month?: string;
+			year?: string;
+			target?: string;
+		} = {};
+
+		if (!formData.userId || formData.userId <= 0) {
+			newErrors.userId = "Selecione um profissional";
+			hasErrors = true;
+		}
+
+		if (!formData.month || formData.month <= 0) {
+			newErrors.month = "Selecione um mês";
+			hasErrors = true;
+		}
+
+		if (!formData.year || formData.year <= 0) {
+			newErrors.year = "Selecione um ano";
+			hasErrors = true;
+		}
+
+		if (!formData.target || formData.target <= 0) {
+			newErrors.target = "A meta deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (hasErrors) {
+			setErrors(newErrors);
+			setIsLoading(false);
+			return;
+		}
 
 		try {
 			await onSubmit(formData);
@@ -113,13 +162,15 @@ const GoalForm: React.FC<GoalFormProps> = ({
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<div className="space-y-2">
-				<Label htmlFor="user">Profissional</Label>
+				<Label htmlFor="user">
+					Profissional <span className="text-red-500">*</span>
+				</Label>
 				<Select
 					value={formData.userId?.toString()}
 					onValueChange={(value) => handleChange('userId', parseInt(value))}
 					disabled={isLoading || isEditing} // Disable when editing
 				>
-					<SelectTrigger>
+					<SelectTrigger className={errors.userId ? "border-red-500" : ""}>
 						<SelectValue placeholder="Selecione o profissional" />
 					</SelectTrigger>
 					<SelectContent>
@@ -130,6 +181,9 @@ const GoalForm: React.FC<GoalFormProps> = ({
 						))}
 					</SelectContent>
 				</Select>
+				{errors.userId && (
+					<p className="text-sm text-red-500">{errors.userId}</p>
+				)}
 				{isEditing && (
 					<p className="text-sm text-gray-500 mt-1">
 						Não é possível alterar o profissional ao editar uma meta.
@@ -139,13 +193,15 @@ const GoalForm: React.FC<GoalFormProps> = ({
 
 			<div className="grid grid-cols-2 gap-4">
 				<div className="space-y-2">
-					<Label htmlFor="month">Mês</Label>
+					<Label htmlFor="month">
+						Mês <span className="text-red-500">*</span>
+					</Label>
 					<Select
 						value={formData.month?.toString()}
 						onValueChange={(value) => handleChange('month', parseInt(value))}
 						disabled={isLoading}
 					>
-						<SelectTrigger>
+						<SelectTrigger className={errors.month ? "border-red-500" : ""}>
 							<SelectValue placeholder="Selecione o mês" />
 						</SelectTrigger>
 						<SelectContent>
@@ -156,16 +212,21 @@ const GoalForm: React.FC<GoalFormProps> = ({
 							))}
 						</SelectContent>
 					</Select>
+					{errors.month && (
+						<p className="text-sm text-red-500">{errors.month}</p>
+					)}
 				</div>
 
 				<div className="space-y-2">
-					<Label htmlFor="year">Ano</Label>
+					<Label htmlFor="year">
+						Ano <span className="text-red-500">*</span>
+					</Label>
 					<Select
 						value={formData.year?.toString()}
 						onValueChange={(value) => handleChange('year', parseInt(value))}
 						disabled={isLoading}
 					>
-						<SelectTrigger>
+						<SelectTrigger className={errors.year ? "border-red-500" : ""}>
 							<SelectValue placeholder="Selecione o ano" />
 						</SelectTrigger>
 						<SelectContent>
@@ -176,18 +237,27 @@ const GoalForm: React.FC<GoalFormProps> = ({
 							))}
 						</SelectContent>
 					</Select>
+					{errors.year && (
+						<p className="text-sm text-red-500">{errors.year}</p>
+					)}
 				</div>
 			</div>
 
 			<div className="space-y-2">
-				<Label htmlFor="target">Meta (R$)</Label>
+				<Label htmlFor="target">
+					Meta (R$) <span className="text-red-500">*</span>
+				</Label>
 				<CurrencyInput
 					id="target"
 					value={formData.target || 0}
 					onChange={(value) => handleChange('target', value)}
 					placeholder="0,00"
 					disabled={isLoading}
+					className={errors.target ? "border-red-500" : ""}
 				/>
+				{errors.target && (
+					<p className="text-sm text-red-500">{errors.target}</p>
+				)}
 				<p className="text-xs text-gray-500">
 					Insira o valor da meta (ex: 1.000,00)
 				</p>

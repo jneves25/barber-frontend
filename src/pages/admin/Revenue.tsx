@@ -50,7 +50,7 @@ import {
 import { toast } from '@/components/ui/use-toast';
 
 // Cores para os gráficos
-const COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3'];
+const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#06B6D4', '#EF4444'];
 
 const AdminRevenue = () => {
 	const [period, setPeriod] = useState('year');
@@ -370,7 +370,7 @@ const AdminRevenue = () => {
 				</div>
 
 				<Tabs value={reportTab} onValueChange={setReportTab} className="w-full">
-					<TabsList className={`w-full mb-4 ${isMobile ? 'flex flex-wrap gap-1' : 'grid grid-cols-3'}`}>
+					<TabsList className={`w-full mb-4 ${isMobile ? 'flex flex-wrap gap-1' : 'grid grid-cols-4'}`}>
 						<TabsTrigger value="overview" className="text-xs sm:text-sm">Visão Geral</TabsTrigger>
 						{user?.role !== 'USER' && <TabsTrigger value="barbers" className="text-xs sm:text-sm">Por Barbeiro</TabsTrigger>}
 						<TabsTrigger value="services" className="text-xs sm:text-sm">Por Serviço</TabsTrigger>
@@ -409,7 +409,7 @@ const AdminRevenue = () => {
 											<YAxis />
 											<Tooltip formatter={tooltipFormatter} />
 											<Legend />
-											<Bar dataKey="total" name="Faturamento (R$)" fill="#8B4513" />
+											<Bar dataKey="total" name="Faturamento (R$)" fill="#3B82F6" />
 										</BarChart>
 									</ResponsiveContainer>
 								</div>
@@ -474,7 +474,7 @@ const AdminRevenue = () => {
 												<XAxis dataKey="name" />
 												<YAxis />
 												<Tooltip formatter={tooltipFormatter} />
-												<Bar dataKey="total" name="Faturamento (R$)" fill="#A0522D" />
+												<Bar dataKey="total" name="Faturamento (R$)" fill="#10B981" />
 											</BarChart>
 										</ResponsiveContainer>
 									</div>
@@ -593,7 +593,7 @@ const AdminRevenue = () => {
 																<div className="w-full bg-gray-200 rounded-full h-2.5">
 																	<div
 																		className="h-2.5 rounded-full"
-																		style={{ width: `${item.percentage}%`, backgroundColor: item.color || '#8B4513' }}
+																		style={{ width: `${item.percentage}%`, backgroundColor: item.color || '#3B82F6' }}
 																	></div>
 																</div>
 															</TableCell>
@@ -810,7 +810,7 @@ const AdminRevenue = () => {
 												<XAxis dataKey="hour" />
 												<YAxis />
 												<Tooltip formatter={tooltipFormatter} />
-												<Area type="monotone" dataKey="total" stroke="#8B4513" fill="#CD853F" />
+												<Area type="monotone" dataKey="total" stroke="#3B82F6" fill="#93C5FD" />
 											</AreaChart>
 										</ResponsiveContainer>
 									</div>
@@ -838,7 +838,7 @@ const AdminRevenue = () => {
 												<XAxis dataKey="name" />
 												<YAxis />
 												<Tooltip formatter={tooltipFormatter} />
-												<Bar dataKey="total" name="Faturamento (R$)" fill="#A0522D" />
+												<Bar dataKey="total" name="Faturamento (R$)" fill="#10B981" />
 											</BarChart>
 										</ResponsiveContainer>
 									</div>

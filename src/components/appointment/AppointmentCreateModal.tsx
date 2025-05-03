@@ -20,13 +20,14 @@ import {
 	SelectValue
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2, Plus, Minus, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Plus, Minus, Calendar as CalendarIcon, Package, ShoppingBag, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Separator } from "@/components/ui/separator";
 
 import AppointmentService, {
 	Appointment,
@@ -38,11 +39,13 @@ import AppointmentService, {
 import ClientService from '@/services/api/ClientService';
 import ServiceService from '@/services/api/ServiceService';
 import ProductService from '@/services/api/ProductService';
+import UserService, { User } from '@/services/api/UserService';
 
 interface AppointmentCreateModalProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onSuccess: () => void; // Callback to refresh the appointments list
+	initialDate?: Date; // Initial date for the appointment
 }
 
 interface ServiceItem {
@@ -60,20 +63,25 @@ interface ProductItem {
 export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 	isOpen,
 	onClose,
-	onSuccess
+	onSuccess,
+	initialDate
 }) => {
 	const { user, companySelected } = useAuth();
 	const [isLoading, setIsLoading] = useState(false);
 	const [isLoadingData, setIsLoadingData] = useState(true);
+	const [isLoadingTimeSlots, setIsLoadingTimeSlots] = useState(false);
 
 	// Data states
 	const [clients, setClients] = useState<Client[]>([]);
 	const [services, setServices] = useState<Service[]>([]);
 	const [products, setProducts] = useState<Product[]>([]);
+	const [professionals, setProfessionals] = useState<User[]>([]);
+	const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
 
 	// Form states
 	const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-	const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+	const [selectedProfessionalId, setSelectedProfessionalId] = useState<number | null>(null);
+	const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
 	const [selectedTime, setSelectedTime] = useState<string>("09:00");
 	const [selectedServices, setSelectedServices] = useState<ServiceItem[]>([]);
 	const [selectedProducts, setSelectedProducts] = useState<ProductItem[]>([]);
@@ -82,12 +90,15 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 
 	// Calculated total
 	const [total, setTotal] = useState<number>(0);
+	const [serviceTotal, setServiceTotal] = useState<number>(0);
+	const [productTotal, setProductTotal] = useState<number>(0);
 
 	// Validation states
 	const [errors, setErrors] = useState({
 		client: false,
 		date: false,
-		services: false
+		services: false,
+		professional: false
 	});
 
 	// Fetch data on modal open
@@ -96,18 +107,42 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 		fetchData();
 	}, [isOpen, companySelected.id]);
 
+	// Update selectedDate when initialDate changes
+	useEffect(() => {
+		if (initialDate) {
+			setSelectedDate(initialDate);
+		}
+	}, [initialDate]);
+
+	// Fetch available time slots when professional, date, and services change
+	useEffect(() => {
+		if (selectedProfessionalId && selectedDate && selectedServices.length > 0) {
+			fetchAvailableTimeSlots();
+		} else {
+			// Clear time slots if any required fields are missing
+			setAvailableTimeSlots([]);
+		}
+	}, [selectedProfessionalId, selectedDate, selectedServices]);
+
 	const fetchData = async () => {
 		setIsLoadingData(true);
 		try {
-			const [clientsRes, servicesRes, productsRes] = await Promise.all([
+			const [clientsRes, servicesRes, productsRes, professionalsRes] = await Promise.all([
 				ClientService.getAll(companySelected.id),
 				ServiceService.getAllServices(companySelected.id),
-				ProductService.getAllProducts(companySelected.id)
+				ProductService.getAllProducts(companySelected.id),
+				UserService.getUsersByCompany(companySelected.id)
 			]);
 
 			if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
-			if (servicesRes.success && servicesRes.data) setServices(servicesRes.data);
-			if (productsRes.success && productsRes.data) setProducts(productsRes.data);
+			if (servicesRes.success && servicesRes.data) setServices(servicesRes.data as Service[]);
+			if (productsRes.success && productsRes.data) setProducts(productsRes.data as Product[]);
+			if (professionalsRes.success && professionalsRes.data) {
+				setProfessionals(professionalsRes.data);
+				if (user?.role === 'USER') {
+					setSelectedProfessionalId(Number(user.id));
+				}
+			}
 		} catch (error) {
 			console.error("Error fetching data:", error);
 			toast.error("Erro ao carregar dados necessários");
@@ -116,16 +151,73 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 		}
 	};
 
+	const fetchAvailableTimeSlots = async () => {
+		if (!selectedProfessionalId || !selectedDate) return;
+
+		setIsLoadingTimeSlots(true);
+		// Clear previous available time slots while loading
+		setAvailableTimeSlots([]);
+
+		try {
+			// Ensure we send the date in YYYY-MM-DD format in the user's local timezone
+			// This avoids timezone issues where the backend might interpret the date differently
+			const year = selectedDate.getFullYear();
+			const month = String(selectedDate.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+			const day = String(selectedDate.getDate()).padStart(2, '0');
+			const formattedDate = `${year}-${month}-${day}`;
+
+			console.log(`Selected date: ${selectedDate.toISOString()}`);
+			console.log(`Formatted date for API: ${formattedDate}`);
+			console.log(`Fetching available slots for professional ${selectedProfessionalId} on ${formattedDate}`);
+
+			const response = await AppointmentService.getAvailableTimeSlots(
+				selectedProfessionalId,
+				companySelected.id,
+				formattedDate
+			);
+
+			if (response.success && response.data) {
+				console.log(`Received ${response.data.length} available time slots:`, response.data);
+				setAvailableTimeSlots(response.data);
+
+				// If there are available slots and the current selection is not available
+				// or there is no current selection, select the first available slot
+				if (response.data.length > 0) {
+					if (!selectedTime || !response.data.includes(selectedTime)) {
+						setSelectedTime(response.data[0]);
+					}
+				} else {
+					// Clear selected time if no slots are available
+					setSelectedTime("");
+				}
+			} else {
+				console.error("Error fetching available time slots:", response.error);
+				toast.error(response.error || "Erro ao carregar horários disponíveis");
+				setAvailableTimeSlots([]);
+				setSelectedTime("");
+			}
+		} catch (error) {
+			console.error("Error fetching available time slots:", error);
+			toast.error("Erro ao carregar horários disponíveis");
+			setAvailableTimeSlots([]);
+			setSelectedTime("");
+		} finally {
+			setIsLoadingTimeSlots(false);
+		}
+	};
+
 	// Calculate total whenever selected services or products change
 	useEffect(() => {
-		let servicesTotal = selectedServices.reduce((total, item) => {
+		const servicesTotal = selectedServices.reduce((total, item) => {
 			return total + (item.service.price * item.quantity);
 		}, 0);
 
-		let productsTotal = selectedProducts.reduce((total, item) => {
+		const productsTotal = selectedProducts.reduce((total, item) => {
 			return total + (item.product.price * item.quantity);
 		}, 0);
 
+		setServiceTotal(servicesTotal);
+		setProductTotal(productsTotal);
 		setTotal(servicesTotal + productsTotal);
 	}, [selectedServices, selectedProducts]);
 
@@ -198,8 +290,9 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 	const validateForm = (): boolean => {
 		const newErrors = {
 			client: !selectedClientId,
-			date: !selectedDate,
-			services: selectedServices.length === 0
+			date: !selectedDate || !selectedTime,
+			services: selectedServices.length === 0,
+			professional: !selectedProfessionalId
 		};
 
 		setErrors(newErrors);
@@ -212,36 +305,29 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 			return;
 		}
 
-		const dateTime = new Date(selectedDate);
+		// Create the appointment start datetime
+		const startDateTime = new Date(selectedDate);
 		const [hours, minutes] = selectedTime.split(':');
-		dateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+		startDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0); // Zerando segundos e milissegundos
+
+		console.log("Frontend startDateTime:", startDateTime);
+		console.log("Frontend startDateTime ISO:", startDateTime.toISOString());
 
 		const newAppointment: Appointment = {
-			id: 0, // Will be assigned by the API
 			clientId: selectedClientId,
-			userId: Number(user?.id),
+			userId: selectedProfessionalId,
 			companyId: companySelected.id,
 			value: total,
 			status: AppointmentStatusEnum.PENDING,
 			createdAt: new Date().toISOString(),
-			scheduledTime: dateTime.toISOString(),
+			scheduledTime: startDateTime.toISOString(), // Enviar como string ISO
 			completedAt: null,
-			client: clients.find(c => c.id === selectedClientId)!,
-			user: {
-				id: Number(user?.id),
-				name: user?.name || '',
-				email: user?.email || ''
-			},
 			services: selectedServices.map(item => ({
-				id: 0, // Will be assigned by the API
-				appointmentId: 0, // Will be assigned by the API
 				serviceId: item.serviceId,
 				quantity: item.quantity,
 				service: item.service
 			})),
 			products: selectedProducts.map(item => ({
-				id: 0, // Will be assigned by the API
-				appointmentId: 0, // Will be assigned by the API
 				productId: item.productId,
 				quantity: item.quantity,
 				product: item.product
@@ -270,7 +356,8 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 
 	const resetForm = () => {
 		setSelectedClientId(null);
-		setSelectedDate(new Date());
+		setSelectedProfessionalId(user?.role === 'USER' ? Number(user.id) : null);
+		setSelectedDate(initialDate || new Date());
 		setSelectedTime("09:00");
 		setSelectedServices([]);
 		setSelectedProducts([]);
@@ -306,7 +393,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 						{/* Cliente */}
 						<div className="space-y-2">
 							<Label htmlFor="client" className={errors.client ? "text-red-500" : ""}>
-								Cliente *
+								Cliente <span className="text-red-500">*</span>
 							</Label>
 							<Select
 								onValueChange={(value) => {
@@ -335,69 +422,51 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 							)}
 						</div>
 
-						{/* Data e Hora */}
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							<div className="space-y-2">
-								<Label className={errors.date ? "text-red-500" : ""}>Data *</Label>
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button
-											variant="outline"
-											className={`w-full justify-start text-left ${errors.date ? "border-red-500" : ""
-												}`}
+						{/* Profissional */}
+						<div className="space-y-2">
+							<Label htmlFor="professional" className={errors.professional ? "text-red-500" : ""}>
+								Profissional <span className="text-red-500">*</span>
+							</Label>
+							<Select
+								onValueChange={(value) => {
+									setSelectedProfessionalId(Number(value));
+									setErrors(prev => ({ ...prev, professional: false }));
+								}}
+								value={selectedProfessionalId?.toString() || ""}
+								disabled={user?.role === 'USER'}
+							>
+								<SelectTrigger className={`w-full ${errors.professional ? "border-red-500" : ""}`}>
+									<SelectValue placeholder="Selecione um profissional" />
+								</SelectTrigger>
+								<SelectContent>
+									{professionals.map((prof) => (
+										<SelectItem
+											key={prof.id}
+											value={prof.id!.toString()}
+											className="cursor-pointer hover:bg-gray-100"
 										>
-											<CalendarIcon className="mr-2 h-4 w-4" />
-											{selectedDate ? (
-												format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-											) : (
-												<span>Selecione uma data</span>
-											)}
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar
-											mode="single"
-											selected={selectedDate}
-											onSelect={(date) => {
-												date && setSelectedDate(date);
-												setErrors(prev => ({ ...prev, date: false }));
-											}}
-											initialFocus
-											disabled={(date) => date < new Date()}
-											className="rounded-md border"
-										/>
-									</PopoverContent>
-								</Popover>
-							</div>
-
-							<div className="space-y-2">
-								<Label htmlFor="time">Horário</Label>
-								<Select
-									onValueChange={setSelectedTime}
-									value={selectedTime}
-								>
-									<SelectTrigger>
-										<SelectValue placeholder="Selecione o horário" />
-									</SelectTrigger>
-									<SelectContent>
-										{timeOptions.map((time) => (
-											<SelectItem key={time} value={time}>
-												{time}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
+											{prof.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							{errors.professional && (
+								<p className="text-sm text-red-500">Selecione um profissional</p>
+							)}
 						</div>
 
 						{/* Serviços */}
-						<div className="space-y-4">
+						<div className="space-y-4 border p-4 rounded-lg bg-gray-50">
 							<div className="flex justify-between items-center">
-								<Label>Serviços</Label>
+								<div className="flex items-center">
+									<Package className="h-5 w-5 mr-2 text-blue-600" />
+									<Label className="font-medium text-blue-800">Serviços <span className="text-red-500">*</span></Label>
+								</div>
 								<div className="flex items-center space-x-2">
 									<Select
 										onValueChange={(value) => setCurrentServiceId(Number(value))}
 										value={currentServiceId?.toString() || ""}
+										disabled={!selectedProfessionalId}
 									>
 										<SelectTrigger className="w-[200px]">
 											<SelectValue placeholder="Selecione um serviço" />
@@ -414,6 +483,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 										onClick={handleAddService}
 										disabled={!currentServiceId}
 										size="sm"
+										className="bg-blue-600 hover:bg-blue-700"
 									>
 										<Plus className="h-4 w-4" />
 									</Button>
@@ -422,13 +492,17 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 
 							<div className="space-y-2">
 								{selectedServices.length === 0 ? (
-									<p className="text-sm text-gray-500">Nenhum serviço selecionado</p>
+									<p className="text-sm text-gray-500">
+										{!selectedProfessionalId
+											? "Selecione um profissional para adicionar serviços"
+											: "Nenhum serviço selecionado"}
+									</p>
 								) : (
 									<div className="space-y-2">
 										{selectedServices.map((item) => (
 											<div
 												key={item.serviceId}
-												className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+												className="flex items-center justify-between p-3 bg-white rounded-lg border"
 											>
 												<div>
 													<p className="font-medium">{item.service.name}</p>
@@ -457,24 +531,34 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 														onClick={() => handleRemoveService(item.serviceId)}
 														className="text-red-500 hover:text-red-700"
 													>
-														×
+														<X className="h-4 w-4" />
 													</Button>
 												</div>
 											</div>
 										))}
+										<div className="text-right font-medium text-sm text-gray-700">
+											Subtotal serviços: R$ {serviceTotal.toFixed(2)}
+										</div>
 									</div>
+								)}
+								{errors.services && (
+									<p className="text-sm text-red-500">Selecione pelo menos um serviço</p>
 								)}
 							</div>
 						</div>
 
 						{/* Produtos */}
-						<div className="space-y-4">
+						<div className="space-y-4 border p-4 rounded-lg bg-gray-50">
 							<div className="flex justify-between items-center">
-								<Label>Produtos</Label>
+								<div className="flex items-center">
+									<ShoppingBag className="h-5 w-5 mr-2 text-green-600" />
+									<Label className="font-medium text-green-800">Produtos</Label>
+								</div>
 								<div className="flex items-center space-x-2">
 									<Select
 										onValueChange={(value) => setCurrentProductId(Number(value))}
 										value={currentProductId?.toString() || ""}
+										disabled={!selectedProfessionalId}
 									>
 										<SelectTrigger className="w-[200px]">
 											<SelectValue placeholder="Selecione um produto" />
@@ -491,6 +575,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 										onClick={handleAddProduct}
 										disabled={!currentProductId}
 										size="sm"
+										className="bg-green-600 hover:bg-green-700"
 									>
 										<Plus className="h-4 w-4" />
 									</Button>
@@ -499,13 +584,17 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 
 							<div className="space-y-2">
 								{selectedProducts.length === 0 ? (
-									<p className="text-sm text-gray-500">Nenhum produto selecionado</p>
+									<p className="text-sm text-gray-500">
+										{!selectedProfessionalId
+											? "Selecione um profissional para adicionar produtos"
+											: "Nenhum produto selecionado"}
+									</p>
 								) : (
 									<div className="space-y-2">
 										{selectedProducts.map((item) => (
 											<div
 												key={item.productId}
-												className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+												className="flex items-center justify-between p-3 bg-white rounded-lg border"
 											>
 												<div>
 													<p className="font-medium">{item.product.name}</p>
@@ -534,12 +623,106 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 														onClick={() => handleRemoveProduct(item.productId)}
 														className="text-red-500 hover:text-red-700"
 													>
-														×
+														<X className="h-4 w-4" />
 													</Button>
 												</div>
 											</div>
 										))}
+										<div className="text-right font-medium text-sm text-gray-700">
+											Subtotal produtos: R$ {productTotal.toFixed(2)}
+										</div>
 									</div>
+								)}
+							</div>
+						</div>
+
+						{/* Data e Hora - Movidos para depois dos serviços */}
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-lg bg-gray-50">
+							<div className="space-y-2">
+								<Label className={errors.date ? "text-red-500" : ""}>
+									Data <span className="text-red-500">*</span>
+								</Label>
+								<Popover>
+									<PopoverTrigger asChild>
+										<Button
+											variant="outline"
+											className={`w-full justify-start text-left ${errors.date ? "border-red-500" : ""}`}
+											disabled={!selectedProfessionalId || selectedServices.length === 0}
+										>
+											<CalendarIcon className="mr-2 h-4 w-4" />
+											{selectedDate ? (
+												format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+											) : (
+												<span>Selecione uma data</span>
+											)}
+										</Button>
+									</PopoverTrigger>
+									<PopoverContent className="w-auto p-0" align="start">
+										<Calendar
+											mode="single"
+											selected={selectedDate}
+											onSelect={(date) => {
+												date && setSelectedDate(date);
+												setErrors(prev => ({ ...prev, date: false }));
+											}}
+											initialFocus
+											disabled={(date) => date < new Date()}
+											className="rounded-md border"
+										/>
+									</PopoverContent>
+								</Popover>
+								{(!selectedProfessionalId || selectedServices.length === 0) && (
+									<p className="text-sm text-gray-500">
+										{!selectedProfessionalId
+											? "Selecione um profissional primeiro"
+											: "Selecione pelo menos um serviço primeiro"}
+									</p>
+								)}
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="time">
+									Horário <span className="text-red-500">*</span>
+								</Label>
+								<Select
+									onValueChange={setSelectedTime}
+									value={selectedTime}
+									disabled={isLoadingTimeSlots || availableTimeSlots.length === 0 || !selectedProfessionalId || selectedServices.length === 0}
+								>
+									<SelectTrigger>
+										{isLoadingTimeSlots ? (
+											<div className="flex items-center">
+												<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+												<span>Carregando horários...</span>
+											</div>
+										) : !selectedProfessionalId ? (
+											<span>Selecione um profissional</span>
+										) : selectedServices.length === 0 ? (
+											<span>Selecione um serviço</span>
+										) : availableTimeSlots.length === 0 ? (
+											<span>Sem horários disponíveis</span>
+										) : (
+											<SelectValue placeholder="Selecione o horário" />
+										)}
+									</SelectTrigger>
+									<SelectContent>
+										{availableTimeSlots.length > 0 ? (
+											availableTimeSlots.map((time) => (
+												<SelectItem key={time} value={time}>
+													{time}
+												</SelectItem>
+											))
+										) : (
+											<div className="px-2 py-4 text-sm text-gray-500 text-center">
+												Sem horários disponíveis
+											</div>
+										)}
+									</SelectContent>
+								</Select>
+								{availableTimeSlots.length === 0 && !isLoadingTimeSlots && selectedProfessionalId && selectedServices.length > 0 && (
+									<p className="text-sm text-red-500">
+										Não há horários disponíveis para esta data e profissional
+									</p>
 								)}
 							</div>
 						</div>
@@ -547,11 +730,18 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 						{/* Total */}
 						<div className="border-t pt-4">
 							<div className="flex justify-between items-center">
-								<span className="font-medium">Total</span>
+								<span className="font-medium">Total do Agendamento</span>
 								<span className="text-2xl font-bold text-primary">
 									R$ {total.toFixed(2)}
 								</span>
 							</div>
+							{selectedProducts.length > 0 && (
+								<div className="flex justify-end mt-1">
+									<span className="text-sm text-gray-600">
+										(Serviços: R$ {serviceTotal.toFixed(2)} + Produtos: R$ {productTotal.toFixed(2)})
+									</span>
+								</div>
+							)}
 						</div>
 					</div>
 				)}

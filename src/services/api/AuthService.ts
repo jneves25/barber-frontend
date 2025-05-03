@@ -1,8 +1,8 @@
-
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 import { User } from './UserService';
 import { Client } from './ClientService';
+import { validatePhoneNumber, cleanPhoneNumber } from '@/utils/phone';
 
 export interface LoginRequest {
 	email: string;
@@ -51,7 +51,7 @@ export class AuthService extends BaseService {
 		if (emailError) return emailError;
 
 		if (registerRequest.password.length < 8) {
-			return 'Password must be at least 8 characters';
+			return 'A senha deve ter pelo menos 8 caracteres';
 		}
 
 		return null;
@@ -65,14 +65,12 @@ export class AuthService extends BaseService {
 		if (emailError) return emailError;
 
 		if (registerRequest.password.length < 8) {
-			return 'Password must be at least 8 characters';
+			return 'A senha deve ter pelo menos 8 caracteres';
 		}
 
-		// Simple phone validation
-		const phoneRegex = /^\+?[0-9]{10,15}$/;
-		if (!phoneRegex.test(registerRequest.phone.replace(/\D/g, ''))) {
-			return 'Invalid phone format';
-		}
+		// Validação de telefone melhorada
+		const phoneError = validatePhoneNumber(registerRequest.phone);
+		if (phoneError) return phoneError;
 
 		return null;
 	}
@@ -139,8 +137,14 @@ export class AuthService extends BaseService {
 			return { error: validationError, status: 400, success: false };
 		}
 
+		// Limpa o telefone antes de enviar para o servidor
+		const cleanedRegisterRequest = {
+			...registerRequest,
+			phone: cleanPhoneNumber(registerRequest.phone)
+		};
+
 		const response = await this.handleResponse<AuthResponse>(
-			apiClient.post(`/client/auth/register`, registerRequest)
+			apiClient.post(`/client/auth/register`, cleanedRegisterRequest)
 		);
 
 		if (response.success && response.data?.token) {

@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Phone, Mail, User, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Search, Phone, Mail, User, Edit, Loader2 } from 'lucide-react';
 import ClientService, { Client, ClientRegisterRequest } from '@/services/api/ClientService';
 import { toast } from 'sonner';
 import {
@@ -16,14 +15,15 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
+import { handlePhoneInputChange, applyPhoneMask } from '@/utils/phone';
 
 const AdminClients = () => {
 	const { companySelected } = useAuth();
 	const [clients, setClients] = useState<Client[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isLoading, setIsLoading] = useState(true);
-	const [isDeleting, setIsDeleting] = useState<number | null>(null);
 
 	// Add state for client form and modal
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -35,9 +35,16 @@ const AdminClients = () => {
 		phone: ''
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [clientComments, setClientComments] = useState<Record<number, string>>({});
+	const [currentComment, setCurrentComment] = useState('');
 
 	useEffect(() => {
 		fetchClients();
+		// Load comments from localStorage
+		const savedComments = localStorage.getItem('clientComments');
+		if (savedComments) {
+			setClientComments(JSON.parse(savedComments));
+		}
 	}, []);
 
 	const fetchClients = async () => {
@@ -62,26 +69,6 @@ const AdminClients = () => {
 		// Client-side filter - could be replaced with a server-side search in a real app
 		if (!searchTerm) {
 			fetchClients();
-		}
-	};
-
-	const handleDeleteClient = async (id: number) => {
-		if (window.confirm('Tem certeza que deseja excluir este cliente?')) {
-			setIsDeleting(id);
-			try {
-				const response = await ClientService.deletePersonalAccount(id);
-				if (response.success) {
-					toast.success('Cliente excluído com sucesso');
-					fetchClients();
-				} else {
-					toast.error(response.error || 'Erro ao excluir cliente');
-				}
-			} catch (error) {
-				toast.error('Erro ao conectar com o servidor');
-				console.error(error);
-			} finally {
-				setIsDeleting(null);
-			}
 		}
 	};
 
@@ -120,27 +107,27 @@ const AdminClients = () => {
 		}
 	};
 
-	// Function to edit a client
-	const handleEditClient = async () => {
+	// Function to save client comment
+	const handleSaveComment = () => {
 		if (!selectedClient || !selectedClient.id) return;
 
 		setIsSubmitting(true);
 		try {
-			const response = await ClientService.updatePersonalInfo(selectedClient.id, selectedClient);
+			// Save comment to localStorage
+			const updatedComments = {
+				...clientComments,
+				[selectedClient.id]: currentComment
+			};
 
-			if (response.success && response.data) {
-				const updatedClients = clients.map(c =>
-					c.id === selectedClient.id ? response.data! : c
-				);
-				setClients(updatedClients);
-				setSelectedClient(null);
-				setIsEditDialogOpen(false);
-				toast.success(`${response.data.name} foi atualizado com sucesso.`);
-			} else {
-				toast.error(response.error || 'Erro ao atualizar cliente');
-			}
+			localStorage.setItem('clientComments', JSON.stringify(updatedComments));
+			setClientComments(updatedComments);
+
+			setSelectedClient(null);
+			setCurrentComment('');
+			setIsEditDialogOpen(false);
+			toast.success(`Comentário para ${selectedClient.name} foi salvo com sucesso.`);
 		} catch (error) {
-			toast.error('Erro ao conectar com o servidor');
+			toast.error('Erro ao salvar comentário');
 			console.error(error);
 		} finally {
 			setIsSubmitting(false);
@@ -149,7 +136,19 @@ const AdminClients = () => {
 
 	const openEditDialog = (client: Client) => {
 		setSelectedClient(client);
+		// Load any existing comments from localStorage
+		setCurrentComment(clientComments[client.id || 0] || '');
 		setIsEditDialogOpen(true);
+	};
+
+	const closeDialog = () => {
+		setNewClient({
+			name: '',
+			email: '',
+			phone: '',
+		});
+		setIsAddDialogOpen(false);
+		setIsEditDialogOpen(false);
 	};
 
 	const filteredClients = searchTerm
@@ -218,7 +217,7 @@ const AdminClients = () => {
 															<div className="text-sm font-medium text-gray-900">{client.name}</div>
 														</td>
 														<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
-															<div className="text-sm text-gray-900">{client.phone}</div>
+															<div className="text-sm text-gray-900">{applyPhoneMask(client.phone)}</div>
 														</td>
 														<td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
 															<div className="text-sm text-gray-900">{client.email}</div>
@@ -231,18 +230,6 @@ const AdminClients = () => {
 																	onClick={() => openEditDialog(client)}
 																>
 																	<Edit className="h-4 w-4" />
-																</button>
-																<button
-																	className="p-1 text-red-500 hover:text-red-700 transition-colors"
-																	title="Excluir"
-																	onClick={() => handleDeleteClient(client.id!)}
-																	disabled={isDeleting === client.id}
-																>
-																	{isDeleting === client.id ? (
-																		<Loader2 className="h-4 w-4 animate-spin" />
-																	) : (
-																		<Trash2 className="h-4 w-4" />
-																	)}
 																</button>
 																<a
 																	href={`https://wa.me/${client.phone.replace(/\D/g, '')}`}
@@ -306,13 +293,13 @@ const AdminClients = () => {
 					</Card>
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
-							<CardTitle className="text-sm font-medium">Taxa de Conversão</CardTitle>
+							<CardTitle className="text-sm font-medium">Retenção de Clientes</CardTitle>
 							<User className="h-4 w-4 text-gray-500" />
 						</CardHeader>
 						<CardContent>
-							<div className="text-2xl font-bold">--</div>
+							<div className="text-2xl font-bold">5 em 10</div>
 							<p className="text-xs text-muted-foreground">
-								Dados insuficientes
+								clientes voltam para outros serviços
 							</p>
 						</CardContent>
 					</Card>
@@ -350,14 +337,15 @@ const AdminClients = () => {
 							<Label htmlFor="phone">Telefone</Label>
 							<Input
 								id="phone"
-								value={newClient.phone}
-								onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-								placeholder="+55 (00) 00000-0000"
+								value={applyPhoneMask(newClient.phone)}
+								onChange={(e) => handlePhoneInputChange(e, (value) => setNewClient({ ...newClient, phone: value }))}
+								placeholder="(00) 00000-0000"
+								maxLength={15}
 							/>
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSubmitting}>
+						<Button variant="outline" onClick={() => closeDialog()} disabled={isSubmitting}>
 							Cancelar
 						</Button>
 						<Button onClick={handleAddClient} disabled={isSubmitting}>
@@ -376,37 +364,25 @@ const AdminClients = () => {
 			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
 				<DialogContent className="sm:max-w-[425px]">
 					<DialogHeader>
-						<DialogTitle>Editar Cliente</DialogTitle>
+						<DialogTitle>Adicionar Comentário</DialogTitle>
 						<DialogDescription>
-							Atualize os detalhes do cliente abaixo.
+							Adicione notas sobre o cliente {selectedClient?.name}.
 						</DialogDescription>
 					</DialogHeader>
 					{selectedClient && (
 						<div className="grid gap-4 py-4">
-							<div className="grid gap-2">
-								<Label htmlFor="edit-name">Nome</Label>
-								<Input
-									id="edit-name"
-									value={selectedClient.name}
-									onChange={(e) => setSelectedClient({ ...selectedClient, name: e.target.value })}
-								/>
+							<div className="text-sm text-gray-600 mb-2">
+								<div><strong>Telefone:</strong> {applyPhoneMask(selectedClient.phone)}</div>
+								<div><strong>Email:</strong> {selectedClient.email}</div>
 							</div>
 							<div className="grid gap-2">
-								<Label htmlFor="edit-email">Email</Label>
-								<Input
-									id="edit-email"
-									type="email"
-									value={selectedClient.email}
-									onChange={(e) => setSelectedClient({ ...selectedClient, email: e.target.value })}
-								/>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="edit-phone">Telefone</Label>
-								<Input
-									id="edit-phone"
-									value={selectedClient.phone}
-									onChange={(e) => setSelectedClient({ ...selectedClient, phone: e.target.value })}
-									placeholder="+55 (00) 00000-0000"
+								<Label htmlFor="edit-comments">Comentários</Label>
+								<Textarea
+									id="edit-comments"
+									value={currentComment}
+									onChange={(e) => setCurrentComment(e.target.value)}
+									placeholder="Fale aqui sobre seu cliente para você poder consultar na próxima vez que ele te visitar e lembrar de informações dele"
+									rows={6}
 								/>
 							</div>
 						</div>
@@ -415,13 +391,13 @@ const AdminClients = () => {
 						<Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
 							Cancelar
 						</Button>
-						<Button onClick={handleEditClient} disabled={isSubmitting}>
+						<Button onClick={handleSaveComment} disabled={isSubmitting}>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 									Salvando...
 								</>
-							) : 'Salvar Alterações'}
+							) : 'Salvar Comentário'}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

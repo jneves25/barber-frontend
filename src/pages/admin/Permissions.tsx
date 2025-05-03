@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import {
@@ -26,7 +25,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import UserService, { RoleEnum, UserPermissions, User as UserType } from '@/services/api/UserService';
 import { allPermissions, DEFAULT_PERMISSIONS } from '@/utils/permissions';
 
@@ -49,7 +47,11 @@ const Permissions = () => {
 	const [selectedPermissions, setSelectedPermissions] = useState<UserPermissions>();
 	const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [errors, setErrors] = useState<{
+		name?: string;
+		email?: string;
+		password?: string;
+	}>({});
 
 	useEffect(() => {
 		fetchUsersData();
@@ -138,7 +140,7 @@ const Permissions = () => {
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value } = e.target;
 		setNewUser(prev => ({ ...prev, [name]: value }));
-		setError(null);
+		setErrors(prev => ({ ...prev, [name]: undefined }));
 	};
 
 	const handleRoleChange = (value: string) => {
@@ -157,37 +159,10 @@ const Permissions = () => {
 		}));
 	};
 
-	const validateUserForm = () => {
-		if (!newUser.name) {
-			setError("O nome é obrigatório");
-			return false;
-		}
-		if (!newUser.email) {
-			setError("O email é obrigatório");
-			return false;
-		}
-		if (!newUser.password) {
-			setError("A senha é obrigatória");
-			return false;
-		}
-		if (newUser.password.length < 6) {
-			setError("A senha deve ter pelo menos 6 caracteres");
-			return false;
-		}
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(newUser.email)) {
-			setError("Email inválido");
-			return false;
-		}
-		return true;
-	};
-
 	const handleCreateUser = async () => {
-		if (!validateUserForm()) {
-			return;
-		}
-
 		setIsLoading(true);
+		setErrors({}); // Limpa erros anteriores
+
 		try {
 			const response = await UserService.create({
 				...newUser,
@@ -196,7 +171,6 @@ const Permissions = () => {
 
 			if (response.success && response.data) {
 				toast.success(`${newUser.name} adicionado à equipe com sucesso`);
-
 				setIsUserModalOpen(false);
 				setNewUser({
 					name: '',
@@ -205,13 +179,29 @@ const Permissions = () => {
 					role: RoleEnum.USER,
 					companyId: companySelected.id
 				});
-
 				await fetchUsersData();
 			} else {
-				setError(response.error || "Erro ao criar usuário");
+				// Trata a resposta de erro
+				if (typeof response.error === 'string') {
+					// Se for apenas uma mensagem de erro, tenta determinar qual campo está com erro
+					const errorMessage = response.error.toLowerCase();
+
+					if (errorMessage.includes('nome')) {
+						setErrors({ name: response.error });
+					} else if (errorMessage.includes('email')) {
+						setErrors({ email: response.error });
+					} else if (errorMessage.includes('senha')) {
+						setErrors({ password: response.error });
+					} else {
+						toast.error(response.error);
+					}
+				} else if (typeof response.error === 'object') {
+					// Se for um objeto com erros por campo
+					setErrors(response.error);
+				}
 			}
 		} catch (error) {
-			setError("Erro ao criar usuário");
+			toast.error("Erro ao conectar com o servidor");
 		} finally {
 			setIsLoading(false);
 		}
@@ -255,58 +245,66 @@ const Permissions = () => {
 									</DialogDescription>
 								</DialogHeader>
 
-								{error && (
-									<Alert variant="destructive">
-										<AlertCircle className="h-4 w-4" />
-										<AlertDescription>{error}</AlertDescription>
-									</Alert>
-								)}
-
 								<div className="grid gap-4 py-4">
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="name" className="text-right">
-											Nome
+										<Label htmlFor="name" className={`text-right ${errors.name ? 'text-red-500' : ''}`}>
+											Nome <span className="text-red-500">*</span>
 										</Label>
-										<Input
-											id="name"
-											name="name"
-											value={newUser.name}
-											onChange={handleInputChange}
-											className="col-span-3"
-										/>
+										<div className="col-span-3">
+											<Input
+												id="name"
+												name="name"
+												value={newUser.name}
+												onChange={handleInputChange}
+												className={`w-full ${errors.name ? 'border-red-500 focus:ring-red-500' : ''}`}
+											/>
+											{errors.name && (
+												<p className="text-red-500 text-sm mt-1">{errors.name}</p>
+											)}
+										</div>
 									</div>
 
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="email" className="text-right">
-											Email
+										<Label htmlFor="email" className={`text-right ${errors.email ? 'text-red-500' : ''}`}>
+											Email <span className="text-red-500">*</span>
 										</Label>
-										<Input
-											id="email"
-											name="email"
-											type="email"
-											value={newUser.email}
-											onChange={handleInputChange}
-											className="col-span-3"
-										/>
+										<div className="col-span-3">
+											<Input
+												id="email"
+												name="email"
+												type="email"
+												value={newUser.email}
+												onChange={handleInputChange}
+												className={`w-full ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
+											/>
+											{errors.email && (
+												<p className="text-red-500 text-sm mt-1">{errors.email}</p>
+											)}
+										</div>
 									</div>
 
 									<div className="grid grid-cols-4 items-center gap-4">
-										<Label htmlFor="password" className="text-right">
-											Senha
+										<Label htmlFor="password" className={`text-right ${errors.password ? 'text-red-500' : ''}`}>
+											Senha <span className="text-red-500">*</span>
 										</Label>
-										<Input
-											id="password"
-											name="password"
-											type="password"
-											value={newUser.password}
-											onChange={handleInputChange}
-											className="col-span-3"
-										/>
+										<div className="col-span-3">
+											<Input
+												id="password"
+												name="password"
+												type="password"
+												value={newUser.password}
+												onChange={handleInputChange}
+												className={`w-full ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+											/>
+											{errors.password && (
+												<p className="text-red-500 text-sm mt-1">{errors.password}</p>
+											)}
+										</div>
 									</div>
 
 									<div className="grid grid-cols-4 items-center gap-4">
 										<Label htmlFor="role" className="text-right">
-											Função
+											Função <span className="text-red-500">*</span>
 										</Label>
 										<Select
 											onValueChange={handleRoleChange}

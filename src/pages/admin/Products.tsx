@@ -57,6 +57,11 @@ const Products = () => {
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
+	const [errors, setErrors] = useState<{
+		name?: string;
+		price?: string;
+		stock?: string;
+	}>({});
 
 	useEffect(() => {
 		fetchProducts();
@@ -82,6 +87,38 @@ const Products = () => {
 
 	const handleAddProduct = async () => {
 		setIsSubmitting(true);
+		// Reset errors
+		setErrors({});
+
+		// Validate form
+		let hasErrors = false;
+		const newErrors: {
+			name?: string;
+			price?: string;
+			stock?: string;
+		} = {};
+
+		if (!newProduct.name.trim()) {
+			newErrors.name = "O nome do produto é obrigatório";
+			hasErrors = true;
+		}
+
+		if (!newProduct.price || newProduct.price <= 0) {
+			newErrors.price = "O preço deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (newProduct.stock < 0) {
+			newErrors.stock = "O estoque não pode ser negativo";
+			hasErrors = true;
+		}
+
+		if (hasErrors) {
+			setErrors(newErrors);
+			setIsSubmitting(false);
+			return;
+		}
+
 		try {
 			const response = await productService.createProduct(newProduct);
 
@@ -112,6 +149,38 @@ const Products = () => {
 		if (!selectedProduct) return;
 
 		setIsSubmitting(true);
+		// Reset errors
+		setErrors({});
+
+		// Validate form
+		let hasErrors = false;
+		const newErrors: {
+			name?: string;
+			price?: string;
+			stock?: string;
+		} = {};
+
+		if (!selectedProduct.name.trim()) {
+			newErrors.name = "O nome do produto é obrigatório";
+			hasErrors = true;
+		}
+
+		if (!selectedProduct.price || selectedProduct.price <= 0) {
+			newErrors.price = "O preço deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (selectedProduct.stock < 0) {
+			newErrors.stock = "O estoque não pode ser negativo";
+			hasErrors = true;
+		}
+
+		if (hasErrors) {
+			setErrors(newErrors);
+			setIsSubmitting(false);
+			return;
+		}
+
 		try {
 			const response = await productService.updateProduct(selectedProduct.id!, selectedProduct);
 
@@ -282,125 +351,184 @@ const Products = () => {
 				</div>
 			</div>
 
-			<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-				<DialogContent className="sm:max-w-[425px]">
+			<Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+				setIsAddDialogOpen(open);
+				if (!open) {
+					setSelectedProduct(null);
+					setErrors({});
+				}
+			}}>
+				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>
-							{selectedProduct ? `Editar ${selectedProduct.name}` : 'Adicionar Novo Produto'}
+							{selectedProduct ? 'Editar Produto' : 'Adicionar Produto'}
 						</DialogTitle>
 						<DialogDescription>
-							Preencha os detalhes do produto abaixo.
+							{selectedProduct
+								? 'Atualize as informações do produto existente'
+								: 'Adicione um novo produto ao seu inventário'}
 						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid gap-2">
-							<Label htmlFor="name">
-								Nome do Produto <span className="text-red-500">*</span>
+							<Label htmlFor="product-name">
+								Nome <span className="text-red-500">*</span>
 							</Label>
 							<Input
-								id="name"
+								id="product-name"
 								value={selectedProduct ? selectedProduct.name : newProduct.name}
-								onChange={(e) => selectedProduct
-									? setSelectedProduct({ ...selectedProduct, name: e.target.value })
-									: setNewProduct({ ...newProduct, name: e.target.value })
-								}
+								onChange={(e) => {
+									if (selectedProduct) {
+										setSelectedProduct({
+											...selectedProduct,
+											name: e.target.value
+										});
+									} else {
+										setNewProduct({
+											...newProduct,
+											name: e.target.value
+										});
+									}
+									if (errors.name) setErrors({ ...errors, name: undefined });
+								}}
+								className={errors.name ? "border-red-500" : ""}
 							/>
+							{errors.name && (
+								<p className="text-sm text-red-500">{errors.name}</p>
+							)}
 						</div>
 						<div className="grid gap-2">
-							<Label htmlFor="description">
-								Descrição <span className="text-red-500">*</span>
-							</Label>
+							<Label htmlFor="product-description">Descrição</Label>
 							<Textarea
-								id="description"
+								id="product-description"
+								rows={3}
 								value={selectedProduct ? selectedProduct.description : newProduct.description}
-								onChange={(e) => selectedProduct
-									? setSelectedProduct({ ...selectedProduct, description: e.target.value })
-									: setNewProduct({ ...newProduct, description: e.target.value })
-								}
+								onChange={(e) => {
+									if (selectedProduct) {
+										setSelectedProduct({
+											...selectedProduct,
+											description: e.target.value
+										});
+									} else {
+										setNewProduct({
+											...newProduct,
+											description: e.target.value
+										});
+									}
+								}}
 							/>
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div className="grid gap-2">
-								<Label htmlFor="price">
+								<Label htmlFor="product-price">
 									Preço (R$) <span className="text-red-500">*</span>
 								</Label>
 								<Input
-									id="price"
-									type="text"
-									inputMode="numeric"
-									value={formatCurrency(selectedProduct ? selectedProduct.price : newProduct.price)}
+									id="product-price"
+									type="number"
+									min="0"
+									step="0.01"
+									value={selectedProduct ? selectedProduct.price : newProduct.price}
 									onChange={(e) => {
-										const rawValue = e.target.value.replace(/\D/g, ""); // remove tudo que não for número
-										const numericValue = parseFloat(rawValue) / 100;
-
-										if (!isNaN(numericValue)) {
-											selectedProduct
-												? setSelectedProduct({ ...selectedProduct, price: numericValue })
-												: setNewProduct({ ...newProduct, price: numericValue });
+										const value = parseFloat(e.target.value);
+										if (selectedProduct) {
+											setSelectedProduct({
+												...selectedProduct,
+												price: value
+											});
+										} else {
+											setNewProduct({
+												...newProduct,
+												price: value
+											});
 										}
+										if (errors.price) setErrors({ ...errors, price: undefined });
 									}}
+									className={errors.price ? "border-red-500" : ""}
 								/>
+								{errors.price && (
+									<p className="text-sm text-red-500">{errors.price}</p>
+								)}
 							</div>
 							<div className="grid gap-2">
-								<Label htmlFor="stock">
+								<Label htmlFor="product-stock">
 									Estoque <span className="text-red-500">*</span>
 								</Label>
 								<Input
-									id="stock"
+									id="product-stock"
 									type="number"
 									min="0"
-									value={
-										selectedProduct
-											? selectedProduct.stock === 0 ? "" : selectedProduct.stock
-											: newProduct.stock === 0 ? "" : newProduct.stock
-									}
+									value={selectedProduct ? selectedProduct.stock : newProduct.stock}
 									onChange={(e) => {
-										const value = e.target.value;
-
-										if (value === "") {
-											selectedProduct
-												? setSelectedProduct({ ...selectedProduct, stock: 0 })
-												: setNewProduct({ ...newProduct, stock: 0 });
-											return;
+										const value = parseInt(e.target.value);
+										if (selectedProduct) {
+											setSelectedProduct({
+												...selectedProduct,
+												stock: value
+											});
+										} else {
+											setNewProduct({
+												...newProduct,
+												stock: value
+											});
 										}
-
-										const numberValue = parseInt(value);
-										if (numberValue >= 0) {
-											selectedProduct
-												? setSelectedProduct({ ...selectedProduct, stock: numberValue })
-												: setNewProduct({ ...newProduct, stock: numberValue });
-										}
+										if (errors.stock) setErrors({ ...errors, stock: undefined });
 									}}
+									className={errors.stock ? "border-red-500" : ""}
 								/>
+								{errors.stock && (
+									<p className="text-sm text-red-500">{errors.stock}</p>
+								)}
 							</div>
 						</div>
 						<div className="grid gap-2">
-							<Label htmlFor="image">
-								URL da Imagem <span className="text-red-500">*</span>
-							</Label>
+							<Label htmlFor="product-image">URL da Imagem</Label>
 							<Input
-								id="image"
-								value={selectedProduct ? (selectedProduct.imageUrl || '') : (newProduct.imageUrl || '')}
-								onChange={(e) => selectedProduct
-									? setSelectedProduct({ ...selectedProduct, imageUrl: e.target.value })
-									: setNewProduct({ ...newProduct, imageUrl: e.target.value })
-								}
+								id="product-image"
+								type="text"
 								placeholder="https://exemplo.com/imagem.jpg"
+								value={selectedProduct ? selectedProduct.imageUrl : newProduct.imageUrl}
+								onChange={(e) => {
+									if (selectedProduct) {
+										setSelectedProduct({
+											...selectedProduct,
+											imageUrl: e.target.value
+										});
+									} else {
+										setNewProduct({
+											...newProduct,
+											imageUrl: e.target.value
+										});
+									}
+								}}
 							/>
+							<p className="text-xs text-muted-foreground">
+								Deixe em branco para usar uma imagem padrão
+							</p>
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSubmitting}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsAddDialogOpen(false);
+								setSelectedProduct(null);
+								setErrors({});
+							}}
+						>
 							Cancelar
 						</Button>
-						<Button onClick={selectedProduct ? handleEditProduct : handleAddProduct} disabled={isSubmitting}>
+						<Button
+							onClick={selectedProduct ? handleEditProduct : handleAddProduct}
+							disabled={isSubmitting}
+						>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 									{selectedProduct ? 'Salvando...' : 'Adicionando...'}
 								</>
 							) : (
-								selectedProduct ? 'Salvar Alterações' : 'Adicionar Produto'
+								<>{selectedProduct ? 'Salvar Alterações' : 'Adicionar Produto'}</>
 							)}
 						</Button>
 					</DialogFooter>

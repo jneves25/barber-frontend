@@ -1,6 +1,6 @@
-
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
+import { validatePhoneNumber, cleanPhoneNumber } from '@/utils/phone';
 
 export interface Client {
 	id?: number;
@@ -36,14 +36,12 @@ export class ClientService extends BaseService {
 		if (emailError) return emailError;
 
 		if (client.password && client.password.length < 8) {
-			return 'Password must be at least 8 characters';
+			return 'A senha deve ter pelo menos 8 caracteres';
 		}
 
-		// Simple phone validation
-		const phoneRegex = /^\+?[0-9]{10,15}$/;
-		if (!phoneRegex.test(client.phone.replace(/\D/g, ''))) {
-			return 'Invalid phone format';
-		}
+		// Validação de telefone melhorada
+		const phoneError = validatePhoneNumber(client.phone);
+		if (phoneError) return phoneError;
 
 		return null;
 	}
@@ -59,7 +57,13 @@ export class ClientService extends BaseService {
 			return { error: validationError, status: 400, success: false };
 		}
 
-		return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/personal/${id}`, client));
+		// Limpa o telefone antes de enviar para o servidor
+		const cleanedClient = {
+			...client,
+			phone: cleanPhoneNumber(client.phone)
+		};
+
+		return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/personal/${id}`, cleanedClient));
 	}
 
 	async deletePersonalAccount(id: number): Promise<ApiResponse<void>> {
@@ -79,24 +83,35 @@ export class ClientService extends BaseService {
 		return this.handleResponse<Client[]>(apiClient.get(`/${this.endpoint}/barber`));
 	}
 
-	// Client management methods - createClient intentionally removed
+	// Client management methods
 	async updateClient(id: number, client: Client): Promise<ApiResponse<Client>> {
 		const validationError = this.validateClient(client);
 		if (validationError) {
 			return { error: validationError, status: 400, success: false };
 		}
 
-		return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/${id}`, client));
+		// Limpa o telefone antes de enviar para o servidor
+		const cleanedClient = {
+			...client,
+			phone: cleanPhoneNumber(client.phone)
+		};
+
+		return this.handleResponse<Client>(apiClient.put(`/${this.endpoint}/${id}`, cleanedClient));
 	}
 
-	// Client management methods - createClient intentionally removed
 	async createClient(client: Client, companyId: Number): Promise<ApiResponse<Client>> {
 		const validationError = this.validateClient(client);
 		if (validationError) {
 			return { error: validationError, status: 400, success: false };
 		}
 
-		return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}`, client, { params: { companyId } }));
+		// Limpa o telefone antes de enviar para o servidor
+		const cleanedClient = {
+			...client,
+			phone: cleanPhoneNumber(client.phone)
+		};
+
+		return this.handleResponse<Client>(apiClient.post(`/${this.endpoint}`, cleanedClient, { params: { companyId } }));
 	}
 
 	async deleteClient(id: number): Promise<ApiResponse<void>> {

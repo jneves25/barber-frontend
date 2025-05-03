@@ -31,16 +31,16 @@ export interface Service {
 }
 
 export interface ServiceAppointment {
-	id: number;
-	appointmentId: number;
+	id?: number;
+	appointmentId?: number;
 	serviceId: number;
 	quantity: number;
 	service: Service;
 }
 
 export interface ProductAppointment {
-	id: number;
-	appointmentId: number;
+	id?: number;
+	appointmentId?: number;
 	productId: number;
 	quantity: number;
 	product?: Product;
@@ -57,7 +57,7 @@ export interface Product {
 }
 
 export interface Appointment {
-	id: number;
+	id?: number;
 	clientId: number;
 	userId: number;
 	companyId: number;
@@ -65,11 +65,20 @@ export interface Appointment {
 	status: AppointmentStatusEnum;
 	createdAt: string;
 	scheduledTime: string;
+	endScheduledTime?: string;
 	completedAt: string | null;
-	client: Client;
-	user: User;
-	services: ServiceAppointment[];
-	products: ProductAppointment[];
+	client?: Client;
+	user?: User;
+	services: {
+		serviceId: number;
+		quantity: number;
+		service: Service;
+	}[];
+	products: {
+		productId: number;
+		quantity: number;
+		product: Product;
+	}[];
 }
 
 export class AppointmentService extends BaseService {
@@ -85,11 +94,11 @@ export class AppointmentService extends BaseService {
 		if (requiredError) return requiredError;
 
 		if (appointment.value < 0) {
-			return 'Value must be positive';
+			return 'O valor deve ser positivo';
 		}
 
 		if (!Object.values(AppointmentStatusEnum).includes(appointment.status)) {
-			return 'Invalid appointment status';
+			return 'Status de agendamento inválido';
 		}
 
 		return null;
@@ -100,7 +109,7 @@ export class AppointmentService extends BaseService {
 		if (requiredError) return requiredError;
 
 		if (serviceAppointment.quantity <= 0) {
-			return 'Quantity must be positive';
+			return 'Quantidade deve ser positiva';
 		}
 
 		return null;
@@ -111,7 +120,7 @@ export class AppointmentService extends BaseService {
 		if (requiredError) return requiredError;
 
 		if (productAppointment.quantity <= 0) {
-			return 'Quantity must be positive';
+			return 'Quantidade deve ser positiva';
 		}
 
 		return null;
@@ -197,6 +206,14 @@ export class AppointmentService extends BaseService {
 
 		return this.handleResponse<Appointment>(
 			apiClient.put(`/${this.endpoint}/${id}/status`, { status })
+		);
+	}
+
+	async getAvailableTimeSlots(userId: number, companyId: number, date: string): Promise<ApiResponse<string[]>> {
+		return this.handleResponse<string[]>(
+			apiClient.get(`/${this.endpoint}/available-time-slots`, {
+				params: { userId, companyId, date }
+			})
 		);
 	}
 }

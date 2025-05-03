@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarIcon, Clock, Edit, Trash2, Check, DollarSign, Loader2, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Edit, Trash2, Check, DollarSign, Loader2, Plus, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -15,6 +14,8 @@ import OrderEditModal from '@/components/appointment/OrderEditModal';
 import AppointmentCreateModal from '@/components/appointment/AppointmentCreateModal';
 import AppointmentService, { Appointment, AppointmentStatusEnum } from '@/services/api/AppointmentService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 const AdminAppointments = () => {
 	// Estado para data selecionada
@@ -119,14 +120,6 @@ const AdminAppointments = () => {
 		}
 	};
 
-	// Handler para abrir um agendamento pendente
-	const handleOpenService = (id: number) => {
-		const appointment = appointments.find(app => app.id === Number(id));
-		if (appointment) {
-			handleOpenOrderModal(appointment);
-		}
-	};
-
 	// Handler para excluir um agendamento
 	const handleDeleteAppointment = async (id: number) => {
 		setIsDeleting(id);
@@ -224,6 +217,24 @@ const AdminAppointments = () => {
 		};
 	};
 
+	// Função para formatar a lista de produtos
+	const formatProductsList = (products: any[]) => {
+		if (!products || products.length === 0) return 'Nenhum produto';
+
+		const productNames = products.map(product => {
+			const quantity = product.quantity > 1 ? ` (${product.quantity}x)` : '';
+			return `${product.product.name}${quantity}`;
+		});
+
+		return productNames.join(', ');
+	};
+
+	const countTotalProductItems = (products: any[]) => {
+		if (!products || products.length === 0) return 0;
+
+		return products.reduce((total, product) => total + product.quantity, 0);
+	};
+
 	const stats = getDayStats();
 
 	return (
@@ -258,7 +269,7 @@ const AdminAppointments = () => {
 								/>
 							</PopoverContent>
 						</Popover>
-						<Button 
+						<Button
 							className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto"
 							onClick={() => setCreateModalOpen(true)}
 						>
@@ -295,10 +306,11 @@ const AdminAppointments = () => {
 												<tr>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
+													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produtos</th>
 													{user?.role !== 'USER' && (
 														<th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
 													)}
-													<th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+													<th className="hidden sm:table-cell px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Horário</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
@@ -309,19 +321,53 @@ const AdminAppointments = () => {
 													const isCompleted = appointment.status === AppointmentStatusEnum.COMPLETED;
 													const isCanceled = appointment.status === AppointmentStatusEnum.CANCELED;
 													const isPending = appointment.status === AppointmentStatusEnum.PENDING;
+													const hasProducts = appointment.products && appointment.products.length > 0;
 
 													return (
 														<tr key={appointment.id} className="hover:bg-gray-50">
 															<td className="px-3 py-3 whitespace-nowrap">
 																<div className="text-sm font-medium text-gray-900">{appointment.client.name}</div>
 															</td>
-															<td className="px-3 py-3 whitespace-nowrap">
-																<div className="text-sm text-gray-900">
+															<td className="px-3 py-3">
+																<div className="text-sm text-gray-900 max-w-[200px] truncate">
 																	{appointment.services && appointment.services.length > 0
-																		? appointment.services.map(service => service.service.name).join(' + ')
+																		? appointment.services.map(service => {
+																			const quantity = service.quantity > 1 ? ` (${service.quantity}x)` : '';
+																			return `${service.service.name}${quantity}`;
+																		}).join(', ')
 																		: 'Nenhum serviço'
 																	}
 																</div>
+															</td>
+															<td className="px-3 py-3">
+																{hasProducts ? (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<div className="flex items-center text-sm text-gray-900 cursor-pointer">
+																					<ShoppingBag className="h-4 w-4 mr-1 text-blue-500" />
+																					<span>{countTotalProductItems(appointment.products)} produtos</span>
+																				</div>
+																			</TooltipTrigger>
+																			<TooltipContent className="max-w-[300px] p-3">
+																				<h4 className="font-semibold mb-1">Produtos:</h4>
+																				<ul className="list-disc pl-5 space-y-1">
+																					{appointment.products.map((product, idx) => (
+																						<li key={idx}>
+																							{product.product.name}
+																							<span className="text-gray-500">
+																								{product.quantity > 1 ? ` (${product.quantity}x)` : ''} -
+																								R$ {(product.product.price * product.quantity).toFixed(2)}
+																							</span>
+																						</li>
+																					))}
+																				</ul>
+																			</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																) : (
+																	<span className="text-sm text-gray-500">Nenhum produto</span>
+																)}
 															</td>
 															{user?.role !== 'USER' && (
 																<td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
@@ -329,8 +375,16 @@ const AdminAppointments = () => {
 																</td>
 															)}
 															<td className="hidden sm:table-cell px-3 py-3 whitespace-nowrap">
-																<div className="text-sm text-gray-900">
-																	{appointment.scheduledTime ? format(new Date(appointment.scheduledTime), 'dd/MM/yyyy HH:mm') : '-'}
+																<div className="flex justify-center">
+																	<div className={cn(
+																		"text-sm font-medium py-1 rounded-full flex items-center justify-center w-16",
+																		isCompleted && "bg-green-100 text-green-800",
+																		isPending && "bg-yellow-100 text-yellow-800",
+																		isCanceled && "bg-red-100 text-red-800"
+																	)}>
+																		<Clock className="h-3 w-3 mr-1" />
+																		{appointment.scheduledTime ? format(new Date(appointment.scheduledTime), 'HH:mm') : '-'}
+																	</div>
 																</div>
 															</td>
 															<td className="px-3 py-3 whitespace-nowrap">
@@ -352,59 +406,83 @@ const AdminAppointments = () => {
 															<td className="px-3 py-3 whitespace-nowrap">
 																<div className="flex space-x-2">
 																	{isPending && (
-																		<button
-																			onClick={() => handleOpenService(appointment.id!)}
-																			className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																			title="Abrir comanda"
-																		>
-																			<Clock className="h-4 w-4" />
-																		</button>
+																		<TooltipProvider>
+																			<Tooltip>
+																				<TooltipTrigger asChild>
+																					<button
+																						onClick={() => handleOpenOrderModal(appointment)}
+																						className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+																					>
+																						<Edit className="h-4 w-4" />
+																					</button>
+																				</TooltipTrigger>
+																				<TooltipContent>
+																					<p>Editar comanda</p>
+																				</TooltipContent>
+																			</Tooltip>
+																		</TooltipProvider>
 																	)}
-
-																	<button
-																		onClick={() => handleOpenOrderModal(appointment)}
-																		className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																		title="Editar comanda"
-																	>
-																		<Edit className="h-4 w-4" />
-																	</button>
 
 																	{!isCanceled && !isCompleted && (
 																		<>
-																			<button
-																				onClick={() => handleCompleteService(appointment.id!)}
-																				className="p-1 text-green-500 hover:text-green-700 transition-colors"
-																				title="Finalizar serviço"
-																			>
-																				<Check className="h-4 w-4" />
-																			</button>
+																			<TooltipProvider>
+																				<Tooltip>
+																					<TooltipTrigger asChild>
+																						<button
+																							onClick={() => handleCompleteService(appointment.id!)}
+																							className="p-1 text-green-500 hover:text-green-700 transition-colors"
+																						>
+																							<Check className="h-4 w-4" />
+																						</button>
+																					</TooltipTrigger>
+																					<TooltipContent>
+																						<p>Finalizar serviço</p>
+																					</TooltipContent>
+																				</Tooltip>
+																			</TooltipProvider>
 
-																			<button
-																				onClick={() => {
-																					if (appointment.status)
-																						handleOpenCancelDialog(appointment);
-																				}}
-																				className="p-1 text-red-500 hover:text-red-700 transition-colors"
-																				title="Cancelar"
-																				disabled={isDeleting === appointment.id}
-																			>
-																				{isDeleting === appointment.id ? (
-																					<Loader2 className="h-4 w-4 animate-spin" />
-																				) : (
-																					<Trash2 className="h-4 w-4" />
-																				)}
-																			</button>
+																			<TooltipProvider>
+																				<Tooltip>
+																					<TooltipTrigger asChild>
+																						<button
+																							onClick={() => {
+																								if (appointment.status)
+																									handleOpenCancelDialog(appointment);
+																							}}
+																							className="p-1 text-red-500 hover:text-red-700 transition-colors"
+																							disabled={isDeleting === appointment.id}
+																						>
+																							{isDeleting === appointment.id ? (
+																								<Loader2 className="h-4 w-4 animate-spin" />
+																							) : (
+																								<Trash2 className="h-4 w-4" />
+																							)}
+																						</button>
+																					</TooltipTrigger>
+																					<TooltipContent>
+																						<p>Cancelar</p>
+																					</TooltipContent>
+																				</Tooltip>
+																			</TooltipProvider>
 																		</>
 																	)}
 
 																	{isCanceled && (
-																		<button
-																			onClick={() => handleReactivateAppointment(appointment)}
-																			className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																			title="Reativar comanda"
-																		>
-																			<Clock className="h-4 w-4" />
-																		</button>
+																		<TooltipProvider>
+																			<Tooltip>
+																				<TooltipTrigger asChild>
+																					<button
+																						onClick={() => handleReactivateAppointment(appointment)}
+																						className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+																					>
+																						<Clock className="h-4 w-4" />
+																					</button>
+																				</TooltipTrigger>
+																				<TooltipContent>
+																					<p>Reativar</p>
+																				</TooltipContent>
+																			</Tooltip>
+																		</TooltipProvider>
 																	)}
 																</div>
 															</td>
@@ -507,6 +585,7 @@ const AdminAppointments = () => {
 				isOpen={createModalOpen}
 				onClose={() => setCreateModalOpen(false)}
 				onSuccess={fetchAppointments}
+				initialDate={selectedDate}
 			/>
 
 			{/* Cancel Appointment Dialog */}
@@ -529,7 +608,7 @@ const AdminAppointments = () => {
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 									Cancelando...
 								</>
-							) : 'Cancelar'}
+							) : 'Cancelar Agendamento'}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

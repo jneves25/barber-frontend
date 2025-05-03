@@ -97,8 +97,8 @@ export class UserService extends BaseService {
 		const emailError = this.validateEmail(user.email);
 		if (emailError) return emailError;
 
-		if (user.password && user.password.length < 8) {
-			return 'Password must be at least 8 characters';
+		if (user.password && user.password.length < 6) {
+			return "A senha deve ter pelo menos 6 caracteres";
 		}
 
 		return null;

@@ -2,17 +2,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Pricing from "./pages/Pricing";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import ClientPortal from "./pages/ClientPortal";
-import Login from "./pages/Login";
-import Unauthorized from "./pages/Unauthorized";
-import { AuthProvider } from "./context/AuthContext";
+import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
+import NotFound from "./components/NotFound";
+import Login from "./pages/auth/Login";
+import Unauthorized from "./pages/auth/Unauthorized";
+import { AuthProvider } from "@/context/AuthContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import ClientService from '@/services/api/ClientService';
+import { useEffect, useState } from 'react';
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -26,15 +23,14 @@ import AdminSettings from "./pages/admin/Settings";
 import AdminProducts from "./pages/admin/Products";
 import Permissions from "./pages/admin/Permissions";
 
-// Client booking pages
-import Services from "./pages/Services";
-import Barbers from "./pages/Barbers";
-import Schedule from "./pages/Schedule";
-import Products from "./pages/Products";
-
-// Blog pages
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
+// Portal pages
+import ClientPortal from "./pages/portal/ClientPortal";
+import Services from "./pages/portal/Services";
+import Barbers from "./pages/portal/Barbers";
+import Schedule from "./pages/portal/Schedule";
+import ContactInfo from "./pages/portal/ContactInfo";
+import Confirmation from "./pages/portal/Confirmation";
+import Products from "./pages/portal/Products";
 
 const queryClient = new QueryClient();
 
@@ -46,24 +42,18 @@ const App = () => (
 			<BrowserRouter>
 				<AuthProvider>
 					<Routes>
-						{/* Rotas públicas */}
-						<Route path="/" element={<Index />} />
-						<Route path="/pricing" element={<Pricing />} />
-						<Route path="/about" element={<About />} />
-						<Route path="/contact" element={<Contact />} />
+						{/* Rotas de autenticação */}
 						<Route path="/login" element={<Login />} />
 						<Route path="/unauthorized" element={<Unauthorized />} />
 
-						{/* Blog routes */}
-						<Route path="/blog" element={<Blog />} />
-						<Route path="/blog/:slug" element={<BlogPost />} />
-
 						{/* Portal do cliente para agendamentos */}
-						<Route path="/portal" element={<ClientPortal />} />
-						<Route path="/portal/services" element={<Services />} />
-						<Route path="/portal/barbers" element={<Barbers />} />
-						<Route path="/portal/schedule" element={<Schedule />} />
-						<Route path="/portal/products" element={<Products />} />
+						<Route path="/:clientId" element={<ClientPortal />} />
+						<Route path="/:clientId/services" element={<Services />} />
+						<Route path="/:clientId/barbers" element={<Barbers />} />
+						<Route path="/:clientId/schedule" element={<Schedule />} />
+						<Route path="/:clientId/contact-info" element={<ContactInfo />} />
+						<Route path="/:clientId/confirmation" element={<Confirmation />} />
+						<Route path="/:clientId/products" element={<Products />} />
 
 						{/* Rotas administrativas - dashboard */}
 						<Route path="/admin" element={

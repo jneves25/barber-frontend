@@ -47,6 +47,11 @@ const AdminServices = () => {
 		companyId: companySelected.id
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [errors, setErrors] = useState<{
+		name?: string;
+		price?: string;
+		duration?: string;
+	}>({});
 
 	useEffect(() => {
 		fetchServices();
@@ -93,14 +98,39 @@ const AdminServices = () => {
 
 	const handleAddService = async () => {
 		setIsSubmitting(true);
-		try {
-			// Validate service data on client-side before sending request
-			if (!newService.name || newService.price <= 0 || newService.duration <= 0) {
-				toast.error('Preencha todos os campos obrigatórios');
-				setIsSubmitting(false);
-				return;
-			}
+		// Reset errors
+		setErrors({});
 
+		// Validate form
+		let hasErrors = false;
+		const newErrors: {
+			name?: string;
+			price?: string;
+			duration?: string;
+		} = {};
+
+		if (!newService.name.trim()) {
+			newErrors.name = "O nome do serviço é obrigatório";
+			hasErrors = true;
+		}
+
+		if (!newService.price || newService.price <= 0) {
+			newErrors.price = "O preço deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (!newService.duration || newService.duration <= 0) {
+			newErrors.duration = "A duração deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (hasErrors) {
+			setErrors(newErrors);
+			setIsSubmitting(false);
+			return;
+		}
+
+		try {
 			const response = await serviceService.create(newService);
 
 			if (response.success && response.data) {
@@ -130,6 +160,38 @@ const AdminServices = () => {
 		if (!selectedService || !selectedService.id) return;
 
 		setIsSubmitting(true);
+		// Reset errors
+		setErrors({});
+
+		// Validate form
+		let hasErrors = false;
+		const newErrors: {
+			name?: string;
+			price?: string;
+			duration?: string;
+		} = {};
+
+		if (!selectedService.name.trim()) {
+			newErrors.name = "O nome do serviço é obrigatório";
+			hasErrors = true;
+		}
+
+		if (!selectedService.price || selectedService.price <= 0) {
+			newErrors.price = "O preço deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (!selectedService.duration || selectedService.duration <= 0) {
+			newErrors.duration = "A duração deve ser maior que zero";
+			hasErrors = true;
+		}
+
+		if (hasErrors) {
+			setErrors(newErrors);
+			setIsSubmitting(false);
+			return;
+		}
+
 		try {
 			const response = await serviceService.update(selectedService.id, selectedService);
 
@@ -305,92 +367,94 @@ const AdminServices = () => {
 
 			{/* Add Service Dialog */}
 			<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-				<DialogContent className="sm:max-w-[425px]">
+				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Adicionar Novo Serviço</DialogTitle>
+						<DialogTitle>Novo Serviço</DialogTitle>
 						<DialogDescription>
-							Preencha os detalhes do serviço abaixo.
+							Adicione um novo serviço ao seu catálogo.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid gap-2">
-							<Label htmlFor="name">Nome do Serviço <span className="text-red-500">*</span></Label>
+							<Label htmlFor="name">
+								Nome <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="name"
 								value={newService.name}
-								onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+								onChange={(e) => {
+									setNewService({ ...newService, name: e.target.value });
+									if (errors.name) setErrors({ ...errors, name: undefined });
+								}}
+								className={errors.name ? "border-red-500" : ""}
 							/>
+							{errors.name && (
+								<p className="text-sm text-red-500">{errors.name}</p>
+							)}
 						</div>
 						<div className="grid gap-2">
-							<Label htmlFor="description">Descrição <span className="text-red-500">*</span></Label>
+							<Label htmlFor="description">Descrição</Label>
 							<Textarea
 								id="description"
+								rows={3}
 								value={newService.description}
 								onChange={(e) => setNewService({ ...newService, description: e.target.value })}
 							/>
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div className="grid gap-2">
-								<Label htmlFor="price">Preço (R$) <span className="text-red-500">*</span></Label>
-
+								<Label htmlFor="price">
+									Preço (R$) <span className="text-red-500">*</span>
+								</Label>
 								<Input
 									id="price"
-									type="text"
-									inputMode="decimal"
-									value={formatCurrency(newService.price)}
+									type="number"
+									min="0"
+									step="0.01"
+									value={newService.price}
 									onChange={(e) => {
-										const onlyNumbers = e.target.value.replace(/\D/g, "");
-										const numericValue = parseFloat(onlyNumbers) / 100;
-
-										if (!isNaN(numericValue)) {
-											setNewService({ ...newService, price: numericValue });
-										}
+										setNewService({ ...newService, price: parseFloat(e.target.value) });
+										if (errors.price) setErrors({ ...errors, price: undefined });
 									}}
+									className={errors.price ? "border-red-500" : ""}
 								/>
+								{errors.price && (
+									<p className="text-sm text-red-500">{errors.price}</p>
+								)}
 							</div>
 							<div className="grid gap-2">
-								<Label htmlFor="duration">Duração (min) <span className="text-red-500">*</span></Label>
+								<Label htmlFor="duration">
+									Duração (min) <span className="text-red-500">*</span>
+								</Label>
 								<Input
 									id="duration"
 									type="number"
-									min="1"
-									value={newService.duration === 0 ? "" : newService.duration}
+									min="5"
+									step="5"
+									value={newService.duration}
 									onChange={(e) => {
-										const value = e.target.value;
-
-										// Permite apagar o campo sem bugar
-										if (value === "") {
-											setNewService({ ...newService, duration: 0 });
-											return;
-										}
-
-										// Converte e valida número
-										const parsed = parseInt(value);
-										if (!isNaN(parsed) && parsed > 0) {
-											setNewService({ ...newService, duration: parsed });
-										}
+										setNewService({ ...newService, duration: parseInt(e.target.value) });
+										if (errors.duration) setErrors({ ...errors, duration: undefined });
 									}}
-									onBlur={() => {
-										// Garante que não fique em branco ao sair do campo
-										if (newService.duration === 0) {
-											setNewService({ ...newService, duration: 30 });
-										}
-									}}
+									className={errors.duration ? "border-red-500" : ""}
 								/>
+								{errors.duration && (
+									<p className="text-sm text-red-500">{errors.duration}</p>
+								)}
 							</div>
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => closeDialog()} disabled={isSubmitting}>
-							Cancelar
-						</Button>
+						<Button variant="outline" onClick={closeDialog}>Cancelar</Button>
 						<Button onClick={handleAddService} disabled={isSubmitting}>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 									Adicionando...
 								</>
-							) : 'Adicionar Serviço'}
+							) : (
+								<>Adicionar Serviço</>
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -398,58 +462,93 @@ const AdminServices = () => {
 
 			{/* Edit Service Dialog */}
 			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-				<DialogContent className="sm:max-w-[425px]">
+				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Editar Serviço</DialogTitle>
 						<DialogDescription>
-							Atualize os detalhes do serviço abaixo.
+							Modifique as informações do serviço.
 						</DialogDescription>
 					</DialogHeader>
 					{selectedService && (
 						<div className="grid gap-4 py-4">
 							<div className="grid gap-2">
-								<Label htmlFor="edit-name">Nome do Serviço</Label>
+								<Label htmlFor="edit-name">
+									Nome <span className="text-red-500">*</span>
+								</Label>
 								<Input
 									id="edit-name"
 									value={selectedService.name}
-									onChange={(e) => setSelectedService({ ...selectedService, name: e.target.value })}
+									onChange={(e) => {
+										setSelectedService({ ...selectedService, name: e.target.value });
+										if (errors.name) setErrors({ ...errors, name: undefined });
+									}}
+									className={errors.name ? "border-red-500" : ""}
 								/>
+								{errors.name && (
+									<p className="text-sm text-red-500">{errors.name}</p>
+								)}
 							</div>
 							<div className="grid gap-2">
 								<Label htmlFor="edit-description">Descrição</Label>
 								<Textarea
 									id="edit-description"
+									rows={3}
 									value={selectedService.description}
 									onChange={(e) => setSelectedService({ ...selectedService, description: e.target.value })}
 								/>
 							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="grid gap-2">
-									<Label htmlFor="edit-price">Preço (R$)</Label>
+									<Label htmlFor="edit-price">
+										Preço (R$) <span className="text-red-500">*</span>
+									</Label>
 									<Input
 										id="edit-price"
 										type="number"
-										step="0.01"
 										min="0"
+										step="0.01"
 										value={selectedService.price}
-										onChange={(e) => setSelectedService({ ...selectedService, price: parseFloat(e.target.value) || 0 })}
+										onChange={(e) => {
+											setSelectedService({ ...selectedService, price: parseFloat(e.target.value) });
+											if (errors.price) setErrors({ ...errors, price: undefined });
+										}}
+										className={errors.price ? "border-red-500" : ""}
 									/>
+									{errors.price && (
+										<p className="text-sm text-red-500">{errors.price}</p>
+									)}
 								</div>
 								<div className="grid gap-2">
-									<Label htmlFor="edit-duration">Duração (min)</Label>
+									<Label htmlFor="edit-duration">
+										Duração (min) <span className="text-red-500">*</span>
+									</Label>
 									<Input
 										id="edit-duration"
 										type="number"
-										min="1"
+										min="5"
+										step="5"
 										value={selectedService.duration}
-										onChange={(e) => setSelectedService({ ...selectedService, duration: parseInt(e.target.value) || 30 })}
+										onChange={(e) => {
+											setSelectedService({ ...selectedService, duration: parseInt(e.target.value) });
+											if (errors.duration) setErrors({ ...errors, duration: undefined });
+										}}
+										className={errors.duration ? "border-red-500" : ""}
 									/>
+									{errors.duration && (
+										<p className="text-sm text-red-500">{errors.duration}</p>
+									)}
 								</div>
 							</div>
 						</div>
 					)}
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsEditDialogOpen(false);
+								setSelectedService(null);
+							}}
+						>
 							Cancelar
 						</Button>
 						<Button onClick={handleEditService} disabled={isSubmitting}>
@@ -458,7 +557,9 @@ const AdminServices = () => {
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 									Salvando...
 								</>
-							) : 'Salvar Alterações'}
+							) : (
+								<>Salvar Alterações</>
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
