@@ -25,10 +25,6 @@ import Permissions from "./pages/admin/Permissions";
 
 // Portal pages
 import ClientPortal from "./pages/portal/ClientPortal";
-import Services from "./pages/portal/Services";
-import Barbers from "./pages/portal/Barbers";
-import Schedule from "./pages/portal/Schedule";
-import ContactInfo from "./pages/portal/ContactInfo";
 import Confirmation from "./pages/portal/Confirmation";
 import Products from "./pages/portal/Products";
 
@@ -47,13 +43,9 @@ const App = () => (
 						<Route path="/unauthorized" element={<Unauthorized />} />
 
 						{/* Portal do cliente para agendamentos */}
-						<Route path="/:clientId" element={<ClientPortal />} />
-						<Route path="/:clientId/services" element={<Services />} />
-						<Route path="/:clientId/barbers" element={<Barbers />} />
-						<Route path="/:clientId/schedule" element={<Schedule />} />
-						<Route path="/:clientId/contact-info" element={<ContactInfo />} />
-						<Route path="/:clientId/confirmation" element={<Confirmation />} />
-						<Route path="/:clientId/products" element={<Products />} />
+						<Route path="/portal/:slug" element={<ClientPortal />} />
+						<Route path="/portal/:slug/confirmation" element={<Confirmation />} />
+						<Route path="/portal/:slug/products" element={<Products />} />
 
 						{/* Rotas administrativas - dashboard */}
 						<Route path="/admin" element={
@@ -62,7 +54,7 @@ const App = () => (
 							</ProtectedRoute>
 						} />
 						<Route path="/admin/dashboard" element={
-							<ProtectedRoute>
+							< ProtectedRoute >
 								<Dashboard />
 							</ProtectedRoute>
 						} />
@@ -118,7 +110,7 @@ const App = () => (
 				</AuthProvider>
 			</BrowserRouter>
 		</TooltipProvider>
-	</QueryClientProvider>
+	</QueryClientProvider >
 );
 
 export default App;

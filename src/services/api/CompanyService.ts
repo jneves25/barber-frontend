@@ -1,9 +1,23 @@
-
 import { BaseService, ApiResponse } from './BaseService';
 import apiClient from './apiClient';
 
+export interface User {
+	id: number;
+	name: string;
+	email: string;
+	avatar?: string;
+}
+
+export interface CompanyMember {
+	id?: number;
+	companyId: number;
+	userId: number;
+	user: User;
+}
+
 export interface Company {
 	id?: number;
+	slug?: string;
 	name: string;
 	ownerId: number;
 	address: string;
@@ -12,6 +26,9 @@ export interface Company {
 	phone?: string;
 	whatsapp?: string;
 	email?: string;
+	owner?: User;
+	members?: CompanyMember[];
+	settings?: CompanySettings;
 }
 
 export interface CompanySettings {
@@ -48,12 +65,6 @@ export interface WorkingHours {
 	saturdayClose: string;
 	sundayOpen: string;
 	sundayClose: string;
-}
-
-export interface CompanyMember {
-	id?: number;
-	companyId: number;
-	userId: number;
 }
 
 export class CompanyService extends BaseService {
@@ -136,6 +147,11 @@ export class CompanyService extends BaseService {
 	// Get company by ID
 	async getById(id: number): Promise<ApiResponse<Company>> {
 		return this.handleResponse<Company>(apiClient.get(`/${this.endpoint}/${id}`));
+	}
+
+	// Get company by slug (public)
+	async getCompanyBySlug(slug: string): Promise<ApiResponse<Company>> {
+		return this.handleResponse<Company>(apiClient.get(`/${this.endpoint}/slug/${slug}`));
 	}
 
 	// Company Settings

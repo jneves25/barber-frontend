@@ -37,6 +37,10 @@ export class ProductService extends BaseService {
 		return this.handleResponse<Product[]>(apiClient.get(`/product`, { params }));
 	}
 
+	async getProductsByCompanySlug(slug: string): Promise<ApiResponse<Product[]>> {
+		return this.handleResponse<Product[]>(apiClient.get(`/product/company/${slug}`));
+	}
+
 	async getProductById(id: number): Promise<ApiResponse<Product>> {
 		return this.handleResponse<Product>(apiClient.get(`/product/${id}`));
 	}

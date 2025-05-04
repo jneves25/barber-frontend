@@ -35,7 +35,7 @@ export interface ServiceAppointment {
 	appointmentId?: number;
 	serviceId: number;
 	quantity: number;
-	service: Service;
+	service?: Service;
 }
 
 export interface ProductAppointment {
@@ -72,13 +72,30 @@ export interface Appointment {
 	services: {
 		serviceId: number;
 		quantity: number;
-		service: Service;
+		service?: Service;
 	}[];
 	products: {
 		productId: number;
 		quantity: number;
-		product: Product;
+		product?: Product;
 	}[];
+}
+
+export interface AppointmentWithCustomer {
+	companyId: number;
+	userId: number;
+	services: {
+		serviceId: number;
+		quantity: number;
+	}[];
+	products: {
+		productId: number;
+		quantity: number;
+	}[];
+	scheduledTime: string;
+	customerPhone: string;
+	customerName: string;
+	customerEmail?: string;
 }
 
 export class AppointmentService extends BaseService {
@@ -88,17 +105,13 @@ export class AppointmentService extends BaseService {
 
 	validateAppointment(appointment: Appointment): string | null {
 		const requiredError = this.validateRequired(appointment, [
-			'clientId', 'userId', 'companyId', 'value', 'status'
+			'userId', 'companyId'
 		]);
 
 		if (requiredError) return requiredError;
 
 		if (appointment.value < 0) {
 			return 'O valor deve ser positivo';
-		}
-
-		if (!Object.values(AppointmentStatusEnum).includes(appointment.status)) {
-			return 'Status de agendamento inválido';
 		}
 
 		return null;
@@ -186,8 +199,8 @@ export class AppointmentService extends BaseService {
 		return this.handleResponse<Appointment>(apiClient.get(`/client/appointment/${id}`));
 	}
 
-	async createClientAppointment(appointment: Appointment): Promise<ApiResponse<Appointment>> {
-		const validationError = this.validateAppointment(appointment);
+	async createClientAppointment(appointment: Appointment | AppointmentWithCustomer): Promise<ApiResponse<Appointment>> {
+		const validationError = this.validateAppointment(appointment as Appointment);
 		if (validationError) {
 			return { error: validationError, status: 400, success: false };
 		}

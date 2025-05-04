@@ -368,6 +368,16 @@ const AdminSettings = () => {
 										defaultValue={company?.email || ''}
 									/>
 								</div>
+								<div className="space-y-2">
+									<label className="text-sm font-medium">Url de agendamentos</label>
+									<input
+										disabled
+										type="slug"
+										name="slug"
+										className="w-full rounded-md border border-gray-300 px-3 py-2"
+										defaultValue={company?.slug || ''}
+									/>
+								</div>
 							</form>
 						</CardContent>
 					</Card>
