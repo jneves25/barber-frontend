@@ -12,7 +12,7 @@ interface ErrorResponse {
 const apiClient: AxiosInstance = axios.create({
 	baseURL: import.meta.env.VITE_API_URL ||
 		// 'http://localhost:3000/api',
-		'https://backend-proud-moon-9701.fly.dev/api',
+		'https://backend-shy-bird-6653.fly.dev/api',
 	headers: {
 		'Content-Type': 'application/json',
 	},
