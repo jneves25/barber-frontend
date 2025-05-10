@@ -231,9 +231,8 @@ const Permissions = () => {
 								onChange={(e) => setSearchTerm(e.target.value)}
 								className="w-full"
 							/>
-							<Button onClick={() => setIsUserModalOpen(true)} className="bg-barber-500 hover:bg-barber-600 transition-all">
-								<UserPlus className="h-4 w-4 mr-2" />
-								Novo Membro
+							<Button onClick={() => setIsUserModalOpen(true)} className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium">
+								<UserPlus className="mr-2 h-4 w-4" /> Adicionar Usuário
 							</Button>
 						</div>
 						<Dialog open={isUserModalOpen} onOpenChange={setIsUserModalOpen}>
@@ -322,13 +321,17 @@ const Permissions = () => {
 								</div>
 
 								<DialogFooter>
-									<Button variant="outline" onClick={() => closeDialog()}>
+									<Button
+										variant="outline"
+										onClick={() => closeDialog()}
+										className="font-medium"
+									>
 										Cancelar
 									</Button>
 									<Button
 										onClick={handleCreateUser}
 										disabled={isLoading}
-										className="bg-barber-500 hover:bg-barber-600"
+										className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 									>
 										{isLoading ? 'Cadastrando...' : 'Cadastrar'}
 									</Button>
@@ -519,8 +522,20 @@ const Permissions = () => {
 							</div>
 
 							<DialogFooter>
-								<Button variant="outline" onClick={() => setSelectedUser(null)}>Cancelar</Button>
-								<Button onClick={() => handleSavePermissions()}>Salvar Alterações</Button>
+								<Button
+									variant="outline"
+									onClick={() => setSelectedUser(null)}
+									className="font-medium"
+								>
+									Cancelar
+								</Button>
+								<Button
+									onClick={() => handleSavePermissions()}
+									disabled={isLoading}
+									className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+								>
+									{isLoading ? 'Salvando...' : 'Salvar Alterações'}
+								</Button>
 							</DialogFooter>
 						</DialogContent>
 					</Dialog>
@@ -537,10 +552,18 @@ const Permissions = () => {
 							</DialogDescription>
 						</DialogHeader>
 						<DialogFooter>
-							<Button variant="outline" onClick={() => setIsDeleteDialogOpen(null)} disabled={isDeleting !== null}>
+							<Button
+								variant="outline"
+								onClick={() => setIsDeleteDialogOpen(null)}
+								className="font-medium"
+							>
 								Cancelar
 							</Button>
-							<Button variant="destructive" onClick={() => isDeleteDialogOpen?.id && handleDeleteUser(isDeleteDialogOpen.id)} disabled={isDeleting !== null}>
+							<Button
+								variant="destructive"
+								onClick={() => isDeleteDialogOpen?.id && handleDeleteUser(isDeleteDialogOpen.id)}
+								className="font-medium"
+							>
 								{isDeleting !== null ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />

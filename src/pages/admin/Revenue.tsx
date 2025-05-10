@@ -11,7 +11,8 @@ import {
 	FileSpreadsheet,
 	Download,
 	Printer,
-	Loader2
+	Loader2,
+	CalendarIcon
 } from 'lucide-react';
 import {
 	BarChart,
@@ -48,15 +49,38 @@ import {
 	BarberMonthlyData
 } from '@/services/api/RevenueService';
 import { toast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 // Cores para os gráficos
 const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#06B6D4', '#EF4444'];
+
+// Função para obter o primeiro dia do mês atual
+const getFirstDayOfCurrentMonth = () => {
+	const now = new Date();
+	return new Date(now.getFullYear(), now.getMonth(), 1);
+};
 
 const AdminRevenue = () => {
 	const [period, setPeriod] = useState('year');
 	const [reportTab, setReportTab] = useState('overview');
 	const { user, companySelected } = useAuth();
 	const isMobile = useIsMobile();
+	const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+
+	// Inicializa com o primeiro dia do mês atual até o dia atual
+	const [dateRange, setDateRange] = useState<{
+		startDate: Date | undefined;
+		endDate: Date | undefined;
+	}>({
+		startDate: getFirstDayOfCurrentMonth(),
+		endDate: new Date()
+	});
 
 	// Estados para os dados reais da API
 	const [isLoading, setIsLoading] = useState(true);
@@ -85,13 +109,19 @@ const AdminRevenue = () => {
 		const loadData = async () => {
 			setIsLoading(true);
 			try {
+				// Format dates for API
+				const formattedStartDate = dateRange.startDate ? dateRange.startDate.toISOString() : undefined;
+				const formattedEndDate = dateRange.endDate ? dateRange.endDate.toISOString() : undefined;
+
 				// Carrega todos os dados necessários da API
 
 				// 1. Faturamento mensal (gráfico principal)
 				const revenueResponse = await revenueService.getMonthlyRevenue(
 					companySelected.id,
 					currentYear,
-					period
+					period,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (revenueResponse.success && revenueResponse.data) {
@@ -102,7 +132,9 @@ const AdminRevenue = () => {
 				const barberResponse = await revenueService.getBarberRevenue(
 					companySelected.id,
 					period,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (barberResponse.success && barberResponse.data) {
@@ -116,7 +148,9 @@ const AdminRevenue = () => {
 					companySelected.id,
 					undefined, // sem usuário específico
 					period,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (serviceResponse.success && serviceResponse.data) {
@@ -127,7 +161,9 @@ const AdminRevenue = () => {
 				const paymentResponse = await revenueService.getPaymentMethodRevenue(
 					companySelected.id,
 					period,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (paymentResponse.success && paymentResponse.data) {
@@ -138,7 +174,9 @@ const AdminRevenue = () => {
 				const weekdayResponse = await revenueService.getWeekdayRevenue(
 					companySelected.id,
 					period,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (weekdayResponse.success && weekdayResponse.data) {
@@ -149,7 +187,9 @@ const AdminRevenue = () => {
 				const hourlyResponse = await revenueService.getHourlyRevenue(
 					companySelected.id,
 					period,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (hourlyResponse.success && hourlyResponse.data) {
@@ -159,7 +199,9 @@ const AdminRevenue = () => {
 				// 7. Comparativo anual
 				const yearlyResponse = await revenueService.getYearlyComparison(
 					companySelected.id,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (yearlyResponse.success && yearlyResponse.data) {
@@ -187,7 +229,9 @@ const AdminRevenue = () => {
 				const ticketResponse = await revenueService.getAvgTicketByBarber(
 					companySelected.id,
 					period,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (ticketResponse.success && ticketResponse.data) {
@@ -200,7 +244,9 @@ const AdminRevenue = () => {
 				// 9. Faturamento mensal por barbeiro (gráfico de linha)
 				const barberMonthlyResponse = await revenueService.getBarberMonthlyRevenue(
 					companySelected.id,
-					currentYear
+					currentYear,
+					formattedStartDate,
+					formattedEndDate
 				);
 
 				if (barberMonthlyResponse.success && barberMonthlyResponse.data) {
@@ -212,7 +258,9 @@ const AdminRevenue = () => {
 					// Faturamento mensal do usuário
 					const userRevenueResponse = await revenueService.getUserRevenue(
 						companySelected.id,
-						currentYear
+						currentYear,
+						formattedStartDate,
+						formattedEndDate
 					);
 
 					if (userRevenueResponse.success && userRevenueResponse.data && user.name) {
@@ -226,7 +274,9 @@ const AdminRevenue = () => {
 						companySelected.id,
 						user.id,
 						period,
-						currentYear
+						currentYear,
+						formattedStartDate,
+						formattedEndDate
 					);
 
 					if (userServiceResponse.success && userServiceResponse.data && user.name) {
@@ -249,7 +299,7 @@ const AdminRevenue = () => {
 		};
 
 		loadData();
-	}, [companySelected?.id, period, user?.id, user?.name, user?.role]);
+	}, [companySelected?.id, period, user?.id, user?.name, user?.role, dateRange.startDate, dateRange.endDate]);
 
 	const getUserData = () => {
 		if (user?.role === 'USER' && user.name) {
@@ -278,6 +328,89 @@ const AdminRevenue = () => {
 		return [`R$ ${value}`, 'Faturamento'];
 	};
 
+	const dateFilterButton = (
+		<Popover open={isDateFilterOpen} onOpenChange={setIsDateFilterOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant="outline"
+					className={cn(
+						"flex items-center justify-center gap-2 text-sm font-medium",
+						dateRange.startDate && dateRange.endDate ? "text-primary" : "text-muted-foreground"
+					)}
+				>
+					<CalendarIcon className="h-4 w-4" />
+					{dateRange.startDate && dateRange.endDate ? (
+						<span>
+							{format(dateRange.startDate, "dd/MM/yyyy", { locale: ptBR })} - {format(dateRange.endDate, "dd/MM/yyyy", { locale: ptBR })}
+						</span>
+					) : (
+						<span>Filtrar por período</span>
+					)}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-4" align="start">
+				<div className="space-y-4">
+					<div className="space-y-2">
+						<Label htmlFor="startDate">Data Inicial</Label>
+						<CalendarComponent
+							mode="single"
+							selected={dateRange.startDate}
+							onSelect={(date) => setDateRange(prev => ({ ...prev, startDate: date }))}
+							initialFocus
+							locale={ptBR}
+						/>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="endDate">Data Final</Label>
+						<CalendarComponent
+							mode="single"
+							selected={dateRange.endDate}
+							onSelect={(date) => setDateRange(prev => ({ ...prev, endDate: date }))}
+							initialFocus
+							locale={ptBR}
+						/>
+					</div>
+					<div className="flex justify-between">
+						<Button
+							variant="outline"
+							onClick={() => {
+								setDateRange({ startDate: undefined, endDate: undefined });
+								setIsDateFilterOpen(false);
+							}}
+						>
+							Limpar
+						</Button>
+						<Button
+							onClick={() => {
+								if (!dateRange.startDate || !dateRange.endDate) {
+									toast({
+										title: "Atenção",
+										description: "Selecione as duas datas para filtrar.",
+										variant: "default",
+									});
+									return;
+								}
+
+								if (dateRange.startDate > dateRange.endDate) {
+									toast({
+										title: "Erro",
+										description: "A data inicial não pode ser maior que a data final.",
+										variant: "destructive",
+									});
+									return;
+								}
+
+								setIsDateFilterOpen(false);
+							}}
+						>
+							Aplicar
+						</Button>
+					</div>
+				</div>
+			</PopoverContent>
+		</Popover>
+	);
+
 	if (isLoading) {
 		return (
 			<AdminLayout>
@@ -296,25 +429,8 @@ const AdminRevenue = () => {
 					<h1 className="text-2xl font-bold">
 						{user?.role === 'USER' ? 'Meu Faturamento' : 'Faturamento'}
 					</h1>
-					<div className="flex items-center space-x-2">
-						<button
-							onClick={() => setPeriod('month')}
-							className={`px-3 py-1 rounded-md ${period === 'month' ? 'bg-barber-500 text-white' : 'bg-gray-100'}`}
-						>
-							Mês
-						</button>
-						<button
-							onClick={() => setPeriod('quarter')}
-							className={`px-3 py-1 rounded-md ${period === 'quarter' ? 'bg-barber-500 text-white' : 'bg-gray-100'}`}
-						>
-							Trimestre
-						</button>
-						<button
-							onClick={() => setPeriod('year')}
-							className={`px-3 py-1 rounded-md ${period === 'year' ? 'bg-barber-500 text-white' : 'bg-gray-100'}`}
-						>
-							Ano
-						</button>
+					<div className="flex flex-col sm:flex-row gap-2 mb-4">
+						{dateFilterButton}
 					</div>
 				</div>
 
@@ -385,9 +501,13 @@ const AdminRevenue = () => {
 										{user?.role === 'USER' ? 'Análise do Meu Faturamento' : 'Análise de Faturamento'}
 									</CardTitle>
 									<CardDescription>
-										{period === 'month' && 'Faturamento do mês atual'}
-										{period === 'quarter' && 'Faturamento do trimestre atual'}
-										{period === 'year' && `Faturamento do ano atual (${new Date().getFullYear()})`}
+										{dateRange.startDate && dateRange.endDate ? (
+											<span>
+												{format(dateRange.startDate, "dd/MM/yyyy", { locale: ptBR })} - {format(dateRange.endDate, "dd/MM/yyyy", { locale: ptBR })}
+											</span>
+										) : (
+											<span>{`Faturamento do ano atual (${new Date().getFullYear()})`}</span>
+										)}
 									</CardDescription>
 								</div>
 								<BarChartIcon className="h-5 w-5 text-gray-500" />
@@ -848,10 +968,6 @@ const AdminRevenue = () => {
 					</TabsContent>
 
 					<div className="mt-4 flex flex-wrap justify-end gap-2">
-						<button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors text-xs sm:text-sm">
-							<FileSpreadsheet className="h-4 w-4" />
-							<span>Exportar Excel</span>
-						</button>
 						<button className="flex items-center space-x-2 bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md transition-colors text-xs sm:text-sm">
 							<FileText className="h-4 w-4" />
 							<span>Exportar PDF</span>

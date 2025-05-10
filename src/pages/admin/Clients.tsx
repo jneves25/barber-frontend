@@ -3,7 +3,7 @@ import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Phone, Mail, User, Edit, Loader2 } from 'lucide-react';
+import { Search, Phone, Mail, User, Edit, Loader2, Plus } from 'lucide-react';
 import ClientService, { Client, ClientRegisterRequest } from '@/services/api/ClientService';
 import { toast } from 'sonner';
 import {
@@ -37,6 +37,13 @@ const AdminClients = () => {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [clientComments, setClientComments] = useState<Record<number, string>>({});
 	const [currentComment, setCurrentComment] = useState('');
+
+	// Adicione esta interface para gerenciar os erros
+	const [errors, setErrors] = useState<{
+		name?: string;
+		email?: string;
+		phone?: string;
+	}>({});
 
 	useEffect(() => {
 		fetchClients();
@@ -75,26 +82,56 @@ const AdminClients = () => {
 	// Function to create a new client
 	const handleAddClient = async () => {
 		setIsSubmitting(true);
-		try {
-			// Validate client data on client-side before sending request
-			if (!newClient.name || !newClient.email || !newClient.phone) {
-				toast.error('Preencha todos os campos obrigatórios');
-				setIsSubmitting(false);
-				return;
-			}
 
-			// Backend already has validation methods too
+		// Reset errors
+		setErrors({});
+
+		// Validate form
+		let hasErrors = false;
+		const newErrors: {
+			name?: string;
+			email?: string;
+			phone?: string;
+		} = {};
+
+		if (!newClient.name.trim()) {
+			newErrors.name = "Nome é obrigatório";
+			hasErrors = true;
+		}
+
+		if (!newClient.email.trim()) {
+			newErrors.email = "Email é obrigatório";
+			hasErrors = true;
+		} else if (!/^\S+@\S+\.\S+$/.test(newClient.email)) {
+			newErrors.email = "Email inválido";
+			hasErrors = true;
+		}
+
+		if (!newClient.phone.trim()) {
+			newErrors.phone = "Telefone é obrigatório";
+			hasErrors = true;
+		} else if (newClient.phone.replace(/\D/g, '').length < 10) {
+			newErrors.phone = "Telefone inválido";
+			hasErrors = true;
+		}
+
+		if (hasErrors) {
+			setErrors(newErrors);
+			setIsSubmitting(false);
+			return;
+		}
+
+		try {
 			const response = await ClientService.createClient(newClient, companySelected.id);
 
 			if (response.success && response.data) {
-				fetchClients()
+				fetchClients();
 				setNewClient({
 					name: '',
 					email: '',
 					phone: '',
 				});
 				setIsAddDialogOpen(false);
-				console.log(response)
 				toast.success(`${response.data.name} foi adicionado com sucesso.`);
 			} else {
 				toast.error(response.error || 'Erro ao adicionar cliente');
@@ -163,12 +200,15 @@ const AdminClients = () => {
 			<div className="space-y-4">
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<h1 className="text-2xl font-bold">Clientes</h1>
-					<button
-						className="bg-barber-500 text-white px-4 py-2 rounded-md w-full sm:w-auto"
-						onClick={() => setIsAddDialogOpen(true)}
+					<Button
+						onClick={() => {
+							setSelectedClient(null);
+							setIsAddDialogOpen(true);
+						}}
+						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 					>
-						Novo Cliente
-					</button>
+						<Plus className="mr-2 h-4 w-4" /> Adicionar Cliente
+					</Button>
 				</div>
 
 				<form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
@@ -317,38 +357,77 @@ const AdminClients = () => {
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div className="grid gap-2">
-							<Label htmlFor="name">Nome</Label>
+							<Label htmlFor="name">
+								Nome <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="name"
 								value={newClient.name}
-								onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+								onChange={(e) => {
+									setNewClient({ ...newClient, name: e.target.value });
+									if (errors.name) setErrors({ ...errors, name: undefined });
+								}}
+								className={errors.name ? "border-red-500" : ""}
 							/>
+							{errors.name && (
+								<p className="text-sm text-red-500">{errors.name}</p>
+							)}
 						</div>
 						<div className="grid gap-2">
-							<Label htmlFor="email">Email</Label>
+							<Label htmlFor="email">
+								Email <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="email"
 								type="email"
 								value={newClient.email}
-								onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+								onChange={(e) => {
+									setNewClient({ ...newClient, email: e.target.value });
+									if (errors.email) setErrors({ ...errors, email: undefined });
+								}}
+								className={errors.email ? "border-red-500" : ""}
 							/>
+							{errors.email && (
+								<p className="text-sm text-red-500">{errors.email}</p>
+							)}
 						</div>
 						<div className="grid gap-2">
-							<Label htmlFor="phone">Telefone</Label>
+							<Label htmlFor="phone">
+								Telefone <span className="text-red-500">*</span>
+							</Label>
 							<Input
 								id="phone"
 								value={applyPhoneMask(newClient.phone)}
-								onChange={(e) => handlePhoneInputChange(e, (value) => setNewClient({ ...newClient, phone: value }))}
+								onChange={(e) => {
+									handlePhoneInputChange(e, (value) => setNewClient({ ...newClient, phone: value }));
+									if (errors.phone) setErrors({ ...errors, phone: undefined });
+								}}
 								placeholder="(00) 00000-0000"
 								maxLength={15}
+								className={errors.phone ? "border-red-500" : ""}
 							/>
+							{errors.phone && (
+								<p className="text-sm text-red-500">{errors.phone}</p>
+							)}
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => closeDialog()} disabled={isSubmitting}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsAddDialogOpen(false);
+								setSelectedClient(null);
+								setErrors({});
+							}}
+							className="font-medium"
+						>
 							Cancelar
 						</Button>
-						<Button onClick={handleAddClient} disabled={isSubmitting}>
+						<Button
+							onClick={handleAddClient}
+							disabled={isSubmitting}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -388,10 +467,22 @@ const AdminClients = () => {
 						</div>
 					)}
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsEditDialogOpen(false);
+								setSelectedClient(null);
+								setCurrentComment('');
+							}}
+							className="font-medium"
+						>
 							Cancelar
 						</Button>
-						<Button onClick={handleSaveComment} disabled={isSubmitting}>
+						<Button
+							onClick={handleSaveComment}
+							disabled={isSubmitting}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />

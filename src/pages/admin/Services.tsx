@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Service, ServiceService } from '@/services/api/ServiceService';
 import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/utils/currency';
+import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from '@/components/ui/table';
 
 interface ServiceForm {
 	id?: number;
@@ -250,11 +251,20 @@ const AdminServices = () => {
 				<div className="flex justify-between items-center">
 					<h1 className="text-2xl font-bold text-gray-800">Serviços</h1>
 					<Button
-						className="bg-barber-500 hover:bg-barber-600"
-						onClick={() => setIsAddDialogOpen(true)}
+						onClick={() => {
+							setSelectedService(null);
+							setNewService({
+								name: '',
+								description: '',
+								price: 0,
+								duration: 30,
+								companyId: companySelected.id
+							});
+							setIsAddDialogOpen(true);
+						}}
+						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 					>
-						<Plus className="mr-2 h-4 w-4" />
-						Novo Serviço
+						<Plus className="mr-2 h-4 w-4" /> Adicionar Serviço
 					</Button>
 				</div>
 
@@ -270,56 +280,50 @@ const AdminServices = () => {
 							</div>
 						) : (
 							<div className="overflow-x-auto">
-								<table className="w-full border-collapse">
-									<thead>
-										<tr className="bg-gray-50 text-left">
-											<th className="p-3 border-b border-gray-100 text-gray-600 font-medium">Nome</th>
-											<th className="p-3 border-b border-gray-100 text-gray-600 font-medium">Preço (R$)</th>
-											<th className="p-3 border-b border-gray-100 text-gray-600 font-medium">Duração (min)</th>
-											<th className="p-3 border-b border-gray-100 text-gray-600 font-medium">Descrição</th>
-											<th className="p-3 border-b border-gray-100 text-gray-600 font-medium">Ações</th>
-										</tr>
-									</thead>
-									<tbody>
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Nome</TableHead>
+											<TableHead>Preço</TableHead>
+											<TableHead>Duração</TableHead>
+											<TableHead className="text-right">Ações</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
 										{services.length > 0 ? services.map(service => (
-											<tr key={service.id} className="hover:bg-blue-50/50">
-												<td className="p-3 border-b border-gray-100">{service.name}</td>
-												<td className="p-3 border-b border-gray-100">{service.price.toFixed(2)}</td>
-												<td className="p-3 border-b border-gray-100">{service.duration}</td>
-												<td className="p-3 border-b border-gray-100">{service.description}</td>
-												<td className="p-3 border-b border-gray-100">
-													<div className="flex space-x-2">
-														<button
-															className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-															title="Editar"
-															onClick={() => openEditDialog(service)}
-														>
+											<TableRow key={service.id}>
+												<TableCell className="font-medium whitespace-nowrap">{service.name}</TableCell>
+												<TableCell>R$ {service.price.toFixed(2)}</TableCell>
+												<TableCell>{service.duration} min</TableCell>
+												<TableCell className="text-right">
+													<div className="flex justify-end space-x-2">
+														<Button size="sm" variant="ghost" onClick={() => openEditDialog(service)}>
 															<Edit className="h-4 w-4" />
-														</button>
-														<button
-															className="p-1 text-red-500 hover:text-red-700 transition-colors"
-															title="Excluir"
+														</Button>
+														<Button
+															size="sm"
+															variant="ghost"
 															onClick={() => openDeleteDialog(service)}
 															disabled={isDeleting === service.id}
 														>
 															{isDeleting === service.id ? (
 																<Loader2 className="h-4 w-4 animate-spin" />
 															) : (
-																<Trash2 className="h-4 w-4" />
+																<Trash2 className="h-4 w-4 text-destructive" />
 															)}
-														</button>
+														</Button>
 													</div>
-												</td>
-											</tr>
+												</TableCell>
+											</TableRow>
 										)) : (
-											<tr>
-												<td colSpan={5} className="p-3 text-center text-gray-500">
+											<TableRow>
+												<TableCell colSpan={4} className="text-center py-4">
 													Nenhum serviço encontrado.
-												</td>
-											</tr>
+												</TableCell>
+											</TableRow>
 										)}
-									</tbody>
-								</table>
+									</TableBody>
+								</Table>
 							</div>
 						)}
 					</CardContent>
@@ -445,8 +449,22 @@ const AdminServices = () => {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={closeDialog}>Cancelar</Button>
-						<Button onClick={handleAddService} disabled={isSubmitting}>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsAddDialogOpen(false);
+								setSelectedService(null);
+								setErrors({});
+							}}
+							className="font-medium"
+						>
+							Cancelar
+						</Button>
+						<Button
+							onClick={handleAddService}
+							disabled={isSubmitting}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -548,10 +566,15 @@ const AdminServices = () => {
 								setIsEditDialogOpen(false);
 								setSelectedService(null);
 							}}
+							className="font-medium"
 						>
 							Cancelar
 						</Button>
-						<Button onClick={handleEditService} disabled={isSubmitting}>
+						<Button
+							onClick={handleEditService}
+							disabled={isSubmitting}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
 							{isSubmitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -576,10 +599,10 @@ const AdminServices = () => {
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null}>
+						<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null} className="font-medium">
 							Cancelar
 						</Button>
-						<Button variant="destructive" onClick={() => selectedService?.id && handleDelete(selectedService.id)} disabled={isDeleting !== null}>
+						<Button variant="destructive" onClick={() => selectedService?.id && handleDelete(selectedService.id)} disabled={isDeleting !== null} className="font-medium">
 							{isDeleting !== null ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />

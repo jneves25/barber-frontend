@@ -14,6 +14,7 @@ import CompanyService, { Company } from '@/services/api/CompanyService';
 import { format, addDays, addMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CustomerService, { Customer } from "@/services/api/CustomerService";
+import { cleanPhoneNumber, handlePhoneInputChange, validatePhoneNumber } from '@/utils/phone';
 
 interface Barber {
 	id: number;
@@ -325,15 +326,18 @@ const ClientPortal = () => {
 
 	// Handler para verificação de telefone
 	const handleVerifyPhone = async () => {
-		if (!userPhone || userPhone.length < 10) {
-			toast.error("Por favor, digite um número de telefone válido");
+		const phoneError = validatePhoneNumber(userPhone);
+		if (phoneError) {
+			toast.error(phoneError);
 			return;
 		}
 
 		setVerifyingPhone(true);
 
 		try {
-			const response = await CustomerService.checkCustomerByPhone(userPhone);
+			// Enviar somente os números para o backend
+			const cleanedPhone = cleanPhoneNumber(userPhone);
+			const response = await CustomerService.checkCustomerByPhone(cleanedPhone);
 
 			if (response.success && response.data) {
 				setIsExistingClient(true);
@@ -406,6 +410,9 @@ const ClientPortal = () => {
 			const scheduledDate = new Date(selectedDateOption.date);
 			scheduledDate.setHours(hours, minutes, 0, 0);
 
+			// Usar telefone limpo no payload
+			const cleanedPhone = cleanPhoneNumber(userPhone);
+
 			// Criar objeto de agendamento
 			const appointmentData: AppointmentWithCustomer = {
 				companyId: company.id,
@@ -413,7 +420,7 @@ const ClientPortal = () => {
 				services: servicesArray,
 				products: [],
 				scheduledTime: scheduledDate.toISOString(),
-				customerPhone: userPhone,
+				customerPhone: cleanedPhone,
 				customerName: customerName,
 				customerEmail: customerEmail
 			};
@@ -424,7 +431,7 @@ const ClientPortal = () => {
 				setCustomerData({
 					id: response.data.clientId,
 					name: customerName,
-					phone: userPhone,
+					phone: cleanedPhone,
 					email: customerEmail
 				});
 				setPhoneVerified(true);
@@ -895,9 +902,9 @@ const ClientPortal = () => {
 														type="tel"
 														placeholder="(11) 99999-9999"
 														value={userPhone}
-														onChange={(e) => setUserPhone(e.target.value.replace(/\D/g, ''))}
+														onChange={(e) => handlePhoneInputChange(e, setUserPhone)}
 														className="flex-1"
-														maxLength={11}
+														maxLength={15}
 													/>
 													<Button
 														onClick={handleVerifyPhone}

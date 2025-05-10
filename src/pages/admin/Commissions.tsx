@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scissors, BarChart, Eye, Settings, UserPlus, Percent } from 'lucide-react';
+import { Scissors, BarChart, Eye, Settings, UserPlus, Percent, Download, Loader2 } from 'lucide-react';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -48,6 +48,7 @@ const AdminCommissions = () => {
 	});
 	const { toast } = useToast();
 	const [services, setServices] = useState<Service[]>([]);
+	const [period, setPeriod] = useState('daily');
 
 	useEffect(() => {
 		fetchServices();
@@ -433,6 +434,34 @@ const AdminCommissions = () => {
 						</div>
 					</CardContent>
 				</Card>
+
+				<div className="flex space-x-2 mb-4">
+					<Button
+						variant={period === 'daily' ? 'default' : 'outline'}
+						size="sm"
+						onClick={() => setPeriod('daily')}
+						className={period === 'daily' ? 'bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium' : 'font-medium'}
+					>
+						Diário
+					</Button>
+					<Button
+						variant={period === 'weekly' ? 'default' : 'outline'}
+						size="sm"
+						onClick={() => setPeriod('weekly')}
+						className={period === 'weekly' ? 'bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium' : 'font-medium'}
+					>
+						Semanal
+					</Button>
+					<Button
+						variant={period === 'monthly' ? 'default' : 'outline'}
+						size="sm"
+						onClick={() => setPeriod('monthly')}
+						className={period === 'monthly' ? 'bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium' : 'font-medium'}
+					>
+						Mensal
+					</Button>
+				</div>
+
 			</div>
 
 			<CommissionSettings

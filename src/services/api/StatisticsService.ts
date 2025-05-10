@@ -37,7 +37,12 @@ export class StatisticsService {
 		this.serviceService = new ServiceService();
 	}
 
-	async getDashboardStats(companyId: number, period: 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<DashboardStats> {
+	async getDashboardStats(
+		companyId: number,
+		period: 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom' = 'month',
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<DashboardStats> {
 		// Get the current date and year
 		const now = new Date();
 		const currentYear = now.getFullYear();
@@ -52,7 +57,13 @@ export class StatisticsService {
 
 		try {
 			// Get revenue data
-			const revenueResponse = await this.revenueService.getMonthlyRevenue(companyId, currentYear, period);
+			const revenueResponse = await this.revenueService.getMonthlyRevenue(
+				companyId,
+				currentYear,
+				period,
+				startDate,
+				endDate
+			);
 
 			if (revenueResponse.success && revenueResponse.data) {
 				// Sum up all revenue for the period
@@ -74,11 +85,27 @@ export class StatisticsService {
 
 			if (appointmentsResponse.success && appointmentsResponse.data) {
 				// Filter appointments by period
-				const periodStartDate = this.getPeriodStartDate(period);
+				let periodStartDate: Date;
+				let periodEndDate: Date | null = null;
+
+				if (period === 'custom' && startDate && endDate) {
+					periodStartDate = new Date(startDate);
+					periodEndDate = new Date(endDate);
+					// Set end date to end of day
+					periodEndDate.setHours(23, 59, 59, 999);
+				} else {
+					periodStartDate = this.getPeriodStartDate(period as 'week' | 'month' | 'quarter' | 'year');
+				}
 
 				// Current period appointments
 				const currentPeriodAppointments = appointmentsResponse.data.filter(
-					appointment => new Date(appointment.scheduledTime) >= periodStartDate
+					appointment => {
+						const appointmentDate = new Date(appointment.scheduledTime);
+						if (periodEndDate) {
+							return appointmentDate >= periodStartDate && appointmentDate <= periodEndDate;
+						}
+						return appointmentDate >= periodStartDate;
+					}
 				);
 
 				stats.appointments.total = currentPeriodAppointments.length;
@@ -90,8 +117,24 @@ export class StatisticsService {
 				);
 
 				// Previous period for trend calculation
-				const prevPeriodStartDate = this.getPreviousPeriodStartDate(period);
-				const prevPeriodEndDate = periodStartDate;
+				let prevPeriodStartDate: Date;
+				let prevPeriodEndDate: Date;
+
+				if (period === 'custom' && startDate && endDate) {
+					// For custom period, calculate an equivalent previous period
+					const start = new Date(startDate);
+					const end = new Date(endDate);
+					const dayDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+					prevPeriodEndDate = new Date(start);
+					prevPeriodEndDate.setDate(prevPeriodEndDate.getDate() - 1);
+
+					prevPeriodStartDate = new Date(prevPeriodEndDate);
+					prevPeriodStartDate.setDate(prevPeriodStartDate.getDate() - dayDiff);
+				} else {
+					prevPeriodStartDate = this.getPreviousPeriodStartDate(period as 'week' | 'month' | 'quarter' | 'year');
+					prevPeriodEndDate = periodStartDate;
+				}
 
 				const prevPeriodAppointments = appointmentsResponse.data.filter(
 					appointment => {
@@ -121,13 +164,28 @@ export class StatisticsService {
 
 			if (clientsResponse.success && clientsResponse.data) {
 				// Count clients that have appointments in the current period
-				const periodStartDate = this.getPeriodStartDate(period);
+				let periodStartDate: Date;
+				let periodEndDate: Date | null = null;
+
+				if (period === 'custom' && startDate && endDate) {
+					periodStartDate = new Date(startDate);
+					periodEndDate = new Date(endDate);
+					// Set end date to end of day
+					periodEndDate.setHours(23, 59, 59, 999);
+				} else {
+					periodStartDate = this.getPeriodStartDate(period as 'week' | 'month' | 'quarter' | 'year');
+				}
 
 				// Get unique client IDs from appointments in the current period
 				const clientsWithRecentAppointments = new Set();
 
 				appointmentsResponse.data?.forEach(appointment => {
-					if (new Date(appointment.scheduledTime) >= periodStartDate) {
+					const appointmentDate = new Date(appointment.scheduledTime);
+					if (periodEndDate) {
+						if (appointmentDate >= periodStartDate && appointmentDate <= periodEndDate) {
+							clientsWithRecentAppointments.add(appointment.clientId);
+						}
+					} else if (appointmentDate >= periodStartDate) {
 						clientsWithRecentAppointments.add(appointment.clientId);
 					}
 				});
@@ -135,8 +193,24 @@ export class StatisticsService {
 				stats.clients.total = clientsWithRecentAppointments.size;
 
 				// Previous period for trend calculation
-				const prevPeriodStartDate = this.getPreviousPeriodStartDate(period);
-				const prevPeriodEndDate = periodStartDate;
+				let prevPeriodStartDate: Date;
+				let prevPeriodEndDate: Date;
+
+				if (period === 'custom' && startDate && endDate) {
+					// For custom period, calculate an equivalent previous period
+					const start = new Date(startDate);
+					const end = new Date(endDate);
+					const dayDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+					prevPeriodEndDate = new Date(start);
+					prevPeriodEndDate.setDate(prevPeriodEndDate.getDate() - 1);
+
+					prevPeriodStartDate = new Date(prevPeriodEndDate);
+					prevPeriodStartDate.setDate(prevPeriodStartDate.getDate() - dayDiff);
+				} else {
+					prevPeriodStartDate = this.getPreviousPeriodStartDate(period as 'week' | 'month' | 'quarter' | 'year');
+					prevPeriodEndDate = periodStartDate;
+				}
 
 				const clientsWithPrevAppointments = new Set();
 
@@ -230,17 +304,41 @@ export class StatisticsService {
 	}
 
 	// Get top services for dashboard
-	async getTopServices(companyId: number, period: 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<ApiResponse<any[]>> {
+	async getTopServices(
+		companyId: number,
+		period: 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom' = 'month',
+		userId?: number,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<ApiResponse<any[]>> {
 		const currentYear = new Date().getFullYear();
-		const serviceRevenueResponse = await this.revenueService.getServiceRevenue(companyId, undefined, period, currentYear);
+		const serviceRevenueResponse = await this.revenueService.getServiceRevenue(
+			companyId,
+			userId,
+			period,
+			currentYear,
+			startDate,
+			endDate
+		);
 
 		return serviceRevenueResponse;
 	}
 
 	// Get barber commissions
-	async getBarberCommissions(companyId: number, period: 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<ApiResponse<any[]>> {
+	async getBarberCommissions(
+		companyId: number,
+		period: 'day' | 'week' | 'month' | 'quarter' | 'year' | 'custom' = 'month',
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<ApiResponse<any[]>> {
 		const currentYear = new Date().getFullYear();
-		const barberRevenueResponse = await this.revenueService.getBarberRevenue(companyId, period, currentYear);
+		const barberRevenueResponse = await this.revenueService.getBarberRevenue(
+			companyId,
+			period,
+			currentYear,
+			startDate,
+			endDate
+		);
 
 		return barberRevenueResponse;
 	}

@@ -44,9 +44,12 @@ const AdminAppointments = () => {
 	}, [selectedDate]);
 
 	const fetchAppointments = async () => {
+		if (!selectedDate) return;
+
 		setIsLoading(true);
 		try {
-			const response = await AppointmentService.getAll(companySelected.id);
+			const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+			const response = await AppointmentService.getAll(companySelected.id, formattedDate);
 
 			if (response.success && response.data) {
 				setAppointments(response.data);
@@ -66,15 +69,8 @@ const AdminAppointments = () => {
 		? appointments.filter(app => app.userId === Number(user.id))
 		: appointments;
 
-	// Filtrar agendamentos pela data selecionada
-	const filteredAppointments = selectedDate
-		? userAppointments.filter(app => {
-			// Extract date part from createdAt
-			const appDate = app.scheduledTime ? new Date(app.scheduledTime).toISOString().split('T')[0] : '';
-			const filterDate = format(selectedDate, 'yyyy-MM-dd');
-			return appDate === filterDate;
-		})
-		: userAppointments;
+	// Substitua por:
+	const filteredAppointments = userAppointments;
 
 	// Handler para abrir o modal de edição de comanda
 	const handleOpenOrderModal = (appointment: Appointment) => {
@@ -117,26 +113,6 @@ const AdminAppointments = () => {
 		} catch (error) {
 			toast.error('Erro ao conectar com o servidor');
 			console.error(error);
-		}
-	};
-
-	// Handler para excluir um agendamento
-	const handleDeleteAppointment = async (id: number) => {
-		setIsDeleting(id);
-		try {
-			const response = AppointmentService.updateStatus(id, AppointmentStatusEnum.CANCELED);
-
-			if (response) {
-				setAppointments(prev => prev.filter(app => app.id !== id));
-				toast.success('Agendamento removido com sucesso!');
-			} else {
-				toast.error('Erro ao cancelar agendamento');
-			}
-		} catch (error) {
-			toast.error('Erro ao conectar com o servidor');
-			console.error(error);
-		} finally {
-			setIsDeleting(null);
 		}
 	};
 
@@ -217,18 +193,6 @@ const AdminAppointments = () => {
 		};
 	};
 
-	// Função para formatar a lista de produtos
-	const formatProductsList = (products: any[]) => {
-		if (!products || products.length === 0) return 'Nenhum produto';
-
-		const productNames = products.map(product => {
-			const quantity = product.quantity > 1 ? ` (${product.quantity}x)` : '';
-			return `${product.product.name}${quantity}`;
-		});
-
-		return productNames.join(', ');
-	};
-
 	const countTotalProductItems = (products: any[]) => {
 		if (!products || products.length === 0) return 0;
 
@@ -270,7 +234,8 @@ const AdminAppointments = () => {
 							</PopoverContent>
 						</Popover>
 						<Button
-							className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto"
+							variant="default"
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 							onClick={() => setCreateModalOpen(true)}
 						>
 							<Plus className="h-4 w-4 mr-2" />
@@ -599,10 +564,18 @@ const AdminAppointments = () => {
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsCancelDialogOpen(false)} disabled={isDeleting !== null}>
+						<Button
+							variant="outline"
+							onClick={() => setIsCancelDialogOpen(false)}
+							className="font-medium"
+						>
 							Cancelar
 						</Button>
-						<Button variant="destructive" onClick={handleCancelAppointment} disabled={isDeleting !== null}>
+						<Button
+							variant="destructive"
+							onClick={handleCancelAppointment}
+							className="font-medium"
+						>
 							{isDeleting !== null ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />

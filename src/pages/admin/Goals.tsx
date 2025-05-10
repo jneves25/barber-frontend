@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, ChevronLeft, ChevronRight, Plus, Target } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Plus, Target, Loader2, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { format, addMonths, subMonths } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
 import goalService, { Goal } from '@/services/api/GoalService';
@@ -12,6 +12,7 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
+	DialogFooter,
 } from "@/components/ui/dialog";
 import {
 	AlertDialog,
@@ -26,6 +27,16 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import GoalForm from '@/components/goal/GoalForm';
 import GoalsList from '@/components/goal/GoalsList';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+
+// Função para obter o primeiro dia do mês atual
+const getFirstDayOfCurrentMonth = () => {
+	const now = new Date();
+	return new Date(now.getFullYear(), now.getMonth(), 1);
+};
 
 const AdminGoals = () => {
 	const { user, companySelected } = useAuth();
@@ -36,6 +47,15 @@ const AdminGoals = () => {
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
 	const [currentProgress, setCurrentProgress] = useState<Record<number, number>>({});
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [dateRange, setDateRange] = useState<{
+		startDate: Date | undefined;
+		endDate: Date | undefined;
+	}>({
+		startDate: getFirstDayOfCurrentMonth(),
+		endDate: new Date()
+	});
+	const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
 	const currentMonth = parseInt(format(currentDate, 'MM'));
 	const currentYear = parseInt(format(currentDate, 'yyyy'));
@@ -61,10 +81,10 @@ const AdminGoals = () => {
 		return 'bg-red-500';
 	};
 
-	// Recarregar metas quando a data mudar
+	// Recarregar metas quando a data mudar ou o filtro de data for alterado
 	useEffect(() => {
 		loadGoals();
-	}, [companySelected?.id, currentMonth, currentYear]);
+	}, [companySelected?.id, currentMonth, currentYear, dateRange.startDate, dateRange.endDate]);
 
 	const loadGoals = async () => {
 		if (!companySelected?.id) return;
@@ -88,10 +108,31 @@ const AdminGoals = () => {
 						.map(goal => goal.id as number);
 
 					if (goalIds.length > 0) {
-						const progressResponse = await goalService.getGoalsProgress(goalIds);
+						// Use dateRange if both dates are specified
+						let startDateStr, endDateStr;
+
+						if (dateRange.startDate && dateRange.endDate) {
+							startDateStr = dateRange.startDate.toISOString();
+							endDateStr = dateRange.endDate.toISOString();
+						}
+
+						const progressResponse = await goalService.getGoalsProgress(
+							goalIds,
+							startDateStr,
+							endDateStr
+						);
 
 						if (progressResponse.success && progressResponse.data) {
-							setCurrentProgress(progressResponse.data);
+							console.log('Progress data received:', progressResponse.data);
+							console.log('Progress data keys type:', Object.keys(progressResponse.data).map(k => typeof k));
+
+							// Convert string keys to number keys if needed
+							const processedProgress: Record<number, number> = {};
+							Object.entries(progressResponse.data).forEach(([key, value]) => {
+								processedProgress[Number(key)] = value;
+							});
+
+							setCurrentProgress(processedProgress);
 						}
 					}
 				}
@@ -138,6 +179,7 @@ const AdminGoals = () => {
 		}
 
 		try {
+			setIsSubmitting(true);
 			const response = await goalService.create(goalData as Goal);
 
 			if (response.success && response.data) {
@@ -161,6 +203,8 @@ const AdminGoals = () => {
 				description: error?.message || "Não foi possível criar a meta.",
 				variant: "destructive",
 			});
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -168,6 +212,7 @@ const AdminGoals = () => {
 		if (!selectedGoal?.id) return;
 
 		try {
+			setIsSubmitting(true);
 			const response = await goalService.update(selectedGoal.id, data);
 			if (response.success && response.data) {
 				setGoals(goals.map(goal =>
@@ -186,6 +231,8 @@ const AdminGoals = () => {
 				description: "Não foi possível atualizar a meta.",
 				variant: "destructive",
 			});
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -226,6 +273,90 @@ const AdminGoals = () => {
 		);
 	}
 
+	const dateFilterButton = (
+		<div className="mb-4">
+			<Popover open={isDateFilterOpen} onOpenChange={setIsDateFilterOpen}>
+				<PopoverTrigger asChild>
+					<Button
+						variant="outline"
+						className={cn(
+							"flex items-center justify-center gap-2 text-sm font-medium",
+							dateRange.startDate && dateRange.endDate ? "text-primary" : "text-muted-foreground"
+						)}
+					>
+						<CalendarIcon className="h-4 w-4" />
+						{dateRange.startDate && dateRange.endDate ? (
+							<span>
+								{format(dateRange.startDate, "dd/MM/yyyy")} - {format(dateRange.endDate, "dd/MM/yyyy")}
+							</span>
+						) : (
+							<span>Filtrar por período</span>
+						)}
+					</Button>
+				</PopoverTrigger>
+				<PopoverContent className="w-auto p-4" align="start">
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="startDate">Data Inicial</Label>
+							<CalendarComponent
+								mode="single"
+								selected={dateRange.startDate}
+								onSelect={(date) => setDateRange(prev => ({ ...prev, startDate: date }))}
+								initialFocus
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="endDate">Data Final</Label>
+							<CalendarComponent
+								mode="single"
+								selected={dateRange.endDate}
+								onSelect={(date) => setDateRange(prev => ({ ...prev, endDate: date }))}
+								initialFocus
+							/>
+						</div>
+						<div className="flex justify-between">
+							<Button
+								variant="outline"
+								onClick={() => {
+									setDateRange({ startDate: undefined, endDate: undefined });
+									setIsDateFilterOpen(false);
+								}}
+							>
+								Limpar
+							</Button>
+							<Button
+								onClick={() => {
+									if (!dateRange.startDate || !dateRange.endDate) {
+										toast({
+											title: "Atenção",
+											description: "Selecione as duas datas para filtrar.",
+											variant: "default",
+										});
+										return;
+									}
+
+									if (dateRange.startDate > dateRange.endDate) {
+										toast({
+											title: "Erro",
+											description: "A data inicial não pode ser maior que a data final.",
+											variant: "destructive",
+										});
+										return;
+									}
+
+									setIsDateFilterOpen(false);
+									loadGoals();
+								}}
+							>
+								Aplicar
+							</Button>
+						</div>
+					</div>
+				</PopoverContent>
+			</Popover>
+		</div>
+	);
+
 	return (
 		<AdminLayout>
 			<div className="space-y-4">
@@ -234,9 +365,14 @@ const AdminGoals = () => {
 						{user?.role === 'USER' ? 'Minhas Metas' : 'Metas'}
 					</h1>
 					{user?.role !== 'USER' && (
-						<Button className="bg-blue-500 hover:bg-blue-600 text-white" onClick={() => setIsFormOpen(true)}>
-							<Plus className="h-4 w-4 mr-2" />
-							Nova Meta
+						<Button
+							onClick={() => {
+								setIsFormOpen(true);
+								setSelectedGoal(null);
+							}}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
+							<Plus className="mr-2 h-4 w-4" /> Nova Meta
 						</Button>
 					)}
 				</div>
@@ -267,6 +403,7 @@ const AdminGoals = () => {
 						</div>
 					</CardHeader>
 					<CardContent>
+						{dateFilterButton}
 						<GoalsList
 							goals={filteredGoals}
 							currentProgress={currentProgress}
@@ -298,6 +435,32 @@ const AdminGoals = () => {
 							setSelectedGoal(null);
 						}}
 					/>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setIsFormOpen(false);
+								setSelectedGoal(null);
+							}}
+							className="font-medium"
+						>
+							Cancelar
+						</Button>
+						<Button
+							onClick={selectedGoal ? handleUpdateGoal : handleCreateGoal}
+							disabled={isSubmitting}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
+							{isSubmitting ? (
+								<>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									{selectedGoal ? 'Atualizando...' : 'Criando...'}
+								</>
+							) : (
+								<>{selectedGoal ? 'Atualizar Meta' : 'Criar Meta'}</>
+							)}
+						</Button>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 

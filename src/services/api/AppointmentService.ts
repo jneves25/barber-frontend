@@ -140,9 +140,10 @@ export class AppointmentService extends BaseService {
 	}
 
 	// Admin side appointments
-	async getAll(companyId: number): Promise<ApiResponse<Appointment[]>> {
+	async getAll(companyId: number, date?: string): Promise<ApiResponse<Appointment[]>> {
 		const params = {
-			companyId
+			companyId,
+			date
 		}
 
 		return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}`, { params }));

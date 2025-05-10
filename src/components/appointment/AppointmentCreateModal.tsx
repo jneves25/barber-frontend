@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from '@/utils/currency';
 
 import AppointmentService, {
 	Appointment,
@@ -100,6 +101,13 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 		services: false,
 		professional: false
 	});
+
+	// Reset form when modal is opened/closed
+	useEffect(() => {
+		if (!isOpen) {
+			resetForm();
+		}
+	}, [isOpen]);
 
 	// Fetch data on modal open
 	useEffect(() => {
@@ -341,7 +349,6 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 			if (response.success) {
 				toast.success("Agendamento criado com sucesso!");
 				onSuccess();
-				resetForm();
 				onClose();
 			} else {
 				toast.error(response.error || "Erro ao criar agendamento");
@@ -474,7 +481,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 										<SelectContent>
 											{services.map((service) => (
 												<SelectItem key={service.id} value={service.id!.toString()}>
-													{service.name} - R$ {service.price.toFixed(2)}
+													{service.name} - {formatCurrency(service.price)}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -506,7 +513,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 											>
 												<div>
 													<p className="font-medium">{item.service.name}</p>
-													<p className="text-sm text-gray-500">R$ {item.service.price.toFixed(2)}</p>
+													<p className="text-sm text-gray-500">{formatCurrency(item.service.price)}</p>
 												</div>
 												<div className="flex items-center space-x-2">
 													<Button
@@ -537,7 +544,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 											</div>
 										))}
 										<div className="text-right font-medium text-sm text-gray-700">
-											Subtotal serviços: R$ {serviceTotal.toFixed(2)}
+											Subtotal serviços: {formatCurrency(serviceTotal)}
 										</div>
 									</div>
 								)}
@@ -566,7 +573,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 										<SelectContent>
 											{products.map((product) => (
 												<SelectItem key={product.id} value={product.id!.toString()}>
-													{product.name} - R$ {product.price.toFixed(2)}
+													{product.name} - {formatCurrency(product.price)}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -598,7 +605,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 											>
 												<div>
 													<p className="font-medium">{item.product.name}</p>
-													<p className="text-sm text-gray-500">R$ {item.product.price.toFixed(2)}</p>
+													<p className="text-sm text-gray-500">{formatCurrency(item.product.price)}</p>
 												</div>
 												<div className="flex items-center space-x-2">
 													<Button
@@ -629,7 +636,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 											</div>
 										))}
 										<div className="text-right font-medium text-sm text-gray-700">
-											Subtotal produtos: R$ {productTotal.toFixed(2)}
+											Subtotal produtos: {formatCurrency(productTotal)}
 										</div>
 									</div>
 								)}
@@ -732,13 +739,13 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 							<div className="flex justify-between items-center">
 								<span className="font-medium">Total do Agendamento</span>
 								<span className="text-2xl font-bold text-primary">
-									R$ {total.toFixed(2)}
+									{formatCurrency(total)}
 								</span>
 							</div>
 							{selectedProducts.length > 0 && (
 								<div className="flex justify-end mt-1">
 									<span className="text-sm text-gray-600">
-										(Serviços: R$ {serviceTotal.toFixed(2)} + Produtos: R$ {productTotal.toFixed(2)})
+										(Serviços: {formatCurrency(serviceTotal)} + Produtos: {formatCurrency(productTotal)})
 									</span>
 								</div>
 							)}

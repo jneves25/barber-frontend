@@ -57,9 +57,13 @@ export class GoalService extends BaseService {
 	}
 
 	// Get progress for multiple goals at once
-	async getGoalsProgress(goalIds: number[]): Promise<ApiResponse<Record<number, number>>> {
+	async getGoalsProgress(goalIds: number[], startDate?: string, endDate?: string): Promise<ApiResponse<Record<number, number>>> {
 		return this.handleResponse<Record<number, number>>(
-			apiClient.post(`/${this.endpoint}/progress`, { goalIds })
+			apiClient.post(`/${this.endpoint}/progress`, {
+				goalIds,
+				startDate,
+				endDate
+			})
 		);
 	}
 }

@@ -18,7 +18,7 @@ export class ProductService extends BaseService {
 
 	validateProduct(product: Product): string | null {
 		const requiredError = this.validateRequired(product, [
-			'name', 'description', 'price', 'stock', 'imageUrl', 'companyId'
+			'name', 'price', 'companyId'
 		]);
 		if (requiredError) return requiredError;
 

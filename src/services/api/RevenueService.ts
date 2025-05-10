@@ -12,7 +12,7 @@ export interface BarberRevenueData {
 	name: string;
 	revenue: number;
 	percentage: number;
-	color?: string;
+	color: string;
 }
 
 export interface ServiceRevenueData {
@@ -63,47 +63,89 @@ export class RevenueService extends BaseService {
 		super('revenue');
 	}
 
-	// Faturamento mensal para o ano
-	async getMonthlyRevenue(companyId: number, year?: number, period?: string): Promise<ApiResponse<RevenueData[]>> {
+	// Adiciona cores aos dados do barbeiro
+	assignColors(data: BarberRevenueData[]): BarberRevenueData[] {
+		const colors = [
+			'#3B82F6', '#10B981', '#8B5CF6', '#F59E0B',
+			'#EC4899', '#06B6D4', '#EF4444', '#84CC16'
+		];
+
+		return data.map((item, index) => ({
+			...item,
+			color: colors[index % colors.length]
+		}));
+	}
+
+	// Faturamento mensal (gráfico principal)
+	async getMonthlyRevenue(
+		companyId: number,
+		year: number,
+		period?: string,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<RevenueData[]>> {
 		return this.handleResponse<RevenueData[]>(
 			apiClient.get(`/${this.endpoint}/monthly`, {
 				params: {
 					companyId,
 					year,
-					period
+					period,
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
-	// Faturamento por barbeiro
-	async getBarberRevenue(companyId: number, period?: string, year?: number, month?: number): Promise<ApiResponse<BarberRevenueData[]>> {
+	// Faturamento por barbeiro (gráfico de pizza)
+	async getBarberRevenue(
+		companyId: number,
+		period: string,
+		year: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<BarberRevenueData[]>> {
 		return this.handleResponse<BarberRevenueData[]>(
 			apiClient.get(`/${this.endpoint}/barber`, {
 				params: {
 					companyId,
 					period,
 					year,
-					month
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
-	// Faturamento mensal por barbeiro
-	async getBarberMonthlyRevenue(companyId: number, year?: number): Promise<ApiResponse<BarberMonthlyData[]>> {
+	// Faturamento mensal por barbeiro (gráfico de linha)
+	async getBarberMonthlyRevenue(
+		companyId: number,
+		year: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<BarberMonthlyData[]>> {
 		return this.handleResponse<BarberMonthlyData[]>(
 			apiClient.get(`/${this.endpoint}/barber/monthly`, {
 				params: {
 					companyId,
-					year
+					year,
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
 	// Faturamento por serviço
-	async getServiceRevenue(companyId: number, userId?: number, period?: string, year?: number, month?: number): Promise<ApiResponse<ServiceRevenueData[]>> {
+	async getServiceRevenue(
+		companyId: number,
+		userId?: number,
+		period?: string,
+		year?: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<ServiceRevenueData[]>> {
 		return this.handleResponse<ServiceRevenueData[]>(
 			apiClient.get(`/${this.endpoint}/service`, {
 				params: {
@@ -111,99 +153,132 @@ export class RevenueService extends BaseService {
 					userId,
 					period,
 					year,
-					month
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
 	// Faturamento por forma de pagamento
-	async getPaymentMethodRevenue(companyId: number, period?: string, year?: number, month?: number): Promise<ApiResponse<PaymentMethodData[]>> {
+	async getPaymentMethodRevenue(
+		companyId: number,
+		period?: string,
+		year?: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<PaymentMethodData[]>> {
 		return this.handleResponse<PaymentMethodData[]>(
 			apiClient.get(`/${this.endpoint}/payment`, {
 				params: {
 					companyId,
 					period,
 					year,
-					month
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
 	// Faturamento por dia da semana
-	async getWeekdayRevenue(companyId: number, period?: string, year?: number, month?: number): Promise<ApiResponse<WeekdayRevenueData[]>> {
+	async getWeekdayRevenue(
+		companyId: number,
+		period?: string,
+		year?: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<WeekdayRevenueData[]>> {
 		return this.handleResponse<WeekdayRevenueData[]>(
 			apiClient.get(`/${this.endpoint}/weekday`, {
 				params: {
 					companyId,
 					period,
 					year,
-					month
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
 	// Faturamento por horário
-	async getHourlyRevenue(companyId: number, period?: string, year?: number, month?: number): Promise<ApiResponse<HourlyRevenueData[]>> {
+	async getHourlyRevenue(
+		companyId: number,
+		period?: string,
+		year?: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<HourlyRevenueData[]>> {
 		return this.handleResponse<HourlyRevenueData[]>(
 			apiClient.get(`/${this.endpoint}/hourly`, {
 				params: {
 					companyId,
 					period,
 					year,
-					month
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
-	// Comparativo ano a ano
-	async getYearlyComparison(companyId: number, year?: number): Promise<ApiResponse<YearlyComparisonData[]>> {
+	// Comparativo anual
+	async getYearlyComparison(
+		companyId: number,
+		year: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<YearlyComparisonData[]>> {
 		return this.handleResponse<YearlyComparisonData[]>(
 			apiClient.get(`/${this.endpoint}/yearly-comparison`, {
 				params: {
 					companyId,
-					year
+					year,
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
 	// Ticket médio por barbeiro
-	async getAvgTicketByBarber(companyId: number, period?: string, year?: number, month?: number): Promise<ApiResponse<AvgTicketData[]>> {
+	async getAvgTicketByBarber(
+		companyId: number,
+		period?: string,
+		year?: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<AvgTicketData[]>> {
 		return this.handleResponse<AvgTicketData[]>(
 			apiClient.get(`/${this.endpoint}/avg-ticket`, {
 				params: {
 					companyId,
 					period,
 					year,
-					month
+					startDate,
+					endDate
 				}
 			})
 		);
 	}
 
-	// Faturamento do próprio usuário (para barbeiros)
-	async getUserRevenue(companyId: number, year?: number): Promise<ApiResponse<RevenueData[]>> {
+	// Faturamento do usuário (para o barbeiro ver seus próprios dados)
+	async getUserRevenue(
+		companyId: number,
+		year: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<RevenueData[]>> {
 		return this.handleResponse<RevenueData[]>(
 			apiClient.get(`/${this.endpoint}/user`, {
 				params: {
 					companyId,
-					year
+					year,
+					startDate,
+					endDate
 				}
 			})
 		);
-	}
-
-	// Método auxiliar para colorir dados
-	public assignColors(data: BarberRevenueData[] | ServiceRevenueData[]): any[] {
-		const COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3'];
-
-		return data.map((item, index) => ({
-			...item,
-			color: COLORS[index % COLORS.length]
-		}));
 	}
 } 

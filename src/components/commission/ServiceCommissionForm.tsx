@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Service } from '@/services/api/ServiceService';
 import { CommissionModeEnum, CommissionRuleTypeEnum } from '@/services/api/CommissionService';
+import { handleCurrencyInputChange, applyCurrencyMask, currencyToNumber } from '@/utils/currency';
 
 interface CommissionRule {
 	id: number;
@@ -78,12 +79,34 @@ const ServiceCommissionForm = ({
 	}, [barber, serviceCommissions, services]);
 
 	const handleInputChange = (serviceId: number, value: string) => {
-		const numValue = Number(value);
-		setEditValues(prev => ({
-			...prev,
-			[serviceId]: numValue
-		}));
-		validateCommission(serviceId, numValue, commissionTypes[serviceId]);
+		const commissionType = commissionTypes[serviceId];
+
+		if (commissionType === CommissionRuleTypeEnum.PERCENTAGE) {
+			const numValue = Number(value);
+			setEditValues(prev => ({
+				...prev,
+				[serviceId]: numValue
+			}));
+			validateCommission(serviceId, numValue, commissionType);
+		} else {
+			// For fixed money values, use currencyToNumber
+			const numValue = currencyToNumber(value);
+			setEditValues(prev => ({
+				...prev,
+				[serviceId]: numValue
+			}));
+			validateCommission(serviceId, numValue, commissionType);
+		}
+	};
+
+	const handleCurrencyChange = (serviceId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+		handleCurrencyInputChange(e, (value) => {
+			setEditValues(prev => ({
+				...prev,
+				[serviceId]: value
+			}));
+			validateCommission(serviceId, value, commissionTypes[serviceId]);
+		});
 	};
 
 	const handleTypeChange = (serviceId: number, type: CommissionRuleTypeEnum) => {
@@ -196,14 +219,23 @@ const ServiceCommissionForm = ({
 									</TableCell>
 									<TableCell>
 										<div className="flex items-center space-x-2">
-											<Input
-												type="number"
-												min={0}
-												max={service.price}
-												value={editValues[service.id]}
-												onChange={(e) => handleInputChange(service.id, e.target.value)}
-												className={`w-24 ${errors[service.id] ? 'border-red-500' : ''}`}
-											/>
+											{commissionTypes[service.id] === CommissionRuleTypeEnum.PERCENTAGE ? (
+												<Input
+													type="number"
+													min={0}
+													max={100}
+													value={editValues[service.id]}
+													onChange={(e) => handleInputChange(service.id, e.target.value)}
+													className={`w-24 ${errors[service.id] ? 'border-red-500' : ''}`}
+												/>
+											) : (
+												<Input
+													type="text"
+													value={applyCurrencyMask(editValues[service.id].toString())}
+													onChange={(e) => handleCurrencyChange(service.id, e)}
+													className={`w-24 ${errors[service.id] ? 'border-red-500' : ''}`}
+												/>
+											)}
 											<span>{commissionTypes[service.id] === CommissionRuleTypeEnum.PERCENTAGE ? '%' : 'R$'}</span>
 										</div>
 										{errors[service.id] && (

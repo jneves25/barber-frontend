@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings as SettingsIcon, Clock, User, DollarSign, Store, Calendar, Camera, Upload, X } from 'lucide-react';
+import { Settings as SettingsIcon, Clock, User, DollarSign, Store, Calendar, Camera, Upload, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -36,6 +36,7 @@ const AdminSettings = () => {
 		}))
 	);
 	const [timeErrors, setTimeErrors] = useState<{ [key: string]: boolean }>({});
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	useEffect(() => {
 		if (companySelected?.id) {
@@ -132,6 +133,7 @@ const AdminSettings = () => {
 			return;
 		}
 
+		setIsSubmitting(true);
 		try {
 			// Update company data
 			const companyData = {
@@ -203,6 +205,8 @@ const AdminSettings = () => {
 			}
 		} catch (error) {
 			toast.error('Erro ao salvar configurações');
+		} finally {
+			setIsSubmitting(false);
 		}
 	};
 
@@ -222,10 +226,16 @@ const AdminSettings = () => {
 				<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 					<h1 className="text-2xl font-bold">Configurações</h1>
 					<Button
-						onClick={handleSaveSettings}
-						className="bg-blue-500 hover:bg-blue-600 text-white w-full sm:w-auto"
+						type="submit"
+						disabled={isSubmitting}
+						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 					>
-						Salvar Alterações
+						{isSubmitting ? (
+							<>
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								Salvando...
+							</>
+						) : 'Salvar Alterações'}
 					</Button>
 				</div>
 

@@ -25,7 +25,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { toast } from 'sonner';
 import { Product, ProductService } from '@/services/api/ProductService';
 import { useAuth } from '@/context/AuthContext';
-import { formatCurrency } from '@/utils/currency';
+import { formatCurrency, handleCurrencyInputChange, currencyToNumber, applyCurrencyMask } from '@/utils/currency';
 
 
 interface ProductForm {
@@ -253,6 +253,7 @@ const Products = () => {
 						});
 						setIsAddDialogOpen(true);
 					}}
+					className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white"
 				>
 					<Plus className="mr-2 h-4 w-4" /> Adicionar Produto
 				</Button>
@@ -271,10 +272,9 @@ const Products = () => {
 								<TableRow>
 									<TableHead>Imagem</TableHead>
 									<TableHead>Nome</TableHead>
-									<TableHead>Descrição</TableHead>
 									<TableHead>Preço</TableHead>
 									<TableHead>Estoque</TableHead>
-									<TableHead>Ações</TableHead>
+									<TableHead className="text-right">Ações</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -285,20 +285,19 @@ const Products = () => {
 												<img
 													src={product.imageUrl}
 													alt={product.name}
-													className="w-12 h-12 object-cover rounded"
+													className="w-10 h-10 object-cover rounded-md"
 												/>
 											) : (
-												<div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+												<div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center">
 													<span className="text-gray-500 text-xs">Sem imagem</span>
 												</div>
 											)}
 										</TableCell>
-										<TableCell className="font-medium">{product.name}</TableCell>
-										<TableCell className="max-w-xs truncate">{product.description}</TableCell>
+										<TableCell className="font-medium whitespace-nowrap">{product.name}</TableCell>
 										<TableCell>R$ {product.price.toFixed(2)}</TableCell>
 										<TableCell>{product.stock} unid.</TableCell>
-										<TableCell>
-											<div className="flex space-x-2">
+										<TableCell className="text-right">
+											<div className="flex justify-end space-x-2">
 												<Button size="sm" variant="ghost" onClick={() => openEditDialog(product)}>
 													<Edit className="h-4 w-4" />
 												</Button>
@@ -425,24 +424,27 @@ const Products = () => {
 								</Label>
 								<Input
 									id="product-price"
-									type="number"
-									min="0"
-									step="0.01"
-									value={selectedProduct ? selectedProduct.price : newProduct.price}
+									type="text"
+									value={selectedProduct
+										? applyCurrencyMask(selectedProduct.price.toString())
+										: applyCurrencyMask(newProduct.price.toString())
+									}
 									onChange={(e) => {
-										const value = parseFloat(e.target.value);
-										if (selectedProduct) {
-											setSelectedProduct({
-												...selectedProduct,
-												price: value
-											});
-										} else {
-											setNewProduct({
-												...newProduct,
-												price: value
-											});
-										}
-										if (errors.price) setErrors({ ...errors, price: undefined });
+										// Use the utility function to handle all currency formatting
+										handleCurrencyInputChange(e, (value) => {
+											if (selectedProduct) {
+												setSelectedProduct({
+													...selectedProduct,
+													price: value
+												});
+											} else {
+												setNewProduct({
+													...newProduct,
+													price: value
+												});
+											}
+											if (errors.price) setErrors({ ...errors, price: undefined });
+										});
 									}}
 									className={errors.price ? "border-red-500" : ""}
 								/>
@@ -452,7 +454,7 @@ const Products = () => {
 							</div>
 							<div className="grid gap-2">
 								<Label htmlFor="product-stock">
-									Estoque <span className="text-red-500">*</span>
+									Estoque
 								</Label>
 								<Input
 									id="product-stock"
@@ -515,12 +517,14 @@ const Products = () => {
 								setSelectedProduct(null);
 								setErrors({});
 							}}
+							className="font-medium"
 						>
 							Cancelar
 						</Button>
 						<Button
 							onClick={selectedProduct ? handleEditProduct : handleAddProduct}
 							disabled={isSubmitting}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 						>
 							{isSubmitting ? (
 								<>
@@ -545,10 +549,10 @@ const Products = () => {
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null}>
+						<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null} className="font-medium">
 							Cancelar
 						</Button>
-						<Button variant="destructive" onClick={handleDeleteProduct} disabled={isDeleting !== null}>
+						<Button variant="destructive" onClick={handleDeleteProduct} disabled={isDeleting !== null} className="font-medium">
 							{isDeleting !== null ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
