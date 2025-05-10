@@ -74,13 +74,6 @@ const AdminGoals = () => {
 		return monthMatch;
 	});
 
-	// Function to determine the color of the progress based on percentage
-	const getProgressColor = (percentage: number) => {
-		if (percentage >= 100) return 'bg-green-500';
-		if (percentage >= 70) return 'bg-yellow-500';
-		return 'bg-red-500';
-	};
-
 	// Recarregar metas quando a data mudar ou o filtro de data for alterado
 	useEffect(() => {
 		loadGoals();
@@ -276,24 +269,6 @@ const AdminGoals = () => {
 	const dateFilterButton = (
 		<div className="mb-4">
 			<Popover open={isDateFilterOpen} onOpenChange={setIsDateFilterOpen}>
-				<PopoverTrigger asChild>
-					<Button
-						variant="outline"
-						className={cn(
-							"flex items-center justify-center gap-2 text-sm font-medium",
-							dateRange.startDate && dateRange.endDate ? "text-primary" : "text-muted-foreground"
-						)}
-					>
-						<CalendarIcon className="h-4 w-4" />
-						{dateRange.startDate && dateRange.endDate ? (
-							<span>
-								{format(dateRange.startDate, "dd/MM/yyyy")} - {format(dateRange.endDate, "dd/MM/yyyy")}
-							</span>
-						) : (
-							<span>Filtrar por período</span>
-						)}
-					</Button>
-				</PopoverTrigger>
 				<PopoverContent className="w-auto p-4" align="start">
 					<div className="space-y-4">
 						<div className="space-y-2">
@@ -435,32 +410,6 @@ const AdminGoals = () => {
 							setSelectedGoal(null);
 						}}
 					/>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setIsFormOpen(false);
-								setSelectedGoal(null);
-							}}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							onClick={selectedGoal ? handleUpdateGoal : handleCreateGoal}
-							disabled={isSubmitting}
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-						>
-							{isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									{selectedGoal ? 'Atualizando...' : 'Criando...'}
-								</>
-							) : (
-								<>{selectedGoal ? 'Atualizar Meta' : 'Criar Meta'}</>
-							)}
-						</Button>
-					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 

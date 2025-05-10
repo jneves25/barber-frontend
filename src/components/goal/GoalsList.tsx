@@ -1,10 +1,12 @@
 import React from 'react';
 import { Goal } from '@/services/api/GoalService';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Target, Trophy } from 'lucide-react';
+import { Edit, Trash2, Target, Trophy, TrendingUp, Calendar, DollarSign, ArrowRight } from 'lucide-react';
 import { format, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 interface GoalsListProps {
 	goals: Goal[];
@@ -26,6 +28,13 @@ const GoalsList: React.FC<GoalsListProps> = ({
 		return 'bg-red-500';
 	};
 
+	// Function to determine text color based on percentage
+	const getTextColor = (percentage: number) => {
+		if (percentage >= 100) return 'text-green-600';
+		if (percentage >= 70) return 'text-yellow-600';
+		return 'text-red-600';
+	};
+
 	// Function to determine if a goal is for a future month
 	const isFutureGoal = (month: number, year: number) => {
 		const goalDate = new Date(year, month - 1); // Month is 0-indexed in Date
@@ -44,7 +53,7 @@ const GoalsList: React.FC<GoalsListProps> = ({
 	};
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-6">
 			{goals.length > 0 ? (
 				goals.map((goal) => {
 					if (goal.id) debugInfo(goal);
@@ -72,75 +81,132 @@ const GoalsList: React.FC<GoalsListProps> = ({
 
 					const isCompleted = progressPercentage >= 100;
 					const isFuture = isFutureGoal(goal.month, goal.year);
+					const progressTextColor = getTextColor(progressPercentage);
 
 					return (
-						<div
+						<Card
 							key={goal.id}
-							className={`p-4 border rounded-lg ${isCompleted ? 'border-green-500 bg-green-50' : ''}`}
+							className={`overflow-hidden shadow-sm hover:shadow-md transition-all ${isCompleted ? 'border-green-500' : 'border-gray-200'}`}
 						>
-							<div className="flex justify-between items-start mb-2">
-								<div>
-									<p className="font-semibold text-lg flex items-center">
-										{goal.user?.name || 'Profissional'}
-										{isCompleted && <Trophy className="h-5 w-5 ml-2 text-yellow-500" />}
-									</p>
-									<p className="text-sm text-gray-500">
-										{format(new Date(goal.year, goal.month - 1), 'MMMM yyyy', { locale: ptBR })}
-									</p>
-								</div>
-								<div className="flex gap-2">
-									<Button
-										variant="outline"
-										size="icon"
-										onClick={() => onEdit(goal)}
-									>
-										<Edit className="h-4 w-4" />
-									</Button>
-									<Button
-										variant="outline"
-										size="icon"
-										onClick={() => onDelete(goal)}
-									>
-										<Trash2 className="h-4 w-4" />
-									</Button>
-								</div>
-							</div>
-
-							<div className="flex items-center gap-4">
-								<div className="flex items-center">
-									<Target className="h-5 w-5 mr-1 text-blue-500" />
-									<span className="font-semibold">R$ {goal.target.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-								</div>
-
-								{!isFuture && (
-									<div className="text-sm">
-										<span className="text-gray-500">Atual: </span>
-										<span className="font-medium">R$ {currentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+							<CardContent className="p-0">
+								{/* Cabeçalho com nome e mês */}
+								<div className={`p-4 border-b ${isCompleted ? 'bg-green-50' : 'bg-gradient-to-r from-blue-50 to-white'}`}>
+									<div className="flex justify-between items-center">
+										<div>
+											<p className="font-semibold text-lg flex items-center">
+												{goal.user?.name || 'Profissional'}
+												{isCompleted && <Trophy className="h-5 w-5 ml-2 text-yellow-500" />}
+											</p>
+											<div className="flex items-center text-sm text-gray-500 mt-1">
+												<Calendar className="h-4 w-4 mr-1" />
+												{format(new Date(goal.year, goal.month - 1), 'MMMM yyyy', { locale: ptBR })}
+												{isFuture && (
+													<Badge variant="outline" className="ml-2 text-xs">Meta Futura</Badge>
+												)}
+											</div>
+										</div>
+										<div className="flex gap-2">
+											<Button
+												variant="outline"
+												size="icon"
+												onClick={() => onEdit(goal)}
+												className="h-8 w-8"
+											>
+												<Edit className="h-3.5 w-3.5" />
+											</Button>
+											<Button
+												variant="outline"
+												size="icon"
+												onClick={() => onDelete(goal)}
+												className="h-8 w-8"
+											>
+												<Trash2 className="h-3.5 w-3.5" />
+											</Button>
+										</div>
 									</div>
-								)}
-							</div>
-
-							{!isFuture && (
-								<div className="mt-2">
-									<div className="flex justify-between text-sm mb-1">
-										<span className="text-gray-500">Progresso</span>
-										<span className="font-medium">{progressPercentage.toFixed(1)}%</span>
-									</div>
-									<Progress
-										value={progressPercentage}
-										className={getProgressColor(progressPercentage)}
-									/>
 								</div>
-							)}
-						</div>
+
+								{/* Conteúdo da meta */}
+								<div className="p-4">
+									{/* Valores de meta e atual */}
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+										<div className="bg-blue-50 p-3 rounded-lg">
+											<div className="text-xs text-gray-500 mb-1 flex items-center">
+												<Target className="h-3.5 w-3.5 mr-1 text-blue-600" />
+												META DEFINIDA
+											</div>
+											<div className="text-xl font-bold text-blue-700">
+												R$ {goal.target.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+											</div>
+										</div>
+
+										{!isFuture && (
+											<div className="bg-gray-50 p-3 rounded-lg">
+												<div className="text-xs text-gray-500 mb-1 flex items-center">
+													<TrendingUp className="h-3.5 w-3.5 mr-1 text-gray-600" />
+													FATURADO ATÉ AGORA
+												</div>
+												<div className="text-xl font-bold text-gray-700">
+													R$ {currentValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+												</div>
+											</div>
+										)}
+									</div>
+
+									{/* Barra de progresso */}
+									{!isFuture && (
+										<div className="mt-3">
+											<div className="flex justify-between text-sm mb-1">
+												<span className="text-gray-600 font-medium">Progresso da Meta</span>
+												<span className={`font-semibold ${progressTextColor}`}>
+													{progressPercentage.toFixed(1)}%
+												</span>
+											</div>
+											<div className="h-2.5 w-full bg-gray-200 rounded-full overflow-hidden">
+												<Progress
+													value={progressPercentage}
+													className={`h-full ${getProgressColor(progressPercentage)}`}
+												/>
+											</div>
+
+											<div className="flex justify-between mt-2">
+												<span className="text-xs text-gray-500">R$ 0</span>
+												<span className="text-xs text-gray-500">
+													Meta: R$ {goal.target.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+												</span>
+											</div>
+
+											{/* Status da meta */}
+											<div className="mt-3 text-center">
+												{isCompleted ? (
+													<Badge className="bg-green-100 text-green-800 py-1 px-3">
+														<Trophy className="h-3.5 w-3.5 mr-1.5" /> Meta Alcançada!
+													</Badge>
+												) : (
+													<div className="text-sm text-gray-600">
+														{progressPercentage > 0 ? (
+															<span>
+																Faltam <span className="font-semibold text-blue-600">R$ {(goal.target - currentValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span> para atingir a meta
+															</span>
+														) : (
+															<span className="text-gray-500 italic">Ainda não há progresso para esta meta</span>
+														)}
+													</div>
+												)}
+											</div>
+										</div>
+									)}
+								</div>
+							</CardContent>
+						</Card>
 					);
 				})
 			) : (
-				<div className="text-center py-12 border rounded-lg">
-					<Target className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-					<h3 className="text-gray-500 text-lg font-medium">Nenhuma meta encontrada</h3>
-					<p className="text-gray-400 text-sm mt-1">
-						Não há metas definidas para este período.
+				<div className="text-center py-12 border rounded-lg bg-gray-50">
+					<Target className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+					<h3 className="text-gray-600 text-lg font-medium">Nenhuma meta encontrada</h3>
+					<p className="text-gray-500 text-sm mt-1 max-w-sm mx-auto">
+						Não há metas definidas para este período. Crie novas metas para acompanhar o desempenho.
 					</p>
 				</div>
 			)}
