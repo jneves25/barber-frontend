@@ -765,7 +765,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 					<Button
 						onClick={handleSubmit}
 						disabled={isLoading || isLoadingData}
-						className="w-full sm:w-auto bg-primary hover:bg-primary/90"
+						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
 					>
 						{isLoading ? (
 							<>

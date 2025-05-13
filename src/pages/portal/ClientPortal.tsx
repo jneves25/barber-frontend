@@ -28,49 +28,107 @@ interface DateOption {
 	date: Date;
 }
 
+interface AppointmentState {
+	selectedServices: string[];
+	selectedBarber: string;
+	selectedDateOption: DateOption | null;
+	selectedTime: string;
+	totalPrice: number;
+	totalDuration: number;
+	activeTab: 'service' | 'barber' | 'date' | 'confirm';
+}
+
+interface CustomerState {
+	name: string;
+	email: string;
+	phone: string;
+	userPhone: string;
+	smsCode: string;
+	isExistingClient: boolean;
+	phoneVerified: boolean;
+	showNameInput: boolean;
+	verifyingPhone: boolean;
+	customerData: Customer | null;
+}
+
+interface LoadingState {
+	services: boolean;
+	barbers: boolean;
+	timeSlots: boolean;
+	company: boolean;
+	submitting: boolean;
+}
+
 const ClientPortal = () => {
 	const { slug } = useParams<{ slug: string }>();
 	const navigate = useNavigate();
 	const form = useForm();
-	const [selectedServices, setSelectedServices] = useState<string[]>([]);
-	const [selectedBarber, setSelectedBarber] = useState('');
-	const [selectedDateOption, setSelectedDateOption] = useState<DateOption | null>(null);
-	const [selectedTime, setSelectedTime] = useState('');
+
+	// Estados consolidados
+	const [appointment, setAppointment] = useState<AppointmentState>({
+		selectedServices: [],
+		selectedBarber: '',
+		selectedDateOption: null,
+		selectedTime: '',
+		totalPrice: 0,
+		totalDuration: 0,
+		activeTab: 'service'
+	});
+
+	const [customer, setCustomer] = useState<CustomerState>({
+		name: '',
+		email: '',
+		phone: '',
+		userPhone: '',
+		smsCode: '',
+		isExistingClient: false,
+		phoneVerified: false,
+		showNameInput: false,
+		verifyingPhone: false,
+		customerData: null
+	});
+
+	const [loading, setLoading] = useState<LoadingState>({
+		services: true,
+		barbers: true,
+		timeSlots: false,
+		company: true,
+		submitting: false
+	});
+
+	const [company, setCompany] = useState<Company | null>(null);
 	const [services, setServices] = useState<ServiceType[]>([]);
 	const [barbers, setBarbers] = useState<Barber[]>([]);
 	const [dateOptions, setDateOptions] = useState<DateOption[]>([]);
 	const [visibleMonth, setVisibleMonth] = useState(format(new Date(), 'MMMM yyyy', { locale: ptBR }));
 	const [showAvailableTimes, setShowAvailableTimes] = useState(false);
-	const [customerName, setCustomerName] = useState("");
-	const [customerEmail, setCustomerEmail] = useState("");
-	const [customerPhone, setCustomerPhone] = useState("");
-	const [verifyingPhone, setVerifyingPhone] = useState(false);
-	const [isExistingClient, setIsExistingClient] = useState(false);
-	const [phoneVerified, setPhoneVerified] = useState(false);
-	const [smsCode, setSmsCode] = useState("");
-	const [userPhone, setUserPhone] = useState("");
-	const [showNameInput, setShowNameInput] = useState(false);
-	const [customerData, setCustomerData] = useState<Customer | null>(null);
 	const [currentDatePage, setCurrentDatePage] = useState(0);
 	const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
-	const [isLoadingServices, setIsLoadingServices] = useState(true);
-	const [isLoadingBarbers, setIsLoadingBarbers] = useState(true);
-	const [isLoadingTimeSlots, setIsLoadingTimeSlots] = useState(false);
-	const [isLoadingCompany, setIsLoadingCompany] = useState(true);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [company, setCompany] = useState<Company | null>(null);
+	const [hasSavedClientData, setHasSavedClientData] = useState(false);
 	const [totalPrice, setTotalPrice] = useState(0);
 	const [totalDuration, setTotalDuration] = useState(0);
 	const [activeTab, setActiveTab] = useState("service");
-	const [hasSavedClientData, setHasSavedClientData] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 
+	// Funções auxiliares para atualizar estados
+	const updateAppointment = (updates: Partial<AppointmentState>) => {
+		setAppointment(prev => ({ ...prev, ...updates }));
+	};
+
+	const updateCustomer = (updates: Partial<CustomerState>) => {
+		setCustomer(prev => ({ ...prev, ...updates }));
+	};
+
+	const updateLoading = (updates: Partial<LoadingState>) => {
+		setLoading(prev => ({ ...prev, ...updates }));
+	};
+
+	// Efeitos
 	useEffect(() => {
 		if (!slug) {
 			toast.error('URL inválida');
 			return;
 		}
-
 		fetchCompanyBySlug();
 		loadClientDataFromLocalStorage();
 	}, [slug]);
@@ -84,15 +142,20 @@ const ClientPortal = () => {
 	}, [company]);
 
 	useEffect(() => {
-		if (selectedBarber && selectedDateOption) {
+		if (appointment.selectedBarber && appointment.selectedDateOption) {
 			fetchAvailableTimeSlots();
 		} else {
 			setAvailableTimeSlots([]);
 		}
-	}, [selectedBarber, selectedDateOption]);
+	}, [appointment.selectedBarber, appointment.selectedDateOption]);
 
+	useEffect(() => {
+		updateTotals(appointment.selectedServices);
+	}, [appointment.selectedServices, services]);
+
+	// Funções de busca de dados
 	const fetchCompanyBySlug = async () => {
-		setIsLoadingCompany(true);
+		updateLoading({ company: true });
 		try {
 			if (!slug) {
 				toast.error('URL inválida');
@@ -104,21 +167,20 @@ const ClientPortal = () => {
 				setCompany(response.data);
 			} else {
 				toast.error(response.error || 'Empresa não encontrada');
-				// Redirecionar para uma página de erro
 				navigate('/');
 			}
 		} catch (error) {
 			toast.error('Erro ao carregar dados da empresa');
 			navigate('/');
 		} finally {
-			setIsLoadingCompany(false);
+			updateLoading({ company: false });
 		}
 	};
 
 	const fetchServices = async () => {
 		if (!company?.id) return;
 
-		setIsLoadingServices(true);
+		updateLoading({ services: true });
 		try {
 			const response = await ServiceService.getServicesByCompanySlug(slug || '');
 			if (response.success && response.data) {
@@ -129,18 +191,17 @@ const ClientPortal = () => {
 		} catch (error) {
 			toast.error('Erro ao conectar com o servidor');
 		} finally {
-			setIsLoadingServices(false);
+			updateLoading({ services: false });
 		}
 	};
 
 	const processCompanyMembers = () => {
 		if (!company?.members) return;
 
-		setIsLoadingBarbers(true);
+		updateLoading({ barbers: true });
 		try {
-			// Processar os membros da empresa para obter os barbeiros
 			const barbersList = company.members
-				.filter(member => member.user) // Garante que o usuário existe
+				.filter(member => member.user)
 				.map(member => ({
 					id: member.user.id,
 					name: member.user.name,
@@ -151,79 +212,57 @@ const ClientPortal = () => {
 		} catch (error) {
 			toast.error('Erro ao processar dados dos profissionais');
 		} finally {
-			setIsLoadingBarbers(false);
+			updateLoading({ barbers: false });
 		}
 	};
 
 	const generateDateOptions = () => {
 		const options: DateOption[] = [];
 		const today = new Date();
-		const threeMonthaLater = addMonths(today, 3);
+		const threeMonthsLater = addMonths(today, 3);
 
-		// Criar período de três meses
 		const dateRange = eachDayOfInterval({
 			start: today,
-			end: threeMonthaLater
+			end: threeMonthsLater
 		});
 
-		// Adicionar cada data no período como uma opção
 		dateRange.forEach((date, index) => {
 			const formattedDate = format(date, 'yyyy-MM-dd');
+			let label = index === 0 ? 'Hoje' :
+				index === 1 ? 'Amanhã' :
+					format(date, 'dd/MM', { locale: ptBR });
 
-			let label;
-			if (index === 0) {
-				label = 'Hoje';
-			} else if (index === 1) {
-				label = 'Amanhã';
-			} else {
-				label = format(date, 'dd/MM', { locale: ptBR });
-			}
-
-			options.push({
-				label,
-				value: formattedDate,
-				date
-			});
+			options.push({ label, value: formattedDate, date });
 		});
 
 		setDateOptions(options);
-		// Mostrar apenas as primeiras 14 datas inicialmente (2 semanas)
 		updateVisibleDates(0, options);
 	};
 
-	// Função para mostrar apenas um subconjunto de datas (2 linhas de 7 dias)
 	const updateVisibleDates = (page: number, allOptions?: DateOption[]) => {
 		const optionsToUse = allOptions || dateOptions;
-		const datesPerPage = 14; // 2 linhas de 7 dias
+		const datesPerPage = 14;
 		const startIndex = page * datesPerPage;
-		const endIndex = startIndex + datesPerPage;
 
-		// Verificar se temos opções suficientes
 		if (optionsToUse.length <= startIndex) {
 			setCurrentDatePage(0);
 		} else {
 			setCurrentDatePage(page);
 		}
-
-		// Não atualizamos mais o dateOptions completo, apenas controlamos
-		// quais datas são exibidas através do slice na renderização
 	};
 
 	const getCurrentMonthLabel = () => {
 		if (dateOptions.length === 0) return '';
 
-		// Calcular quais datas estão visíveis atualmente
 		const datesPerPage = 14;
 		const startIndex = currentDatePage * datesPerPage;
 		const visibleDates = dateOptions.slice(startIndex, startIndex + datesPerPage);
 
-		// Pegar o mês da primeira data visível
 		if (visibleDates.length === 0) return '';
 		return format(visibleDates[0].date, 'MMMM yyyy', { locale: ptBR });
 	};
 
 	const goToNextDatePage = () => {
-		// Verificar se há mais datas para mostrar
 		const datesPerPage = 14;
 		const nextStartIndex = (currentDatePage + 1) * datesPerPage;
 
@@ -239,25 +278,23 @@ const ClientPortal = () => {
 	};
 
 	const fetchAvailableTimeSlots = async () => {
-		if (!selectedBarber || !selectedDateOption || !company?.id) return;
+		if (!appointment.selectedBarber || !appointment.selectedDateOption || !company?.id) return;
 
-		setIsLoadingTimeSlots(true);
+		updateLoading({ timeSlots: true });
 		setAvailableTimeSlots([]);
-		setSelectedTime('');
+		updateAppointment({ selectedTime: '' });
 
 		try {
 			const response = await AppointmentService.getAvailableTimeSlots(
-				parseInt(selectedBarber),
+				parseInt(appointment.selectedBarber),
 				company.id,
-				selectedDateOption.value // Formato 'yyyy-MM-dd' esperado pela API
+				appointment.selectedDateOption.value
 			);
 
 			if (response.success && response.data) {
 				setAvailableTimeSlots(response.data);
-
-				// Auto-selecionar o primeiro horário disponível
 				if (response.data.length > 0) {
-					setSelectedTime(response.data[0]);
+					updateAppointment({ selectedTime: response.data[0] });
 				}
 			} else {
 				toast.error(response.error || 'Erro ao carregar horários disponíveis');
@@ -265,24 +302,19 @@ const ClientPortal = () => {
 		} catch (error) {
 			toast.error('Erro ao buscar horários disponíveis');
 		} finally {
-			setIsLoadingTimeSlots(false);
+			updateLoading({ timeSlots: false });
 		}
 	};
 
 	const toggleServiceSelection = (serviceId: string) => {
-		setSelectedServices(prev => {
-			const isSelected = prev.includes(serviceId);
-			if (isSelected) {
-				// Remover serviço
-				const updatedServices = prev.filter(id => id !== serviceId);
-				updateTotals(updatedServices);
-				return updatedServices;
-			} else {
-				// Adicionar serviço
-				const updatedServices = [...prev, serviceId];
-				updateTotals(updatedServices);
-				return updatedServices;
-			}
+		setAppointment(prev => {
+			const isSelected = prev.selectedServices.includes(serviceId);
+			const updatedServices = isSelected
+				? prev.selectedServices.filter(id => id !== serviceId)
+				: [...prev.selectedServices, serviceId];
+
+			updateTotals(updatedServices);
+			return { ...prev, selectedServices: updatedServices };
 		});
 	};
 
@@ -291,29 +323,18 @@ const ClientPortal = () => {
 			selectedServiceIds.includes(String(service.id))
 		);
 
-		const price = selectedServicesData.reduce(
-			(total, service) => total + service.price, 0
-		);
+		const price = selectedServicesData.reduce((total, service) => total + service.price, 0);
+		const duration = selectedServicesData.reduce((total, service) => total + service.duration, 0);
 
-		const duration = selectedServicesData.reduce(
-			(total, service) => total + service.duration, 0
-		);
-
-		setTotalPrice(price);
-		setTotalDuration(duration);
+		updateAppointment({ totalPrice: price, totalDuration: duration });
 	};
 
-	useEffect(() => {
-		updateTotals(selectedServices);
-	}, [selectedServices, services]);
-
-	// Função para carregar dados do cliente do localStorage
+	// Funções de cliente
 	const loadClientDataFromLocalStorage = () => {
 		try {
 			const savedClientData = localStorage.getItem('clientData');
 			if (savedClientData) {
 				const clientData = JSON.parse(savedClientData);
-				// Preencher o formulário com os dados salvos
 				form.setValue('name', clientData.name || '');
 				form.setValue('phone', clientData.phone || '');
 				form.setValue('email', clientData.email || '');
@@ -324,56 +345,62 @@ const ClientPortal = () => {
 		}
 	};
 
-	// Handler para verificação de telefone
 	const handleVerifyPhone = async () => {
-		const phoneError = validatePhoneNumber(userPhone);
+		const phoneError = validatePhoneNumber(customer.userPhone);
 		if (phoneError) {
 			toast.error(phoneError);
 			return;
 		}
 
-		setVerifyingPhone(true);
+		updateCustomer({ verifyingPhone: true });
 
 		try {
-			// Enviar somente os números para o backend
-			const cleanedPhone = cleanPhoneNumber(userPhone);
+			const cleanedPhone = cleanPhoneNumber(customer.userPhone);
 			const response = await CustomerService.checkCustomerByPhone(cleanedPhone);
 
 			if (response.success && response.data) {
-				setIsExistingClient(true);
-				setCustomerData(response.data);
+				updateCustomer({
+					isExistingClient: true,
+					customerData: response.data,
+					verifyingPhone: false
+				});
 				toast.success(`Olá ${response.data.name}! Enviamos um código de verificação por SMS.`);
 			} else {
-				setIsExistingClient(false);
-				setShowNameInput(true);
+				updateCustomer({
+					isExistingClient: false,
+					showNameInput: true,
+					verifyingPhone: false
+				});
 				toast.info("Você é um novo cliente. Por favor, informe seu nome para continuar.");
 			}
 		} catch (error) {
 			toast.error("Erro ao verificar o telefone. Tente novamente.");
-		} finally {
-			setVerifyingPhone(false);
+			updateCustomer({ verifyingPhone: false });
 		}
 	};
 
-	// Handler para verificar o código SMS
 	const handleVerifySmsCode = async () => {
-		if (!smsCode || smsCode.length < 6) {
+		if (!customer.smsCode || customer.smsCode.length < 6) {
 			toast.error("Por favor, digite o código de 6 dígitos enviado por SMS");
 			return;
 		}
 
 		try {
-			const response = await CustomerService.verifySmsCode(userPhone, smsCode);
+			const response = await CustomerService.verifySmsCode(customer.userPhone, customer.smsCode);
 
 			if (response.success && response.data?.verified) {
-				setPhoneVerified(true);
+				updateCustomer({
+					phoneVerified: true,
+					verifyingPhone: false
+				});
 				toast.success("Telefone verificado com sucesso!");
 
-				// Se já tivermos os dados do cliente, use-os para o agendamento
-				if (customerData) {
-					setCustomerName(customerData.name);
-					setCustomerEmail(customerData.email || "");
-					setCustomerPhone(customerData.phone);
+				if (customer.customerData) {
+					updateCustomer({
+						name: customer.customerData.name,
+						email: customer.customerData.email || "",
+						phone: customer.customerData.phone
+					});
 				}
 			} else {
 				toast.error("Código inválido. Tente novamente.");
@@ -383,14 +410,14 @@ const ClientPortal = () => {
 		}
 	};
 
-	// Handler para criar um novo cliente e finalizar o agendamento
 	const handleCreateCustomer = async () => {
-		if (!customerName || customerName.length < 3) {
+		if (!customer.name || customer.name.length < 3) {
 			toast.error("Por favor, digite seu nome completo");
 			return;
 		}
 
-		if (!selectedServices.length || !selectedBarber || !selectedDateOption || !selectedTime || !company?.id) {
+		if (!appointment.selectedServices.length || !appointment.selectedBarber ||
+			!appointment.selectedDateOption || !appointment.selectedTime || !company?.id) {
 			toast.error("Por favor, complete todas as informações do agendamento");
 			return;
 		}
@@ -398,43 +425,43 @@ const ClientPortal = () => {
 		setIsLoading(true);
 
 		try {
-			// Preparar os serviços selecionados
-			const selectedServicesObj = services.filter(s => selectedServices.includes(String(s.id)));
+			const selectedServicesObj = services.filter(s =>
+				appointment.selectedServices.includes(String(s.id))
+			);
 			const servicesArray = selectedServicesObj.map(serviceObj => ({
 				serviceId: serviceObj.id,
 				quantity: 1
 			}));
 
-			// Preparar data e hora
-			const [hours, minutes] = selectedTime.split(':').map(Number);
-			const scheduledDate = new Date(selectedDateOption.date);
+			const [hours, minutes] = appointment.selectedTime.split(':').map(Number);
+			const scheduledDate = new Date(appointment.selectedDateOption.date);
 			scheduledDate.setHours(hours, minutes, 0, 0);
 
-			// Usar telefone limpo no payload
-			const cleanedPhone = cleanPhoneNumber(userPhone);
+			const cleanedPhone = cleanPhoneNumber(customer.userPhone);
 
-			// Criar objeto de agendamento
 			const appointmentData: AppointmentWithCustomer = {
 				companyId: company.id,
-				userId: parseInt(selectedBarber),
+				userId: parseInt(appointment.selectedBarber),
 				services: servicesArray,
 				products: [],
 				scheduledTime: scheduledDate.toISOString(),
 				customerPhone: cleanedPhone,
-				customerName: customerName,
-				customerEmail: customerEmail
+				customerName: customer.name,
+				customerEmail: customer.email
 			};
 
 			const response = await AppointmentService.createClientAppointment(appointmentData);
 
 			if (response.success) {
-				setCustomerData({
-					id: response.data.clientId,
-					name: customerName,
-					phone: cleanedPhone,
-					email: customerEmail
+				updateCustomer({
+					customerData: {
+						id: response.data.clientId,
+						name: customer.name,
+						phone: cleanedPhone,
+						email: customer.email
+					},
+					phoneVerified: true
 				});
-				setPhoneVerified(true);
 				toast.success("Seus dados foram salvos e seu agendamento foi confirmado!");
 			} else {
 				toast.error(response.error || "Erro ao finalizar o agendamento");
@@ -447,7 +474,36 @@ const ClientPortal = () => {
 		}
 	};
 
-	if (isLoadingCompany) {
+	const resetAppointment = () => {
+		updateAppointment({
+			selectedServices: [],
+			selectedBarber: '',
+			selectedDateOption: null,
+			selectedTime: '',
+			totalPrice: 0,
+			totalDuration: 0,
+			activeTab: 'service'
+		});
+
+		updateCustomer({
+			name: '',
+			email: '',
+			phone: '',
+			userPhone: '',
+			smsCode: '',
+			isExistingClient: false,
+			phoneVerified: false,
+			showNameInput: false,
+			verifyingPhone: false,
+			customerData: null
+		});
+
+		setActiveTab("service");
+
+		navigate(`/portal/${slug}`);
+	};
+
+	if (loading.company) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
 				<div className="text-center">
@@ -508,28 +564,30 @@ const ClientPortal = () => {
 						<Tabs
 							value={activeTab}
 							onValueChange={(value) => {
+								if (customer.phoneVerified) {
+									return;
+								}
+
 								const currentIndex = ["service", "barber", "date", "confirm"].indexOf(activeTab);
 								const targetIndex = ["service", "barber", "date", "confirm"].indexOf(value);
 
-								// Se estiver tentando voltar, permitir
-								if (targetIndex < currentIndex) {
+								if (targetIndex < currentIndex && !customer.phoneVerified) {
 									setActiveTab(value);
 									return;
 								}
 
-								// Verificar requisitos para avançar
-								if (value === "barber" && selectedServices.length === 0) {
+								if (value === "barber" && appointment.selectedServices.length === 0) {
 									toast.error("Selecione pelo menos um serviço antes de continuar");
 									return;
 								}
 
-								if (value === "date" && selectedBarber === '') {
+								if (value === "date" && appointment.selectedBarber === '') {
 									toast.error("Selecione um profissional antes de continuar");
 									return;
 								}
 
-								if (value === "confirm" && (!selectedDateOption || !selectedTime)) {
-									if (!selectedDateOption) {
+								if (value === "confirm" && (!appointment.selectedDateOption || !appointment.selectedTime)) {
+									if (!appointment.selectedDateOption) {
 										toast.error("Selecione uma data antes de continuar");
 									} else {
 										toast.error("Selecione um horário antes de continuar");
@@ -537,37 +595,50 @@ const ClientPortal = () => {
 									return;
 								}
 
-								// Se passou por todas as validações, permitir a mudança
 								setActiveTab(value);
 							}}
 							className="w-full"
 						>
 							<div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
-								<TabsList className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-lg">
+								<TabsList
+									className={`grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-lg ${customer.phoneVerified ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+										}`}
+								>
 									<TabsTrigger
 										value="service"
-										className="data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2"
+										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${customer.phoneVerified ? 'pointer-events-none opacity-50' : ''
+											}`}
+										disabled={customer.phoneVerified}
 									>
 										Serviços
 									</TabsTrigger>
 									<TabsTrigger
 										value="barber"
-										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${selectedServices.length === 0 && activeTab !== "barber" ? "opacity-50" : ""
+										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${(appointment.selectedServices.length === 0 && activeTab !== "barber") || customer.phoneVerified
+											? "opacity-50 pointer-events-none"
+											: ""
 											}`}
+										disabled={customer.phoneVerified}
 									>
 										Profissional
 									</TabsTrigger>
 									<TabsTrigger
 										value="date"
-										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${(selectedBarber === '' && activeTab !== "date") ? "opacity-50" : ""
+										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${(appointment.selectedBarber === '' && activeTab !== "date") || customer.phoneVerified
+											? "opacity-50 pointer-events-none"
+											: ""
 											}`}
+										disabled={customer.phoneVerified}
 									>
 										Data/Hora
 									</TabsTrigger>
 									<TabsTrigger
 										value="confirm"
-										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${((!selectedDateOption || !selectedTime) && activeTab !== "confirm") ? "opacity-50" : ""
+										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${((!appointment.selectedDateOption || !appointment.selectedTime) && activeTab !== "confirm") || customer.phoneVerified
+											? "opacity-50 pointer-events-none"
+											: ""
 											}`}
+										disabled={customer.phoneVerified}
 									>
 										Confirmação
 									</TabsTrigger>
@@ -575,7 +646,7 @@ const ClientPortal = () => {
 							</div>
 
 							<TabsContent value="service" className="p-6 animate-in fade-in-50 duration-300">
-								{isLoadingServices ? (
+								{loading.services ? (
 									<div className="flex justify-center items-center py-12">
 										<Loader2 className="h-8 w-8 animate-spin text-barber-500" />
 									</div>
@@ -585,7 +656,7 @@ const ClientPortal = () => {
 											{services.map((service) => (
 												<div
 													key={service.id}
-													className={`border rounded-lg overflow-hidden cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${selectedServices.includes(String(service.id))
+													className={`border rounded-lg overflow-hidden cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${appointment.selectedServices.includes(String(service.id))
 														? 'ring-2 ring-barber-500 bg-barber-50'
 														: 'hover:border-barber-300'
 														}`}
@@ -613,13 +684,13 @@ const ClientPortal = () => {
 											))}
 										</div>
 
-										{selectedServices.length > 0 && (
+										{appointment.selectedServices.length > 0 && (
 											<div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 animate-in fade-in-50 duration-300">
 												<div className="flex justify-between items-center">
 													<div>
 														<p className="text-sm text-gray-500">Serviços selecionados</p>
 														<p className="font-medium">
-															{selectedServices.length} {selectedServices.length === 1 ? 'serviço' : 'serviços'}
+															{appointment.selectedServices.length} {appointment.selectedServices.length === 1 ? 'serviço' : 'serviços'}
 														</p>
 													</div>
 													<div className="text-right">
@@ -640,7 +711,7 @@ const ClientPortal = () => {
 													<TooltipTrigger asChild>
 														<span>
 															<Button
-																disabled={selectedServices.length === 0 || isLoadingServices}
+																disabled={appointment.selectedServices.length === 0 || loading.services}
 																onClick={() => setActiveTab("barber")}
 																className="bg-barber-500 hover:bg-barber-600"
 															>
@@ -648,7 +719,7 @@ const ClientPortal = () => {
 															</Button>
 														</span>
 													</TooltipTrigger>
-													{selectedServices.length === 0 && (
+													{appointment.selectedServices.length === 0 && (
 														<TooltipContent className="bg-red-50 border border-red-200 text-red-700 p-2">
 															<p>Selecione pelo menos um serviço para continuar</p>
 														</TooltipContent>
@@ -661,7 +732,7 @@ const ClientPortal = () => {
 							</TabsContent>
 
 							<TabsContent value="barber" className="p-6 animate-in fade-in-50 duration-300">
-								{isLoadingBarbers ? (
+								{loading.barbers ? (
 									<div className="flex justify-center items-center py-12">
 										<Loader2 className="h-8 w-8 animate-spin text-barber-500" />
 									</div>
@@ -671,16 +742,13 @@ const ClientPortal = () => {
 											{barbers.map((barber) => (
 												<div
 													key={barber.id}
-													className={`border rounded-lg p-4 flex flex-col items-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${selectedBarber === String(barber.id)
+													className={`border rounded-lg p-4 flex flex-col items-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${appointment.selectedBarber === String(barber.id)
 														? 'ring-2 ring-barber-500 bg-barber-50'
 														: 'hover:border-barber-300'
 														}`}
 													onClick={() => {
-														setSelectedBarber(String(barber.id));
-														// Avançar automaticamente para a próxima etapa
-														setTimeout(() => {
-															setActiveTab("date");
-														}, 300);
+														setActiveTab("date");
+														updateAppointment({ selectedBarber: String(barber.id) });
 													}}
 												>
 													<div className="w-16 h-16 rounded-full overflow-hidden mb-3">
@@ -737,11 +805,11 @@ const ClientPortal = () => {
 											{dateOptions.slice(currentDatePage * 14, currentDatePage * 14 + 14).map((option, index) => (
 												<div
 													key={index}
-													className={`border rounded-lg p-3 text-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${selectedDateOption?.value === option.value
+													className={`border rounded-lg p-3 text-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${appointment.selectedDateOption?.value === option.value
 														? 'bg-barber-500 text-white ring-2 ring-barber-300'
 														: 'hover:border-barber-300 bg-white'
 														}`}
-													onClick={() => setSelectedDateOption(option)}
+													onClick={() => updateAppointment({ selectedDateOption: option })}
 												>
 													<div className="flex flex-col items-center">
 														<span className="text-sm font-medium">
@@ -762,7 +830,7 @@ const ClientPortal = () => {
 
 									<div>
 										<label className="block text-sm font-medium mb-3">Escolha o horário</label>
-										{isLoadingTimeSlots ? (
+										{loading.timeSlots ? (
 											<div className="flex justify-center items-center py-8">
 												<Loader2 className="h-6 w-6 animate-spin text-barber-500" />
 											</div>
@@ -771,12 +839,12 @@ const ClientPortal = () => {
 												{availableTimeSlots.map((time, index) => (
 													<div
 														key={index}
-														className={`border rounded-lg p-3 text-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${selectedTime === time
+														className={`border rounded-lg p-3 text-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${appointment.selectedTime === time
 															? 'bg-barber-500 text-white ring-2 ring-barber-300'
 															: 'hover:border-barber-300 bg-white'
 															}`}
 														onClick={() => {
-															setSelectedTime(time);
+															updateAppointment({ selectedTime: time });
 														}}
 													>
 														<span className="text-sm font-medium">{time}</span>
@@ -785,7 +853,7 @@ const ClientPortal = () => {
 											</div>
 										) : (
 											<div className="py-8 bg-gray-50 rounded-lg flex flex-col items-center justify-center border border-gray-200">
-												{selectedDateOption ? (
+												{appointment.selectedDateOption ? (
 													<>
 														<CalendarDays className="h-10 w-10 mb-3 text-gray-400" />
 														<p className="text-gray-600 font-medium">Sem horários disponíveis para esta data</p>
@@ -810,7 +878,7 @@ const ClientPortal = () => {
 												<TooltipTrigger asChild>
 													<span>
 														<Button
-															disabled={!selectedDateOption || !selectedTime || isLoadingTimeSlots}
+															disabled={!appointment.selectedDateOption || !appointment.selectedTime || loading.timeSlots}
 															onClick={() => setActiveTab("confirm")}
 															className="bg-barber-500 hover:bg-barber-600"
 														>
@@ -818,12 +886,12 @@ const ClientPortal = () => {
 														</Button>
 													</span>
 												</TooltipTrigger>
-												{(!selectedDateOption || !selectedTime) && !isLoadingTimeSlots && (
+												{(!appointment.selectedDateOption || !appointment.selectedTime) && !loading.timeSlots && (
 													<TooltipContent className="bg-red-50 border border-red-200 text-red-700 p-2">
 														<p>
-															{!selectedDateOption
+															{!appointment.selectedDateOption
 																? "Selecione uma data"
-																: !selectedTime
+																: !appointment.selectedTime
 																	? "Selecione um horário"
 																	: "Selecione data e horário"}
 														</p>
@@ -843,7 +911,7 @@ const ClientPortal = () => {
 										<div>
 											<p className="text-sm text-gray-500 mb-1">Serviços:</p>
 											<div className="space-y-2">
-												{selectedServices.map(serviceId => {
+												{appointment.selectedServices.map(serviceId => {
 													const service = services.find(s => String(s.id) === serviceId);
 													return service ? (
 														<div key={serviceId} className="flex justify-between text-sm">
@@ -864,7 +932,7 @@ const ClientPortal = () => {
 											<div>
 												<p className="text-sm text-gray-500 mb-1">Profissional:</p>
 												<p className="font-medium">
-													{barbers.find(b => String(b.id) === selectedBarber)?.name || 'Não selecionado'}
+													{barbers.find(b => String(b.id) === appointment.selectedBarber)?.name || 'Não selecionado'}
 												</p>
 											</div>
 											<div>
@@ -874,24 +942,24 @@ const ClientPortal = () => {
 											<div>
 												<p className="text-sm text-gray-500 mb-1">Data:</p>
 												<p className="font-medium">
-													{selectedDateOption
-														? format(selectedDateOption.date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+													{appointment.selectedDateOption
+														? format(appointment.selectedDateOption.date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
 														: 'Não selecionada'}
 												</p>
 											</div>
 											<div>
 												<p className="text-sm text-gray-500 mb-1">Horário:</p>
-												<p className="font-medium">{selectedTime || 'Não selecionado'}</p>
+												<p className="font-medium">{appointment.selectedTime || 'Não selecionado'}</p>
 											</div>
 										</div>
 									</div>
 								</div>
 
-								{!phoneVerified ? (
+								{!customer.phoneVerified ? (
 									<div className="space-y-4">
 										<h3 className="font-semibold mb-4 text-barber-700">Suas informações</h3>
 
-										{!isExistingClient && !showNameInput ? (
+										{!customer.isExistingClient && !customer.showNameInput ? (
 											<div>
 												<label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
 													Seu número de celular
@@ -901,16 +969,16 @@ const ClientPortal = () => {
 														id="phone"
 														type="tel"
 														placeholder="(11) 99999-9999"
-														value={userPhone}
-														onChange={(e) => handlePhoneInputChange(e, setUserPhone)}
+														value={customer.userPhone}
+														onChange={(e) => handlePhoneInputChange(e, (value) => updateCustomer({ userPhone: value }))}
 														className="flex-1"
 														maxLength={15}
 													/>
 													<Button
 														onClick={handleVerifyPhone}
-														disabled={verifyingPhone || userPhone.length < 10}
+														disabled={customer.verifyingPhone || customer.userPhone.length < 10}
 														className="whitespace-nowrap">
-														{verifyingPhone ? (
+														{customer.verifyingPhone ? (
 															<>
 																<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 																Verificando...
@@ -923,7 +991,7 @@ const ClientPortal = () => {
 											</div>
 										) : null}
 
-										{isExistingClient && (
+										{customer.isExistingClient && (
 											<div>
 												<label htmlFor="smsCode" className="block text-sm font-medium text-gray-700 mb-1">
 													Código SMS
@@ -933,14 +1001,14 @@ const ClientPortal = () => {
 														id="smsCode"
 														type="text"
 														placeholder="Digite o código recebido"
-														value={smsCode}
-														onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ''))}
+														value={customer.smsCode}
+														onChange={(e) => updateCustomer({ smsCode: e.target.value.replace(/\D/g, '') })}
 														className="flex-1"
 														maxLength={6}
 													/>
 													<Button
 														onClick={handleVerifySmsCode}
-														disabled={smsCode.length < 6}
+														disabled={customer.smsCode.length < 6}
 														className="whitespace-nowrap">
 														Confirmar
 													</Button>
@@ -951,7 +1019,7 @@ const ClientPortal = () => {
 											</div>
 										)}
 
-										{showNameInput && !isExistingClient && (
+										{customer.showNameInput && !customer.isExistingClient && (
 											<div className="space-y-4">
 												<div>
 													<label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -961,8 +1029,8 @@ const ClientPortal = () => {
 														id="name"
 														type="text"
 														placeholder="Digite seu nome completo"
-														value={customerName}
-														onChange={(e) => setCustomerName(e.target.value)}
+														value={customer.name}
+														onChange={(e) => updateCustomer({ name: e.target.value })}
 														className="w-full"
 													/>
 												</div>
@@ -975,15 +1043,15 @@ const ClientPortal = () => {
 														id="email"
 														type="email"
 														placeholder="exemplo@email.com"
-														value={customerEmail}
-														onChange={(e) => setCustomerEmail(e.target.value)}
+														value={customer.email}
+														onChange={(e) => updateCustomer({ email: e.target.value })}
 														className="w-full"
 													/>
 												</div>
 
 												<Button
 													onClick={handleCreateCustomer}
-													disabled={!customerName || customerName.length < 3 || isLoading}
+													disabled={!customer.name || customer.name.length < 3 || isLoading}
 													className="w-full">
 													{isLoading ? (
 														<>
@@ -1014,34 +1082,17 @@ const ClientPortal = () => {
 												<Check className="h-5 w-5 mr-2" />
 												<p className="font-medium">Agendamento confirmado com sucesso!</p>
 											</div>
-											{customerData && (
+											{customer.customerData && (
 												<div className="mt-2 space-y-1 text-green-600">
-													<p className="font-medium">Olá, {customerData.name}!</p>
-													<p className="text-sm">Seu agendamento foi confirmado para {selectedDateOption ? format(new Date(selectedDateOption.date), "dd 'de' MMMM", { locale: ptBR }) : ''} às {selectedTime}.</p>
+													<p className="font-medium">Olá, {customer.customerData.name}!</p>
+													<p className="text-sm">Seu agendamento foi confirmado para {appointment.selectedDateOption ? format(new Date(appointment.selectedDateOption.date), "dd 'de' MMMM", { locale: ptBR }) : ''} às {appointment.selectedTime}.</p>
 													<p className="text-sm">Enviaremos um lembrete para seu telefone antes do horário.</p>
 												</div>
 											)}
 										</div>
 
 										<Button
-											onClick={() => {
-												// Reset do formulário
-												setSelectedServices([]);
-												setSelectedBarber('');
-												setSelectedDateOption(null);
-												setSelectedTime('');
-												setTotalPrice(0);
-												setTotalDuration(0);
-												setActiveTab("service");
-												setPhoneVerified(false);
-												setIsExistingClient(false);
-												setShowNameInput(false);
-												setUserPhone('');
-												setSmsCode('');
-												setCustomerName('');
-												setCustomerEmail('');
-												navigate('/');
-											}}
+											onClick={resetAppointment}
 											className="w-full bg-barber-500 hover:bg-barber-600">
 											Fazer Novo Agendamento
 										</Button>

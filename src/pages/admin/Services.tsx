@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Service, ServiceService } from '@/services/api/ServiceService';
 import { useAuth } from '@/context/AuthContext';
-import { formatCurrency } from '@/utils/currency';
+import { formatCurrency, handleCurrencyInputChange, currencyToNumber } from '@/utils/currency';
 import { Table, TableHeader, TableBody, TableCell, TableRow, TableHead } from '@/components/ui/table';
 
 interface ServiceForm {
@@ -412,13 +412,17 @@ const AdminServices = () => {
 								</Label>
 								<Input
 									id="price"
-									type="number"
-									min="0"
-									step="0.01"
-									value={newService.price}
+									type="text"
+									inputMode="decimal"
+									value={newService.price.toLocaleString('pt-BR', {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2
+									})}
 									onChange={(e) => {
-										setNewService({ ...newService, price: parseFloat(e.target.value) });
-										if (errors.price) setErrors({ ...errors, price: undefined });
+										handleCurrencyInputChange(e, (value) => {
+											setNewService({ ...newService, price: value });
+											if (errors.price) setErrors({ ...errors, price: undefined });
+										});
 									}}
 									className={errors.price ? "border-red-500" : ""}
 								/>
@@ -522,13 +526,17 @@ const AdminServices = () => {
 									</Label>
 									<Input
 										id="edit-price"
-										type="number"
-										min="0"
-										step="0.01"
-										value={selectedService.price}
+										type="text"
+										inputMode="decimal"
+										value={selectedService.price.toLocaleString('pt-BR', {
+											minimumFractionDigits: 2,
+											maximumFractionDigits: 2
+										})}
 										onChange={(e) => {
-											setSelectedService({ ...selectedService, price: parseFloat(e.target.value) });
-											if (errors.price) setErrors({ ...errors, price: undefined });
+											handleCurrencyInputChange(e, (value) => {
+												setSelectedService({ ...selectedService, price: value });
+												if (errors.price) setErrors({ ...errors, price: undefined });
+											});
 										}}
 										className={errors.price ? "border-red-500" : ""}
 									/>

@@ -186,6 +186,9 @@ const AdminClients = () => {
 		});
 		setIsAddDialogOpen(false);
 		setIsEditDialogOpen(false);
+		setSelectedClient(null);
+		setCurrentComment('');
+		setErrors({});
 	};
 
 	const filteredClients = searchTerm
@@ -415,9 +418,7 @@ const AdminClients = () => {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setIsAddDialogOpen(false);
-								setSelectedClient(null);
-								setErrors({});
+								closeDialog()
 							}}
 							className="font-medium"
 						>
@@ -470,9 +471,7 @@ const AdminClients = () => {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setIsEditDialogOpen(false);
-								setSelectedClient(null);
-								setCurrentComment('');
+								closeDialog()
 							}}
 							className="font-medium"
 						>
