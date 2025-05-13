@@ -231,7 +231,7 @@ const ServiceCommissionForm = ({
 											) : (
 												<Input
 													type="text"
-													value={applyCurrencyMask(editValues[service.id].toString())}
+													value={applyCurrencyMask((editValues[service.id] ?? 0).toString())}
 													onChange={(e) => handleCurrencyChange(service.id, e)}
 													className={`w-24 ${errors[service.id] ? 'border-red-500' : ''}`}
 												/>
