@@ -47,6 +47,8 @@ export interface User {
 		manageSettings: boolean;
 		viewUsers: boolean;
 		manageUsers: boolean;
+		viewSubscriptions: boolean;
+		manageSubscriptions: boolean;
 	};
 }
 
@@ -82,6 +84,8 @@ export interface UserPermissions {
 	manageSettings: boolean;
 	viewUsers: boolean;
 	manageUsers: boolean;
+	viewSubscriptions: boolean;
+	manageSubscriptions: boolean;
 }
 
 export class UserService extends BaseService {

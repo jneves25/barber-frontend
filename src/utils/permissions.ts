@@ -28,7 +28,9 @@ export const DEFAULT_PERMISSIONS = {
 	viewOwnRevenue: true,
 	manageSettings: false,
 	viewUsers: true,
-	manageUsers: false
+	manageUsers: false,
+	viewSubscriptions: false,
+	manageSubscriptions: false,
 };
 
 export const allPermissions = [
@@ -82,4 +84,8 @@ export const allPermissions = [
 	// Usuários
 	{ id: 'viewUsers', name: 'Ver usuários', description: 'Acesso para visualizar todos os usuários do sistema' },
 	{ id: 'manageUsers', name: 'Gerenciar usuários', description: 'Criar, editar e excluir usuários' },
+
+	// Assinaturas
+	{ id: 'viewSubscriptions', name: 'Ver assinaturas', description: 'Acesso para visualizar planos e assinaturas' },
+	{ id: 'manageSubscriptions', name: 'Gerenciar assinaturas', description: 'Criar, editar e excluir planos de assinatura' },
 ];

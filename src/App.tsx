@@ -22,6 +22,8 @@ import AdminRevenue from "./pages/admin/Revenue";
 import AdminSettings from "./pages/admin/Settings";
 import AdminProducts from "./pages/admin/Products";
 import Permissions from "./pages/admin/Permissions";
+import AdminSubscriptions from './pages/admin/Subscriptions';
+import SubscriptionPlanDetails from './pages/admin/SubscriptionPlanDetails';
 
 // Portal pages
 import ClientPortal from "./pages/portal/ClientPortal";
@@ -101,6 +103,16 @@ const App = () => (
 						<Route path="/admin/permissions" element={
 							<ProtectedRoute requiredPermission="managePermissions">
 								<Permissions />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/subscriptions" element={
+							<ProtectedRoute requiredPermission="managePermissions">
+								<AdminSubscriptions />
+							</ProtectedRoute>
+						} />
+						<Route path="/admin/subscriptions/plan/:id" element={
+							<ProtectedRoute requiredPermission="managePermissions">
+								<SubscriptionPlanDetails />
 							</ProtectedRoute>
 						} />
 

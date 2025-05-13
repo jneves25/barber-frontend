@@ -16,7 +16,8 @@ import {
 	Trash2,
 	Package,
 	Shield,
-	LogOut
+	LogOut,
+	CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
@@ -51,6 +52,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 		{ path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'viewFullRevenue' },
 		{ path: '/admin/permissions', icon: Shield, label: 'Gestão', permission: 'managePermissions' },
 		{ path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manageSettings' },
+		{ path: '/admin/subscriptions', icon: CreditCard, label: 'Assinaturas', permission: null },
 	];
 
 	// Filtrar itens de menu baseado em permissões
