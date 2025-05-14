@@ -39,7 +39,8 @@ const getFirstDayOfCurrentMonth = () => {
 };
 
 const AdminGoals = () => {
-	const { user, companySelected } = useAuth();
+	const { user, companySelected, hasPermission } = useAuth();
+	const canManageGoals = hasPermission('manageGoals');
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [goals, setGoals] = useState<Goal[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -339,7 +340,7 @@ const AdminGoals = () => {
 					<h1 className="text-2xl font-bold">
 						{user?.role === 'USER' ? 'Minhas Metas' : 'Metas'}
 					</h1>
-					{user?.role !== 'USER' && (
+					{canManageGoals && (
 						<Button
 							onClick={() => {
 								setIsFormOpen(true);

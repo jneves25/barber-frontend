@@ -486,7 +486,7 @@ const AdminRevenue = () => {
 				</div>
 
 				<Tabs value={reportTab} onValueChange={setReportTab} className="w-full">
-					<TabsList className={`w-full mb-4 ${isMobile ? 'flex flex-wrap gap-1' : 'grid grid-cols-4'}`}>
+					<TabsList className={`w-full mb-4 ${isMobile ? 'flex flex-wrap gap-1' : user?.role === 'USER' ? 'grid grid-cols-3' : 'grid grid-cols-4'}`}>
 						<TabsTrigger value="overview" className="text-xs sm:text-sm">Visão Geral</TabsTrigger>
 						{user?.role !== 'USER' && <TabsTrigger value="barbers" className="text-xs sm:text-sm">Por Barbeiro</TabsTrigger>}
 						<TabsTrigger value="services" className="text-xs sm:text-sm">Por Serviço</TabsTrigger>

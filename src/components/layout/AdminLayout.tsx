@@ -43,13 +43,48 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 	// Menu items com checagem de permissão
 	const menuItems = [
 		{ path: '/admin', icon: Home, label: 'Dashboard', permission: null },
-		{ path: '/admin/appointments', icon: Calendar, label: 'Agenda', permission: 'viewAllAppointments' },
-		{ path: '/admin/services', icon: Scissors, label: 'Serviços', permission: 'viewAllServices' },
-		{ path: '/admin/products', icon: Package, label: 'Produtos', permission: 'viewAllProducts' },
-		{ path: '/admin/clients', icon: Users, label: 'Clientes', permission: 'viewAllClients' },
-		{ path: '/admin/commissions', icon: DollarSign, label: 'Comissões', permission: 'viewAllCommissions' },
-		{ path: '/admin/goals', icon: Target, label: 'Metas', permission: 'viewAllGoals' },
-		{ path: '/admin/revenue', icon: BarChart, label: 'Faturamento', permission: 'viewFullRevenue' },
+		{
+			path: '/admin/appointments',
+			icon: Calendar,
+			label: 'Agenda',
+			customCheck: () => hasPermission('viewAllAppointments') || hasPermission('viewOwnAppointments')
+		},
+		{
+			path: '/admin/services',
+			icon: Scissors,
+			label: 'Serviços',
+			customCheck: () => hasPermission('viewAllServices') || hasPermission('viewOwnServices')
+		},
+		{
+			path: '/admin/products',
+			icon: Package,
+			label: 'Produtos',
+			customCheck: () => hasPermission('viewAllProducts') || hasPermission('viewOwnProducts')
+		},
+		{
+			path: '/admin/clients',
+			icon: Users,
+			label: 'Clientes',
+			customCheck: () => hasPermission('viewAllClients') || hasPermission('viewOwnClients')
+		},
+		{
+			path: '/admin/commissions',
+			icon: DollarSign,
+			label: 'Comissões',
+			customCheck: () => hasPermission('viewAllCommissions') || hasPermission('viewOwnCommissions')
+		},
+		{
+			path: '/admin/goals',
+			icon: Target,
+			label: 'Metas',
+			customCheck: () => hasPermission('viewAllGoals') || hasPermission('viewOwnGoals')
+		},
+		{
+			path: '/admin/revenue',
+			icon: BarChart,
+			label: 'Faturamento',
+			customCheck: () => hasPermission('viewFullRevenue') || hasPermission('viewOwnRevenue')
+		},
 		{ path: '/admin/permissions', icon: Shield, label: 'Gestão', permission: 'managePermissions' },
 		{ path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manageSettings' },
 		{ path: '/admin/subscriptions', icon: CreditCard, label: 'Assinaturas', permission: null },
@@ -57,7 +92,9 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 
 	// Filtrar itens de menu baseado em permissões
 	const filteredMenuItems = menuItems.filter(item =>
-		item.permission === null || hasPermission(item.permission)
+		item.permission === null ||
+		(item.permission && hasPermission(item.permission)) ||
+		(item.customCheck && item.customCheck())
 	);
 
 	const toggleSidebar = () => setSidebarOpen(!sidebarOpen);

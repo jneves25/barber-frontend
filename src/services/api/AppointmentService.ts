@@ -149,6 +149,15 @@ export class AppointmentService extends BaseService {
 		return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}`, { params }));
 	}
 
+	async getByBarber(companyId: number, date?: string): Promise<ApiResponse<Appointment[]>> {
+		const params = {
+			companyId,
+			date
+		}
+
+		return this.handleResponse<Appointment[]>(apiClient.get(`/${this.endpoint}/barber`, { params }));
+	}
+
 	async getById(id: number): Promise<ApiResponse<Appointment>> {
 		return this.handleResponse<Appointment>(apiClient.get(`/${this.endpoint}/${id}`));
 	}

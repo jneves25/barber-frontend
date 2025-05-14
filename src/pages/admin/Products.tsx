@@ -25,7 +25,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { toast } from 'sonner';
 import { Product, ProductService } from '@/services/api/ProductService';
 import { useAuth } from '@/context/AuthContext';
-import { formatCurrency, handleCurrencyInputChange, currencyToNumber, applyCurrencyMask } from '@/utils/currency';
+import { formatCurrency, handleCurrencyInputChange, currencyToNumber } from '@/utils/currency';
 
 
 interface ProductForm {
@@ -40,7 +40,8 @@ interface ProductForm {
 
 
 const Products = () => {
-	const { companySelected } = useAuth();
+	const { companySelected, hasPermission } = useAuth();
+	const canManageProducts = hasPermission('manageProducts');
 	const productService = new ProductService();
 	const [products, setProducts] = useState<Product[]>([]);
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -240,23 +241,25 @@ const Products = () => {
 		<AdminLayout>
 			<div className="flex justify-between items-center mb-6">
 				<h1 className="text-2xl font-bold text-gray-800">Gestão de Produtos</h1>
-				<Button
-					onClick={() => {
-						setSelectedProduct(null);
-						setNewProduct({
-							name: '',
-							description: '',
-							price: 0,
-							imageUrl: '',
-							stock: 0,
-							companyId: companySelected.id
-						});
-						setIsAddDialogOpen(true);
-					}}
-					className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white"
-				>
-					<Plus className="mr-2 h-4 w-4" /> Adicionar Produto
-				</Button>
+				{canManageProducts && (
+					<Button
+						onClick={() => {
+							setSelectedProduct(null);
+							setNewProduct({
+								name: '',
+								description: '',
+								price: 0,
+								imageUrl: '',
+								stock: 0,
+								companyId: companySelected.id
+							});
+							setIsAddDialogOpen(true);
+						}}
+						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white"
+					>
+						<Plus className="mr-2 h-4 w-4" /> Adicionar Produto
+					</Button>
+				)}
 			</div>
 
 			<div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -274,7 +277,9 @@ const Products = () => {
 									<TableHead>Nome</TableHead>
 									<TableHead>Preço</TableHead>
 									<TableHead>Estoque</TableHead>
-									<TableHead className="text-right">Ações</TableHead>
+									{canManageProducts && (
+										<TableHead className="text-right">Ações</TableHead>
+									)}
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -296,29 +301,31 @@ const Products = () => {
 										<TableCell className="font-medium whitespace-nowrap">{product.name}</TableCell>
 										<TableCell>R$ {product.price.toFixed(2)}</TableCell>
 										<TableCell>{product.stock} unid.</TableCell>
-										<TableCell className="text-right">
-											<div className="flex justify-end space-x-2">
-												<Button size="sm" variant="ghost" onClick={() => openEditDialog(product)}>
-													<Edit className="h-4 w-4" />
-												</Button>
-												<Button
-													size="sm"
-													variant="ghost"
-													onClick={() => openDeleteDialog(product)}
-													disabled={isDeleting === product.id}
-												>
-													{isDeleting === product.id ? (
-														<Loader2 className="h-4 w-4 animate-spin" />
-													) : (
-														<Trash2 className="h-4 w-4 text-destructive" />
-													)}
-												</Button>
-											</div>
-										</TableCell>
+										{canManageProducts && (
+											<TableCell className="text-right">
+												<div className="flex justify-end space-x-2">
+													<Button size="sm" variant="ghost" onClick={() => openEditDialog(product)}>
+														<Edit className="h-4 w-4" />
+													</Button>
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={() => openDeleteDialog(product)}
+														disabled={isDeleting === product.id}
+													>
+														{isDeleting === product.id ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<Trash2 className="h-4 w-4 text-destructive" />
+														)}
+													</Button>
+												</div>
+											</TableCell>
+										)}
 									</TableRow>
 								)) : (
 									<TableRow>
-										<TableCell colSpan={6} className="text-center py-4">
+										<TableCell colSpan={canManageProducts ? 5 : 4} className="text-center py-4">
 											Nenhum produto encontrado.
 										</TableCell>
 									</TableRow>
@@ -350,219 +357,230 @@ const Products = () => {
 				</div>
 			</div>
 
-			<Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-				setIsAddDialogOpen(open);
-				if (!open) {
-					setSelectedProduct(null);
-					setErrors({});
-				}
-			}}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>
-							{selectedProduct ? 'Editar Produto' : 'Adicionar Produto'}
-						</DialogTitle>
-						<DialogDescription>
-							{selectedProduct
-								? 'Atualize as informações do produto existente'
-								: 'Adicione um novo produto ao seu inventário'}
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4 py-4">
-						<div className="grid gap-2">
-							<Label htmlFor="product-name">
-								Nome <span className="text-red-500">*</span>
-							</Label>
-							<Input
-								id="product-name"
-								value={selectedProduct ? selectedProduct.name : newProduct.name}
-								onChange={(e) => {
-									if (selectedProduct) {
-										setSelectedProduct({
-											...selectedProduct,
-											name: e.target.value
-										});
-									} else {
-										setNewProduct({
-											...newProduct,
-											name: e.target.value
-										});
-									}
-									if (errors.name) setErrors({ ...errors, name: undefined });
-								}}
-								className={errors.name ? "border-red-500" : ""}
-							/>
-							{errors.name && (
-								<p className="text-sm text-red-500">{errors.name}</p>
-							)}
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="product-description">Descrição</Label>
-							<Textarea
-								id="product-description"
-								rows={3}
-								value={selectedProduct ? selectedProduct.description : newProduct.description}
-								onChange={(e) => {
-									if (selectedProduct) {
-										setSelectedProduct({
-											...selectedProduct,
-											description: e.target.value
-										});
-									} else {
-										setNewProduct({
-											...newProduct,
-											description: e.target.value
-										});
-									}
-								}}
-							/>
-						</div>
-						<div className="grid grid-cols-2 gap-4">
-							<div className="grid gap-2">
-								<Label htmlFor="product-price">
-									Preço (R$) <span className="text-red-500">*</span>
-								</Label>
-								<Input
-									id="product-price"
-									type="text"
-									value={selectedProduct
-										? applyCurrencyMask(selectedProduct.price.toString())
-										: applyCurrencyMask(newProduct.price.toString())
-									}
-									onChange={(e) => {
-										// Use the utility function to handle all currency formatting
-										handleCurrencyInputChange(e, (value) => {
+			{canManageProducts && (
+				<>
+					<Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+						setIsAddDialogOpen(open);
+						if (!open) {
+							setSelectedProduct(null);
+							setErrors({});
+						}
+					}}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>
+									{selectedProduct ? 'Editar Produto' : 'Adicionar Produto'}
+								</DialogTitle>
+								<DialogDescription>
+									{selectedProduct
+										? 'Atualize as informações do produto existente'
+										: 'Adicione um novo produto ao seu inventário'}
+								</DialogDescription>
+							</DialogHeader>
+							<div className="grid gap-4 py-4">
+								<div className="grid gap-2">
+									<Label htmlFor="product-name">
+										Nome <span className="text-red-500">*</span>
+									</Label>
+									<Input
+										id="product-name"
+										value={selectedProduct ? selectedProduct.name : newProduct.name}
+										onChange={(e) => {
 											if (selectedProduct) {
 												setSelectedProduct({
 													...selectedProduct,
-													price: value
+													name: e.target.value
 												});
 											} else {
 												setNewProduct({
 													...newProduct,
-													price: value
+													name: e.target.value
 												});
 											}
-											if (errors.price) setErrors({ ...errors, price: undefined });
-										});
-									}}
-									className={errors.price ? "border-red-500" : ""}
-								/>
-								{errors.price && (
-									<p className="text-sm text-red-500">{errors.price}</p>
-								)}
+											if (errors.name) setErrors({ ...errors, name: undefined });
+										}}
+										className={errors.name ? "border-red-500" : ""}
+									/>
+									{errors.name && (
+										<p className="text-sm text-red-500">{errors.name}</p>
+									)}
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="product-description">Descrição</Label>
+									<Textarea
+										id="product-description"
+										rows={3}
+										value={selectedProduct ? selectedProduct.description : newProduct.description}
+										onChange={(e) => {
+											if (selectedProduct) {
+												setSelectedProduct({
+													...selectedProduct,
+													description: e.target.value
+												});
+											} else {
+												setNewProduct({
+													...newProduct,
+													description: e.target.value
+												});
+											}
+										}}
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="grid gap-2">
+										<Label htmlFor="product-price">
+											Preço (R$) <span className="text-red-500">*</span>
+										</Label>
+										<Input
+											id="product-price"
+											type="text"
+											inputMode="decimal"
+											value={selectedProduct
+												? selectedProduct.price.toLocaleString('pt-BR', {
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2
+												})
+												: newProduct.price.toLocaleString('pt-BR', {
+													minimumFractionDigits: 2,
+													maximumFractionDigits: 2
+												})
+											}
+											onChange={(e) => {
+												// Use the utility function to handle all currency formatting
+												handleCurrencyInputChange(e, (value) => {
+													if (selectedProduct) {
+														setSelectedProduct({
+															...selectedProduct,
+															price: value
+														});
+													} else {
+														setNewProduct({
+															...newProduct,
+															price: value
+														});
+													}
+													if (errors.price) setErrors({ ...errors, price: undefined });
+												});
+											}}
+											className={errors.price ? "border-red-500" : ""}
+										/>
+										{errors.price && (
+											<p className="text-sm text-red-500">{errors.price}</p>
+										)}
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="product-stock">
+											Estoque
+										</Label>
+										<Input
+											id="product-stock"
+											type="number"
+											min="0"
+											value={selectedProduct ? selectedProduct.stock : newProduct.stock}
+											onChange={(e) => {
+												const value = parseInt(e.target.value);
+												if (selectedProduct) {
+													setSelectedProduct({
+														...selectedProduct,
+														stock: value
+													});
+												} else {
+													setNewProduct({
+														...newProduct,
+														stock: value
+													});
+												}
+												if (errors.stock) setErrors({ ...errors, stock: undefined });
+											}}
+											className={errors.stock ? "border-red-500" : ""}
+										/>
+										{errors.stock && (
+											<p className="text-sm text-red-500">{errors.stock}</p>
+										)}
+									</div>
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="product-image">URL da Imagem</Label>
+									<Input
+										id="product-image"
+										type="text"
+										placeholder="https://exemplo.com/imagem.jpg"
+										value={selectedProduct ? selectedProduct.imageUrl : newProduct.imageUrl}
+										onChange={(e) => {
+											if (selectedProduct) {
+												setSelectedProduct({
+													...selectedProduct,
+													imageUrl: e.target.value
+												});
+											} else {
+												setNewProduct({
+													...newProduct,
+													imageUrl: e.target.value
+												});
+											}
+										}}
+									/>
+									<p className="text-xs text-muted-foreground">
+										Deixe em branco para usar uma imagem padrão
+									</p>
+								</div>
 							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="product-stock">
-									Estoque
-								</Label>
-								<Input
-									id="product-stock"
-									type="number"
-									min="0"
-									value={selectedProduct ? selectedProduct.stock : newProduct.stock}
-									onChange={(e) => {
-										const value = parseInt(e.target.value);
-										if (selectedProduct) {
-											setSelectedProduct({
-												...selectedProduct,
-												stock: value
-											});
-										} else {
-											setNewProduct({
-												...newProduct,
-												stock: value
-											});
-										}
-										if (errors.stock) setErrors({ ...errors, stock: undefined });
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => {
+										setIsAddDialogOpen(false);
+										setSelectedProduct(null);
+										setErrors({});
 									}}
-									className={errors.stock ? "border-red-500" : ""}
-								/>
-								{errors.stock && (
-									<p className="text-sm text-red-500">{errors.stock}</p>
-								)}
-							</div>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="product-image">URL da Imagem</Label>
-							<Input
-								id="product-image"
-								type="text"
-								placeholder="https://exemplo.com/imagem.jpg"
-								value={selectedProduct ? selectedProduct.imageUrl : newProduct.imageUrl}
-								onChange={(e) => {
-									if (selectedProduct) {
-										setSelectedProduct({
-											...selectedProduct,
-											imageUrl: e.target.value
-										});
-									} else {
-										setNewProduct({
-											...newProduct,
-											imageUrl: e.target.value
-										});
-									}
-								}}
-							/>
-							<p className="text-xs text-muted-foreground">
-								Deixe em branco para usar uma imagem padrão
-							</p>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setIsAddDialogOpen(false);
-								setSelectedProduct(null);
-								setErrors({});
-							}}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							onClick={selectedProduct ? handleEditProduct : handleAddProduct}
-							disabled={isSubmitting}
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-						>
-							{isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									{selectedProduct ? 'Salvando...' : 'Adicionando...'}
-								</>
-							) : (
-								<>{selectedProduct ? 'Salvar Alterações' : 'Adicionar Produto'}</>
-							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+									className="font-medium"
+								>
+									Cancelar
+								</Button>
+								<Button
+									onClick={selectedProduct ? handleEditProduct : handleAddProduct}
+									disabled={isSubmitting}
+									className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+								>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											{selectedProduct ? 'Salvando...' : 'Adicionando...'}
+										</>
+									) : (
+										<>{selectedProduct ? 'Salvar Alterações' : 'Adicionar Produto'}</>
+									)}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 
-			<Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Confirmar Exclusão</DialogTitle>
-						<DialogDescription>
-							Tem certeza que deseja excluir o produto "{selectedProduct?.name}"?
-							Esta ação não pode ser desfeita.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null} className="font-medium">
-							Cancelar
-						</Button>
-						<Button variant="destructive" onClick={handleDeleteProduct} disabled={isDeleting !== null} className="font-medium">
-							{isDeleting !== null ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Excluindo...
-								</>
-							) : 'Excluir'}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					<Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+						<DialogContent>
+							<DialogHeader>
+								<DialogTitle>Confirmar Exclusão</DialogTitle>
+								<DialogDescription>
+									Tem certeza que deseja excluir o produto "{selectedProduct?.name}"?
+									Esta ação não pode ser desfeita.
+								</DialogDescription>
+							</DialogHeader>
+							<DialogFooter>
+								<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null} className="font-medium">
+									Cancelar
+								</Button>
+								<Button variant="destructive" onClick={handleDeleteProduct} disabled={isDeleting !== null} className="font-medium">
+									{isDeleting !== null ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Excluindo...
+										</>
+									) : 'Excluir'}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</>
+			)}
 		</AdminLayout>
 	);
 };

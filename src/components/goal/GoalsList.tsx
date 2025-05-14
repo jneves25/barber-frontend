@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/context/AuthContext';
 
 interface GoalsListProps {
 	goals: Goal[];
@@ -21,6 +22,9 @@ const GoalsList: React.FC<GoalsListProps> = ({
 	onEdit,
 	onDelete,
 }) => {
+	const { hasPermission } = useAuth();
+	const canManageGoals = hasPermission('manageGoals');
+
 	// Function to determine the progress color based on percentage
 	const getProgressColor = (percentage: number) => {
 		if (percentage >= 100) return 'bg-green-500';
@@ -105,24 +109,26 @@ const GoalsList: React.FC<GoalsListProps> = ({
 												)}
 											</div>
 										</div>
-										<div className="flex gap-2">
-											<Button
-												variant="outline"
-												size="icon"
-												onClick={() => onEdit(goal)}
-												className="h-8 w-8"
-											>
-												<Edit className="h-3.5 w-3.5" />
-											</Button>
-											<Button
-												variant="outline"
-												size="icon"
-												onClick={() => onDelete(goal)}
-												className="h-8 w-8"
-											>
-												<Trash2 className="h-3.5 w-3.5" />
-											</Button>
-										</div>
+										{canManageGoals && (
+											<div className="flex gap-2">
+												<Button
+													variant="outline"
+													size="icon"
+													onClick={() => onEdit(goal)}
+													className="h-8 w-8"
+												>
+													<Edit className="h-3.5 w-3.5" />
+												</Button>
+												<Button
+													variant="outline"
+													size="icon"
+													onClick={() => onDelete(goal)}
+													className="h-8 w-8"
+												>
+													<Trash2 className="h-3.5 w-3.5" />
+												</Button>
+											</div>
+										)}
 									</div>
 								</div>
 

@@ -13,12 +13,12 @@ export const DEFAULT_PERMISSIONS = {
 	viewAllServices: true,
 	manageServices: false,
 	viewServices: true,
-	viewAllProducts: false,
+	viewAllProducts: true,
 	manageProducts: false,
-	viewProducts: false,
-	viewAllBarbers: true,
+	viewProducts: true,
+	viewAllBarbers: false,
 	manageBarbers: false,
-	viewAllCommissions: true,
+	viewAllCommissions: false,
 	manageCommissions: false,
 	viewOwnCommissions: true,
 	viewAllGoals: false,
@@ -27,10 +27,12 @@ export const DEFAULT_PERMISSIONS = {
 	viewFullRevenue: false,
 	viewOwnRevenue: true,
 	manageSettings: false,
-	viewUsers: true,
+	viewUsers: false,
 	manageUsers: false,
 	viewSubscriptions: false,
 	manageSubscriptions: false,
+	viewFullStatistics: false,
+	viewOwnStatistics: true,
 };
 
 export const allPermissions = [
@@ -88,4 +90,8 @@ export const allPermissions = [
 	// Assinaturas
 	{ id: 'viewSubscriptions', name: 'Ver assinaturas', description: 'Acesso para visualizar planos e assinaturas' },
 	{ id: 'manageSubscriptions', name: 'Gerenciar assinaturas', description: 'Criar, editar e excluir planos de assinatura' },
+
+	// Estatísticas
+	{ id: 'viewFullStatistics', name: 'Ver todas as estatísticas', description: 'Permite visualizar estatísticas de todo o estabelecimento' },
+	{ id: 'viewOwnStatistics', name: 'Ver estatísticas próprias', description: 'Permite visualizar apenas estatísticas relacionadas ao próprio usuário' },
 ];

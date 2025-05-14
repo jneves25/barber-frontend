@@ -32,7 +32,8 @@ interface ServiceForm {
 const serviceService = new ServiceService()
 
 const AdminServices = () => {
-	const { companySelected } = useAuth()
+	const { companySelected, hasPermission } = useAuth()
+	const canManageServices = hasPermission('manageServices');
 	const [services, setServices] = useState<Service[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isDeleting, setIsDeleting] = useState<number | null>(null);
@@ -250,22 +251,24 @@ const AdminServices = () => {
 			<div className="space-y-4">
 				<div className="flex justify-between items-center">
 					<h1 className="text-2xl font-bold text-gray-800">Serviços</h1>
-					<Button
-						onClick={() => {
-							setSelectedService(null);
-							setNewService({
-								name: '',
-								description: '',
-								price: 0,
-								duration: 30,
-								companyId: companySelected.id
-							});
-							setIsAddDialogOpen(true);
-						}}
-						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-					>
-						<Plus className="mr-2 h-4 w-4" /> Adicionar Serviço
-					</Button>
+					{canManageServices && (
+						<Button
+							onClick={() => {
+								setSelectedService(null);
+								setNewService({
+									name: '',
+									description: '',
+									price: 0,
+									duration: 30,
+									companyId: companySelected.id
+								});
+								setIsAddDialogOpen(true);
+							}}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
+							<Plus className="mr-2 h-4 w-4" /> Adicionar Serviço
+						</Button>
+					)}
 				</div>
 
 				<Card className="border-0 shadow-sm">
@@ -286,7 +289,9 @@ const AdminServices = () => {
 											<TableHead>Nome</TableHead>
 											<TableHead>Preço</TableHead>
 											<TableHead>Duração</TableHead>
-											<TableHead className="text-right">Ações</TableHead>
+											{canManageServices && (
+												<TableHead className="text-right">Ações</TableHead>
+											)}
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -295,29 +300,31 @@ const AdminServices = () => {
 												<TableCell className="font-medium whitespace-nowrap">{service.name}</TableCell>
 												<TableCell>R$ {service.price.toFixed(2)}</TableCell>
 												<TableCell>{service.duration} min</TableCell>
-												<TableCell className="text-right">
-													<div className="flex justify-end space-x-2">
-														<Button size="sm" variant="ghost" onClick={() => openEditDialog(service)}>
-															<Edit className="h-4 w-4" />
-														</Button>
-														<Button
-															size="sm"
-															variant="ghost"
-															onClick={() => openDeleteDialog(service)}
-															disabled={isDeleting === service.id}
-														>
-															{isDeleting === service.id ? (
-																<Loader2 className="h-4 w-4 animate-spin" />
-															) : (
-																<Trash2 className="h-4 w-4 text-destructive" />
-															)}
-														</Button>
-													</div>
-												</TableCell>
+												{canManageServices && (
+													<TableCell className="text-right">
+														<div className="flex justify-end space-x-2">
+															<Button size="sm" variant="ghost" onClick={() => openEditDialog(service)}>
+																<Edit className="h-4 w-4" />
+															</Button>
+															<Button
+																size="sm"
+																variant="ghost"
+																onClick={() => openDeleteDialog(service)}
+																disabled={isDeleting === service.id}
+															>
+																{isDeleting === service.id ? (
+																	<Loader2 className="h-4 w-4 animate-spin" />
+																) : (
+																	<Trash2 className="h-4 w-4 text-destructive" />
+																)}
+															</Button>
+														</div>
+													</TableCell>
+												)}
 											</TableRow>
 										)) : (
 											<TableRow>
-												<TableCell colSpan={4} className="text-center py-4">
+												<TableCell colSpan={canManageServices ? 4 : 3} className="text-center py-4">
 													Nenhum serviço encontrado.
 												</TableCell>
 											</TableRow>
@@ -370,138 +377,25 @@ const AdminServices = () => {
 			</div>
 
 			{/* Add Service Dialog */}
-			<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Novo Serviço</DialogTitle>
-						<DialogDescription>
-							Adicione um novo serviço ao seu catálogo.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4 py-4">
-						<div className="grid gap-2">
-							<Label htmlFor="name">
-								Nome <span className="text-red-500">*</span>
-							</Label>
-							<Input
-								id="name"
-								value={newService.name}
-								onChange={(e) => {
-									setNewService({ ...newService, name: e.target.value });
-									if (errors.name) setErrors({ ...errors, name: undefined });
-								}}
-								className={errors.name ? "border-red-500" : ""}
-							/>
-							{errors.name && (
-								<p className="text-sm text-red-500">{errors.name}</p>
-							)}
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="description">Descrição</Label>
-							<Textarea
-								id="description"
-								rows={3}
-								value={newService.description}
-								onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-							/>
-						</div>
-						<div className="grid grid-cols-2 gap-4">
-							<div className="grid gap-2">
-								<Label htmlFor="price">
-									Preço (R$) <span className="text-red-500">*</span>
-								</Label>
-								<Input
-									id="price"
-									type="text"
-									inputMode="decimal"
-									value={newService.price.toLocaleString('pt-BR', {
-										minimumFractionDigits: 2,
-										maximumFractionDigits: 2
-									})}
-									onChange={(e) => {
-										handleCurrencyInputChange(e, (value) => {
-											setNewService({ ...newService, price: value });
-											if (errors.price) setErrors({ ...errors, price: undefined });
-										});
-									}}
-									className={errors.price ? "border-red-500" : ""}
-								/>
-								{errors.price && (
-									<p className="text-sm text-red-500">{errors.price}</p>
-								)}
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="duration">
-									Duração (min) <span className="text-red-500">*</span>
-								</Label>
-								<Input
-									id="duration"
-									type="number"
-									min="5"
-									step="5"
-									value={newService.duration}
-									onChange={(e) => {
-										setNewService({ ...newService, duration: parseInt(e.target.value) });
-										if (errors.duration) setErrors({ ...errors, duration: undefined });
-									}}
-									className={errors.duration ? "border-red-500" : ""}
-								/>
-								{errors.duration && (
-									<p className="text-sm text-red-500">{errors.duration}</p>
-								)}
-							</div>
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setIsAddDialogOpen(false);
-								setSelectedService(null);
-								setErrors({});
-							}}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							onClick={handleAddService}
-							disabled={isSubmitting}
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-						>
-							{isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Adicionando...
-								</>
-							) : (
-								<>Adicionar Serviço</>
-							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* Edit Service Dialog */}
-			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Editar Serviço</DialogTitle>
-						<DialogDescription>
-							Modifique as informações do serviço.
-						</DialogDescription>
-					</DialogHeader>
-					{selectedService && (
+			{canManageServices && (
+				<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Novo Serviço</DialogTitle>
+							<DialogDescription>
+								Adicione um novo serviço ao seu catálogo.
+							</DialogDescription>
+						</DialogHeader>
 						<div className="grid gap-4 py-4">
 							<div className="grid gap-2">
-								<Label htmlFor="edit-name">
+								<Label htmlFor="name">
 									Nome <span className="text-red-500">*</span>
 								</Label>
 								<Input
-									id="edit-name"
-									value={selectedService.name}
+									id="name"
+									value={newService.name}
 									onChange={(e) => {
-										setSelectedService({ ...selectedService, name: e.target.value });
+										setNewService({ ...newService, name: e.target.value });
 										if (errors.name) setErrors({ ...errors, name: undefined });
 									}}
 									className={errors.name ? "border-red-500" : ""}
@@ -511,30 +405,30 @@ const AdminServices = () => {
 								)}
 							</div>
 							<div className="grid gap-2">
-								<Label htmlFor="edit-description">Descrição</Label>
+								<Label htmlFor="description">Descrição</Label>
 								<Textarea
-									id="edit-description"
+									id="description"
 									rows={3}
-									value={selectedService.description}
-									onChange={(e) => setSelectedService({ ...selectedService, description: e.target.value })}
+									value={newService.description}
+									onChange={(e) => setNewService({ ...newService, description: e.target.value })}
 								/>
 							</div>
 							<div className="grid grid-cols-2 gap-4">
 								<div className="grid gap-2">
-									<Label htmlFor="edit-price">
+									<Label htmlFor="price">
 										Preço (R$) <span className="text-red-500">*</span>
 									</Label>
 									<Input
-										id="edit-price"
+										id="price"
 										type="text"
 										inputMode="decimal"
-										value={selectedService.price.toLocaleString('pt-BR', {
+										value={newService.price.toLocaleString('pt-BR', {
 											minimumFractionDigits: 2,
 											maximumFractionDigits: 2
 										})}
 										onChange={(e) => {
 											handleCurrencyInputChange(e, (value) => {
-												setSelectedService({ ...selectedService, price: value });
+												setNewService({ ...newService, price: value });
 												if (errors.price) setErrors({ ...errors, price: undefined });
 											});
 										}}
@@ -545,17 +439,17 @@ const AdminServices = () => {
 									)}
 								</div>
 								<div className="grid gap-2">
-									<Label htmlFor="edit-duration">
+									<Label htmlFor="duration">
 										Duração (min) <span className="text-red-500">*</span>
 									</Label>
 									<Input
-										id="edit-duration"
+										id="duration"
 										type="number"
 										min="5"
 										step="5"
-										value={selectedService.duration}
+										value={newService.duration}
 										onChange={(e) => {
-											setSelectedService({ ...selectedService, duration: parseInt(e.target.value) });
+											setNewService({ ...newService, duration: parseInt(e.target.value) });
 											if (errors.duration) setErrors({ ...errors, duration: undefined });
 										}}
 										className={errors.duration ? "border-red-500" : ""}
@@ -566,61 +460,180 @@ const AdminServices = () => {
 								</div>
 							</div>
 						</div>
-					)}
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setIsEditDialogOpen(false);
-								setSelectedService(null);
-							}}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							onClick={handleEditService}
-							disabled={isSubmitting}
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-						>
-							{isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Salvando...
-								</>
-							) : (
-								<>Salvar Alterações</>
-							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => {
+									setIsAddDialogOpen(false);
+									setSelectedService(null);
+									setErrors({});
+								}}
+								className="font-medium"
+							>
+								Cancelar
+							</Button>
+							<Button
+								onClick={handleAddService}
+								disabled={isSubmitting}
+								className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+							>
+								{isSubmitting ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Adicionando...
+									</>
+								) : (
+									<>Adicionar Serviço</>
+								)}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			)}
+
+			{/* Edit Service Dialog */}
+			{canManageServices && (
+				<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Editar Serviço</DialogTitle>
+							<DialogDescription>
+								Modifique as informações do serviço.
+							</DialogDescription>
+						</DialogHeader>
+						{selectedService && (
+							<div className="grid gap-4 py-4">
+								<div className="grid gap-2">
+									<Label htmlFor="edit-name">
+										Nome <span className="text-red-500">*</span>
+									</Label>
+									<Input
+										id="edit-name"
+										value={selectedService.name}
+										onChange={(e) => {
+											setSelectedService({ ...selectedService, name: e.target.value });
+											if (errors.name) setErrors({ ...errors, name: undefined });
+										}}
+										className={errors.name ? "border-red-500" : ""}
+									/>
+									{errors.name && (
+										<p className="text-sm text-red-500">{errors.name}</p>
+									)}
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="edit-description">Descrição</Label>
+									<Textarea
+										id="edit-description"
+										rows={3}
+										value={selectedService.description}
+										onChange={(e) => setSelectedService({ ...selectedService, description: e.target.value })}
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<div className="grid gap-2">
+										<Label htmlFor="edit-price">
+											Preço (R$) <span className="text-red-500">*</span>
+										</Label>
+										<Input
+											id="edit-price"
+											type="text"
+											inputMode="decimal"
+											value={selectedService.price.toLocaleString('pt-BR', {
+												minimumFractionDigits: 2,
+												maximumFractionDigits: 2
+											})}
+											onChange={(e) => {
+												handleCurrencyInputChange(e, (value) => {
+													setSelectedService({ ...selectedService, price: value });
+													if (errors.price) setErrors({ ...errors, price: undefined });
+												});
+											}}
+											className={errors.price ? "border-red-500" : ""}
+										/>
+										{errors.price && (
+											<p className="text-sm text-red-500">{errors.price}</p>
+										)}
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="edit-duration">
+											Duração (min) <span className="text-red-500">*</span>
+										</Label>
+										<Input
+											id="edit-duration"
+											type="number"
+											min="5"
+											step="5"
+											value={selectedService.duration}
+											onChange={(e) => {
+												setSelectedService({ ...selectedService, duration: parseInt(e.target.value) });
+												if (errors.duration) setErrors({ ...errors, duration: undefined });
+											}}
+											className={errors.duration ? "border-red-500" : ""}
+										/>
+										{errors.duration && (
+											<p className="text-sm text-red-500">{errors.duration}</p>
+										)}
+									</div>
+								</div>
+							</div>
+						)}
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => {
+									setIsEditDialogOpen(false);
+									setSelectedService(null);
+								}}
+								className="font-medium"
+							>
+								Cancelar
+							</Button>
+							<Button
+								onClick={handleEditService}
+								disabled={isSubmitting}
+								className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+							>
+								{isSubmitting ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Salvando...
+									</>
+								) : (
+									<>Salvar Alterações</>
+								)}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			)}
 
 			{/* Delete Service Dialog */}
-			<Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Confirmar Exclusão</DialogTitle>
-						<DialogDescription>
-							Tem certeza que deseja excluir o serviço "{selectedService?.name}"?
-							Esta ação não pode ser desfeita.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null} className="font-medium">
-							Cancelar
-						</Button>
-						<Button variant="destructive" onClick={() => selectedService?.id && handleDelete(selectedService.id)} disabled={isDeleting !== null} className="font-medium">
-							{isDeleting !== null ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Excluindo...
-								</>
-							) : 'Excluir'}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			{canManageServices && (
+				<Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Confirmar Exclusão</DialogTitle>
+							<DialogDescription>
+								Tem certeza que deseja excluir o serviço "{selectedService?.name}"?
+								Esta ação não pode ser desfeita.
+							</DialogDescription>
+						</DialogHeader>
+						<DialogFooter>
+							<Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting !== null} className="font-medium">
+								Cancelar
+							</Button>
+							<Button variant="destructive" onClick={() => selectedService?.id && handleDelete(selectedService.id)} disabled={isDeleting !== null} className="font-medium">
+								{isDeleting !== null ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Excluindo...
+									</>
+								) : 'Excluir'}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			)}
 
 		</AdminLayout>
 	);

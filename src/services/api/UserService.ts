@@ -86,6 +86,11 @@ export interface UserPermissions {
 	manageUsers: boolean;
 	viewSubscriptions: boolean;
 	manageSubscriptions: boolean;
+	viewOwnServices: boolean;
+	viewOwnProducts: boolean;
+	manageRevenue: boolean;
+	viewFullStatistics: boolean;
+	viewOwnStatistics: boolean;
 }
 
 export class UserService extends BaseService {

@@ -33,7 +33,8 @@ import { useAuth } from '@/context/AuthContext';
 import ServiceService, { Service } from '@/services/api/ServiceService';
 
 const AdminCommissions = () => {
-	const { companySelected } = useAuth();
+	const { companySelected, hasPermission } = useAuth();
+	const canManageCommissions = hasPermission('manageCommissions');
 	const [commissions, setCommissions] = useState<CommissionConfig[]>([]);
 	const [serviceCommissions, setServiceCommissions] = useState<CommissionRule[]>([]);
 	const [selectedBarber, setSelectedBarber] = useState<number | null>(null);
@@ -272,7 +273,7 @@ const AdminCommissions = () => {
 					</div>
 				</div>
 
-				<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
 					<Card className="shadow-md">
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">Total de Profissionais</CardTitle>
@@ -315,6 +316,21 @@ const AdminCommissions = () => {
 							</p>
 						</CardContent>
 					</Card>
+
+					<Card className="shadow-md">
+						<CardHeader className="flex flex-row items-center justify-between pb-2">
+							<CardTitle className="text-sm font-medium">Taxa Média</CardTitle>
+							<Percent className="h-4 w-4 text-muted-foreground" />
+						</CardHeader>
+						<CardContent>
+							<div className="text-2xl font-bold">
+								{totalStats.averageCommissionRate.toFixed(1)}%
+							</div>
+							<p className="text-xs text-muted-foreground">
+								Taxa média de comissão
+							</p>
+						</CardContent>
+					</Card>
 				</div>
 
 				<Card className="bg-white shadow-sm">
@@ -333,13 +349,15 @@ const AdminCommissions = () => {
 											<TableHead>Profissional</TableHead>
 											<TableHead>Tipo de Comissão</TableHead>
 											<TableHead>Valor/Regras</TableHead>
-											<TableHead className="text-right">Ações</TableHead>
+											{canManageCommissions && (
+												<TableHead className="text-right">Ações</TableHead>
+											)}
 										</TableRow>
 									</TableHeader>
 									<TableBody>
 										{commissions.length === 0 ? (
 											<TableRow>
-												<TableCell colSpan={4} className="text-center py-8 text-gray-500">
+												<TableCell colSpan={canManageCommissions ? 4 : 3} className="text-center py-8 text-gray-500">
 													<div className="flex flex-col items-center gap-2">
 														<Percent className="h-8 w-8 text-gray-400" />
 														<p>Nenhum membro com comissão configurada</p>
@@ -372,59 +390,61 @@ const AdminCommissions = () => {
 															}
 														</div>
 													</TableCell>
-													<TableCell className="text-right">
-														<div className="flex justify-end space-x-2">
-															{commission.commissionType === CommissionTypeEnum.SERVICE && (
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	className="h-8 w-8 p-0"
-																	title="Configurar Comissões por Serviço"
-																	onClick={() => handleOpenServiceForm(commission.id)}
-																>
-																	<Eye className="h-4 w-4 text-blue-500" />
-																</Button>
-															)}
-															<DropdownMenu>
-																<DropdownMenuTrigger asChild>
+													{canManageCommissions && (
+														<TableCell className="text-right">
+															<div className="flex justify-end space-x-2">
+																{commission.commissionType === CommissionTypeEnum.SERVICE && (
 																	<Button
 																		variant="ghost"
 																		size="sm"
 																		className="h-8 w-8 p-0"
+																		title="Configurar Comissões por Serviço"
+																		onClick={() => handleOpenServiceForm(commission.id)}
 																	>
-																		<Settings className="h-4 w-4 text-gray-500" />
+																		<Eye className="h-4 w-4 text-blue-500" />
 																	</Button>
-																</DropdownMenuTrigger>
-																<DropdownMenuContent align="end" className="w-56">
-																	<DropdownMenuGroup>
-																		{commission.commissionType === CommissionTypeEnum.SERVICE ? (
-																			<DropdownMenuItem
-																				onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
-																				className="cursor-pointer"
-																			>
-																				Alterar para comissão geral
-																			</DropdownMenuItem>
-																		) : (
-																			<DropdownMenuItem
-																				onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
-																				className="cursor-pointer"
-																			>
-																				Alterar para comissão por serviço
-																			</DropdownMenuItem>
-																		)}
-																		{commission.commissionType === CommissionTypeEnum.GENERAL && (
-																			<DropdownMenuItem
-																				onClick={() => handleOpenSettings(commission.id)}
-																				className="cursor-pointer"
-																			>
-																				Configurar comissão
-																			</DropdownMenuItem>
-																		)}
-																	</DropdownMenuGroup>
-																</DropdownMenuContent>
-															</DropdownMenu>
-														</div>
-													</TableCell>
+																)}
+																<DropdownMenu>
+																	<DropdownMenuTrigger asChild>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			className="h-8 w-8 p-0"
+																		>
+																			<Settings className="h-4 w-4 text-gray-500" />
+																		</Button>
+																	</DropdownMenuTrigger>
+																	<DropdownMenuContent align="end" className="w-56">
+																		<DropdownMenuGroup>
+																			{commission.commissionType === CommissionTypeEnum.SERVICE ? (
+																				<DropdownMenuItem
+																					onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.GENERAL)}
+																					className="cursor-pointer"
+																				>
+																					Alterar para comissão geral
+																				</DropdownMenuItem>
+																			) : (
+																				<DropdownMenuItem
+																					onClick={() => handleCommissionTypeChange(commission.id, CommissionTypeEnum.SERVICE)}
+																					className="cursor-pointer"
+																				>
+																					Alterar para comissão por serviço
+																				</DropdownMenuItem>
+																			)}
+																			{commission.commissionType === CommissionTypeEnum.GENERAL && (
+																				<DropdownMenuItem
+																					onClick={() => handleOpenSettings(commission.id)}
+																					className="cursor-pointer"
+																				>
+																					Configurar comissão
+																				</DropdownMenuItem>
+																			)}
+																		</DropdownMenuGroup>
+																	</DropdownMenuContent>
+																</DropdownMenu>
+															</div>
+														</TableCell>
+													)}
 												</TableRow>
 											))
 										)}

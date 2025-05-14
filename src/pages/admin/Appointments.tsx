@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarIcon, Clock, Edit, Trash2, Check, DollarSign, Loader2, Plus, ShoppingBag } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Edit, Trash2, Check, DollarSign, Loader2, Plus, ShoppingBag, Users, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
@@ -16,11 +16,13 @@ import AppointmentService, { Appointment, AppointmentStatusEnum } from '@/servic
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 const AdminAppointments = () => {
 	// Estado para data selecionada
 	const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-	const { user, companySelected } = useAuth();
+	const { user, companySelected, hasPermission } = useAuth();
+	const navigate = useNavigate();
 
 	// Estado para o modal de edição de comanda
 	const [orderModalOpen, setOrderModalOpen] = useState(false);
@@ -38,18 +40,54 @@ const AdminAppointments = () => {
 	const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 	const [selectedAppointmentToCancel, setSelectedAppointmentToCancel] = useState<Appointment | null>(null);
 
+	// Estado para filtro de visualização (todos/apenas meus)
+	const [viewMode, setViewMode] = useState<'all' | 'own'>('all');
+
+	// Verifica se o usuário tem permissão para visualizar todos os agendamentos
+	const canViewAllAppointments = hasPermission('viewAllAppointments');
+	// Verifica se o usuário tem permissão para visualizar seus próprios agendamentos
+	const canViewOwnAppointments = hasPermission('viewOwnAppointments');
+	// Verifica se o usuário tem permissão para gerenciar agendamentos
+	const canManageAppointments = hasPermission('manageAppointments');
+	// O usuário tem acesso à tela se tiver pelo menos uma das permissões
+	const hasAccessToAppointments = canViewAllAppointments || canViewOwnAppointments;
+
+	// Se o usuário não tem permissão para ver todos, define o modo como 'own' por padrão
+	useEffect(() => {
+		if (!canViewAllAppointments) {
+			setViewMode('own');
+		}
+	}, [canViewAllAppointments]);
+
+	// Redirecionamento se não tiver nenhuma permissão
+	useEffect(() => {
+		if (!hasAccessToAppointments) {
+			toast.error('Você não tem permissão para acessar a agenda.');
+			navigate('/admin');
+		}
+	}, [hasAccessToAppointments]);
+
 	// Fetch appointments on component mount or when selected date changes
 	useEffect(() => {
-		fetchAppointments();
-	}, [selectedDate]);
+		if (hasAccessToAppointments) {
+			fetchAppointments();
+		}
+	}, [selectedDate, hasAccessToAppointments]);
 
 	const fetchAppointments = async () => {
-		if (!selectedDate) return;
+		if (!selectedDate || !hasAccessToAppointments) return;
 
 		setIsLoading(true);
 		try {
 			const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-			const response = await AppointmentService.getAll(companySelected.id, formattedDate);
+
+			// Usar rota de agendamentos por barbeiro se o usuário não tiver permissão para ver todos
+			let response;
+			if (canViewAllAppointments) {
+				response = await AppointmentService.getAll(companySelected.id, formattedDate);
+			} else {
+				response = await AppointmentService.getByBarber(companySelected.id, formattedDate);
+			}
 
 			if (response.success && response.data) {
 				setAppointments(response.data);
@@ -64,13 +102,21 @@ const AdminAppointments = () => {
 		}
 	};
 
-	// Filtrar agendamentos pelo barbeiro atual se for um barbeiro
-	const userAppointments = user?.role === 'USER'
-		? appointments.filter(app => app.userId === Number(user.id))
-		: appointments;
+	// Filtrar agendamentos com base nas permissões e modo de visualização
+	const filteredAppointments = (() => {
+		// Se não tem permissão para visualizar todos, já estamos recebendo apenas os próprios agendamentos da API
+		if (!canViewAllAppointments) {
+			return appointments;
+		}
 
-	// Substitua por:
-	const filteredAppointments = userAppointments;
+		// Se tem permissão para visualizar todos E está no modo 'all', mostra todos
+		if (viewMode === 'all') {
+			return appointments;
+		}
+
+		// Caso contrário (viewMode === 'own'), filtra apenas os agendamentos do usuário logado
+		return appointments.filter(app => app.userId === Number(user?.id));
+	})();
 
 	// Handler para abrir o modal de edição de comanda
 	const handleOpenOrderModal = (appointment: Appointment) => {
@@ -166,15 +212,27 @@ const AdminAppointments = () => {
 	const getDayStats = () => {
 		const filterDate = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
 
-		const todayApps = user?.role === 'USER'
-			? appointments.filter(app => {
-				const appDate = app.scheduledTime ? new Date(app.scheduledTime).toISOString().split('T')[0] : '';
-				return appDate === filterDate && app.userId === user.id;
-			})
-			: appointments.filter(app => {
+		// Filtrar por data, considerando as permissões do usuário
+		const todayApps = (() => {
+			// Primeiro filtrar pela data selecionada
+			const dateFilteredApps = appointments.filter(app => {
 				const appDate = app.scheduledTime ? new Date(app.scheduledTime).toISOString().split('T')[0] : '';
 				return appDate === filterDate;
 			});
+
+			// Se não tem permissão para ver todos, já estamos recebendo apenas os próprios agendamentos
+			if (!canViewAllAppointments) {
+				return dateFilteredApps;
+			}
+
+			// Se tem permissão para ver todos e está no modo 'all', retorna todos
+			if (viewMode === 'all') {
+				return dateFilteredApps;
+			}
+
+			// Se está no modo 'own', filtra para mostrar apenas os agendamentos do usuário
+			return dateFilteredApps.filter(app => app.userId === Number(user?.id));
+		})();
 
 		const pendingApps = todayApps.filter(app => app.status === AppointmentStatusEnum.PENDING).length;
 		const completedApps = todayApps.filter(app => app.status === AppointmentStatusEnum.COMPLETED).length;
@@ -195,7 +253,6 @@ const AdminAppointments = () => {
 
 	const countTotalProductItems = (products: any[]) => {
 		if (!products || products.length === 0) return 0;
-
 		return products.reduce((total, product) => total + product.quantity, 0);
 	};
 
@@ -206,9 +263,37 @@ const AdminAppointments = () => {
 			<div className="space-y-4">
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<h1 className="text-2xl font-bold">
-						{user?.role === 'USER' ? 'Minha Agenda' : 'Agenda'}
+						{canViewAllAppointments && viewMode === 'all' ? 'Agenda' : 'Minha Agenda'}
 					</h1>
 					<div className="flex flex-col sm:flex-row gap-2">
+						{/* Botões de filtro - Apenas visíveis se o usuário pode ver todos */}
+						{canViewAllAppointments && (
+							<div className="flex bg-slate-100 rounded-md p-0.5">
+								<Button
+									variant={viewMode === 'all' ? 'default' : 'ghost'}
+									className={cn(
+										"flex-1 rounded-md text-xs h-8 px-3",
+										viewMode === 'all' ? "bg-[#1776D2] text-white" : "text-slate-500"
+									)}
+									onClick={() => setViewMode('all')}
+								>
+									<Users className="h-3.5 w-3.5 mr-2" />
+									Todos
+								</Button>
+								<Button
+									variant={viewMode === 'own' ? 'default' : 'ghost'}
+									className={cn(
+										"flex-1 rounded-md text-xs h-8 px-3",
+										viewMode === 'own' ? "bg-[#1776D2] text-white" : "text-slate-500"
+									)}
+									onClick={() => setViewMode('own')}
+								>
+									<UserRound className="h-3.5 w-3.5 mr-2" />
+									Meus
+								</Button>
+							</div>
+						)}
+
 						<Popover>
 							<PopoverTrigger asChild>
 								<Button
@@ -233,28 +318,31 @@ const AdminAppointments = () => {
 								/>
 							</PopoverContent>
 						</Popover>
-						<Button
-							variant="default"
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-							onClick={() => setCreateModalOpen(true)}
-						>
-							<Plus className="h-4 w-4 mr-2" />
-							Novo Agendamento
-						</Button>
+						{/* Botão de novo agendamento - Apenas visível se o usuário pode gerenciar agendamentos */}
+						{canManageAppointments && (
+							<Button
+								variant="default"
+								className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+								onClick={() => setCreateModalOpen(true)}
+							>
+								<Plus className="h-4 w-4 mr-2" />
+								Novo Agendamento
+							</Button>
+						)}
 					</div>
 				</div>
 
 				<Card>
 					<CardHeader>
 						<CardTitle>
-							{user?.role === 'USER' ? 'Meus Agendamentos' : 'Agendamentos'}
+							{canViewAllAppointments && viewMode === 'all' ? 'Agendamentos' : 'Meus Agendamentos'}
 						</CardTitle>
 						<CardDescription>
 							{selectedDate
 								? `Visualizando agendamentos para ${format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}`
-								: user?.role === 'USER'
-									? "Visualize e gerencie seus agendamentos."
-									: "Visualize e gerencie todos os agendamentos da barbearia."}
+								: canViewAllAppointments && viewMode === 'all'
+									? "Visualize e gerencie todos os agendamentos da barbearia."
+									: "Visualize e gerencie seus agendamentos."}
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -272,13 +360,16 @@ const AdminAppointments = () => {
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serviços</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produtos</th>
-													{user?.role !== 'USER' && (
+													{/* Só mostra coluna de barbeiro quando estiver visualizando todos */}
+													{canViewAllAppointments && viewMode === 'all' && (
 														<th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barbeiro</th>
 													)}
 													<th className="hidden sm:table-cell px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Horário</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
 													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-													<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+													{canManageAppointments && (
+														<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+													)}
 												</tr>
 											</thead>
 											<tbody className="bg-white divide-y divide-gray-200">
@@ -334,7 +425,8 @@ const AdminAppointments = () => {
 																	<span className="text-sm text-gray-500">Nenhum produto</span>
 																)}
 															</td>
-															{user?.role !== 'USER' && (
+															{/* Só mostra a coluna de barbeiro quando está visualizando todos */}
+															{canViewAllAppointments && viewMode === 'all' && (
 																<td className="hidden md:table-cell px-3 py-3 whitespace-nowrap">
 																	<div className="text-sm text-gray-900">{appointment.user.name}</div>
 																</td>
@@ -368,89 +460,92 @@ const AdminAppointments = () => {
 																	)}
 																</div>
 															</td>
-															<td className="px-3 py-3 whitespace-nowrap">
-																<div className="flex space-x-2">
-																	{isPending && (
-																		<TooltipProvider>
-																			<Tooltip>
-																				<TooltipTrigger asChild>
-																					<button
-																						onClick={() => handleOpenOrderModal(appointment)}
-																						className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																					>
-																						<Edit className="h-4 w-4" />
-																					</button>
-																				</TooltipTrigger>
-																				<TooltipContent>
-																					<p>Editar comanda</p>
-																				</TooltipContent>
-																			</Tooltip>
-																		</TooltipProvider>
-																	)}
-
-																	{!isCanceled && !isCompleted && (
-																		<>
+															{/* Coluna de ações - Apenas visível se o usuário pode gerenciar agendamentos */}
+															{canManageAppointments && (
+																<td className="px-3 py-3 whitespace-nowrap">
+																	<div className="flex space-x-2">
+																		{isPending && (
 																			<TooltipProvider>
 																				<Tooltip>
 																					<TooltipTrigger asChild>
 																						<button
-																							onClick={() => handleCompleteService(appointment.id!)}
-																							className="p-1 text-green-500 hover:text-green-700 transition-colors"
+																							onClick={() => handleOpenOrderModal(appointment)}
+																							className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
 																						>
-																							<Check className="h-4 w-4" />
+																							<Edit className="h-4 w-4" />
 																						</button>
 																					</TooltipTrigger>
 																					<TooltipContent>
-																						<p>Finalizar serviço</p>
+																						<p>Editar comanda</p>
 																					</TooltipContent>
 																				</Tooltip>
 																			</TooltipProvider>
+																		)}
 
+																		{!isCanceled && !isCompleted && (
+																			<>
+																				<TooltipProvider>
+																					<Tooltip>
+																						<TooltipTrigger asChild>
+																							<button
+																								onClick={() => handleCompleteService(appointment.id!)}
+																								className="p-1 text-green-500 hover:text-green-700 transition-colors"
+																							>
+																								<Check className="h-4 w-4" />
+																							</button>
+																						</TooltipTrigger>
+																						<TooltipContent>
+																							<p>Finalizar serviço</p>
+																						</TooltipContent>
+																					</Tooltip>
+																				</TooltipProvider>
+
+																				<TooltipProvider>
+																					<Tooltip>
+																						<TooltipTrigger asChild>
+																							<button
+																								onClick={() => {
+																									if (appointment.status)
+																										handleOpenCancelDialog(appointment);
+																								}}
+																								className="p-1 text-red-500 hover:text-red-700 transition-colors"
+																								disabled={isDeleting === appointment.id}
+																							>
+																								{isDeleting === appointment.id ? (
+																									<Loader2 className="h-4 w-4 animate-spin" />
+																								) : (
+																									<Trash2 className="h-4 w-4" />
+																								)}
+																							</button>
+																						</TooltipTrigger>
+																						<TooltipContent>
+																							<p>Cancelar</p>
+																						</TooltipContent>
+																					</Tooltip>
+																				</TooltipProvider>
+																			</>
+																		)}
+
+																		{isCanceled && (
 																			<TooltipProvider>
 																				<Tooltip>
 																					<TooltipTrigger asChild>
 																						<button
-																							onClick={() => {
-																								if (appointment.status)
-																									handleOpenCancelDialog(appointment);
-																							}}
-																							className="p-1 text-red-500 hover:text-red-700 transition-colors"
-																							disabled={isDeleting === appointment.id}
+																							onClick={() => handleReactivateAppointment(appointment)}
+																							className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
 																						>
-																							{isDeleting === appointment.id ? (
-																								<Loader2 className="h-4 w-4 animate-spin" />
-																							) : (
-																								<Trash2 className="h-4 w-4" />
-																							)}
+																							<Clock className="h-4 w-4" />
 																						</button>
 																					</TooltipTrigger>
 																					<TooltipContent>
-																						<p>Cancelar</p>
+																						<p>Reativar</p>
 																					</TooltipContent>
 																				</Tooltip>
 																			</TooltipProvider>
-																		</>
-																	)}
-
-																	{isCanceled && (
-																		<TooltipProvider>
-																			<Tooltip>
-																				<TooltipTrigger asChild>
-																					<button
-																						onClick={() => handleReactivateAppointment(appointment)}
-																						className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																					>
-																						<Clock className="h-4 w-4" />
-																					</button>
-																				</TooltipTrigger>
-																				<TooltipContent>
-																					<p>Reativar</p>
-																				</TooltipContent>
-																			</Tooltip>
-																		</TooltipProvider>
-																	)}
-																</div>
-															</td>
+																		)}
+																	</div>
+																</td>
+															)}
 														</tr>
 													);
 												})}
@@ -476,7 +571,7 @@ const AdminAppointments = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">
-								{user?.role === 'USER' ? 'Meus Agendamentos Hoje' : 'Agendamentos Hoje'}
+								{canViewAllAppointments && viewMode === 'all' ? 'Agendamentos Hoje' : 'Meus Agendamentos Hoje'}
 							</CardTitle>
 							<CalendarIcon className="h-4 w-4 text-gray-500" />
 						</CardHeader>
@@ -518,7 +613,7 @@ const AdminAppointments = () => {
 					<Card>
 						<CardHeader className="flex flex-row items-center justify-between pb-2">
 							<CardTitle className="text-sm font-medium">
-								{user?.role === 'USER' ? 'Meu Total do Dia' : 'Total do Dia'}
+								{canViewAllAppointments && viewMode === 'all' ? 'Total do Dia' : 'Meu Total do Dia'}
 							</CardTitle>
 							<DollarSign className="h-4 w-4 text-gray-500" />
 						</CardHeader>
@@ -534,58 +629,64 @@ const AdminAppointments = () => {
 				</div>
 			</div>
 
-			{/* Modal para edição de comanda */}
-			<OrderEditModal
-				isOpen={orderModalOpen}
-				onClose={() => {
-					setOrderModalOpen(false);
-					setSelectedAppointment(null);
-				}}
-				appointment={selectedAppointment}
-				onSave={handleSaveOrder}
-			/>
+			{/* Modal para edição de comanda - Apenas renderizado se o usuário pode gerenciar agendamentos */}
+			{canManageAppointments && (
+				<OrderEditModal
+					isOpen={orderModalOpen}
+					onClose={() => {
+						setOrderModalOpen(false);
+						setSelectedAppointment(null);
+					}}
+					appointment={selectedAppointment}
+					onSave={handleSaveOrder}
+				/>
+			)}
 
-			{/* Modal para criação de agendamento */}
-			<AppointmentCreateModal
-				isOpen={createModalOpen}
-				onClose={() => setCreateModalOpen(false)}
-				onSuccess={fetchAppointments}
-				initialDate={selectedDate}
-			/>
+			{/* Modal para criação de agendamento - Apenas renderizado se o usuário pode gerenciar agendamentos */}
+			{canManageAppointments && (
+				<AppointmentCreateModal
+					isOpen={createModalOpen}
+					onClose={() => setCreateModalOpen(false)}
+					onSuccess={fetchAppointments}
+					initialDate={selectedDate}
+				/>
+			)}
 
-			{/* Cancel Appointment Dialog */}
-			<Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Confirmar Cancelamento</DialogTitle>
-						<DialogDescription>
-							Tem certeza que deseja cancelar o agendamento para "{selectedAppointmentToCancel?.client.name}"?
-							Esta ação não pode ser desfeita.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setIsCancelDialogOpen(false)}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={handleCancelAppointment}
-							className="font-medium"
-						>
-							{isDeleting !== null ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Cancelando...
-								</>
-							) : 'Cancelar Agendamento'}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			{/* Cancel Appointment Dialog - Apenas renderizado se o usuário pode gerenciar agendamentos */}
+			{canManageAppointments && (
+				<Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Confirmar Cancelamento</DialogTitle>
+							<DialogDescription>
+								Tem certeza que deseja cancelar o agendamento para "{selectedAppointmentToCancel?.client.name}"?
+								Esta ação não pode ser desfeita.
+							</DialogDescription>
+						</DialogHeader>
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => setIsCancelDialogOpen(false)}
+								className="font-medium"
+							>
+								Cancelar
+							</Button>
+							<Button
+								variant="destructive"
+								onClick={handleCancelAppointment}
+								className="font-medium"
+							>
+								{isDeleting !== null ? (
+									<>
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										Cancelando...
+									</>
+								) : 'Cancelar Agendamento'}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			)}
 
 		</AdminLayout>
 	);

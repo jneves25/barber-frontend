@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { applyCurrencyMask, currencyToNumber } from '@/utils/currency';
+import { currencyToNumber, handleCurrencyInputChange } from '@/utils/currency';
 
 interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
 	value: number;
@@ -25,34 +25,28 @@ export function CurrencyInput({
 }: CurrencyInputProps) {
 	// Format the initial value
 	const [displayValue, setDisplayValue] = useState(() => {
-		// Convert value to cents (integer)
-		const cents = Math.round(value * 100);
-		return applyCurrencyMask(cents.toString());
+		return value.toLocaleString('pt-BR', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		});
 	});
 
 	// Update display value when the actual value changes externally
 	useEffect(() => {
-		// Convert value to cents (integer)
-		const cents = Math.round(value * 100);
-		setDisplayValue(applyCurrencyMask(cents.toString()));
+		setDisplayValue(value.toLocaleString('pt-BR', {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		}));
 	}, [value]);
 
 	// Handle input change
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const inputValue = e.target.value;
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		handleCurrencyInputChange(e, (value) => {
+			onChange(value);
+		});
 
-		// Remove non-numeric characters
-		const numericValue = inputValue.replace(/\D/g, '');
-
-		// Apply the currency mask
-		const maskedValue = applyCurrencyMask(numericValue);
-
-		// Update the display state
-		setDisplayValue(maskedValue);
-
-		// Convert to number and call the onChange prop
-		const numericAmount = currencyToNumber(maskedValue);
-		onChange(numericAmount);
+		// Atualiza o valor mostrado
+		setDisplayValue(e.target.value);
 	};
 
 	return (
@@ -66,7 +60,7 @@ export function CurrencyInput({
 				type="text"
 				inputMode="numeric"
 				value={displayValue}
-				onChange={handleChange}
+				onChange={handleInputChange}
 				className={`${prefixSymbol ? 'pl-8' : ''} ${error ? 'border-red-500' : ''} ${className}`}
 				disabled={disabled}
 				{...props}

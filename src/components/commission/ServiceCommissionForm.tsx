@@ -21,7 +21,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Service } from '@/services/api/ServiceService';
 import { CommissionModeEnum, CommissionRuleTypeEnum } from '@/services/api/CommissionService';
-import { handleCurrencyInputChange, applyCurrencyMask, currencyToNumber } from '@/utils/currency';
+import { handleCurrencyInputChange, currencyToNumber } from '@/utils/currency';
 
 interface CommissionRule {
 	id: number;
@@ -231,7 +231,10 @@ const ServiceCommissionForm = ({
 											) : (
 												<Input
 													type="text"
-													value={applyCurrencyMask((editValues[service.id] ?? 0).toString())}
+													value={(editValues[service.id] ?? 0).toLocaleString('pt-BR', {
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2
+													})}
 													onChange={(e) => handleCurrencyChange(service.id, e)}
 													className={`w-24 ${errors[service.id] ? 'border-red-500' : ''}`}
 												/>

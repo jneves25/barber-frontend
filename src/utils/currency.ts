@@ -12,48 +12,28 @@ export const formatCurrency = (value: number): string => {
 };
 
 /**
- * Apply a currency mask to an input value
- * @param value - Value to mask
- * @returns Masked value
- */
-export const applyCurrencyMask = (value: string): string => {
-	// Remove all non-numeric characters
-	let numericValue = value.replace(/\D/g, '');
-
-	// Add leading zeros if needed to ensure proper decimal placement
-	if (numericValue.length === 0) {
-		return '0,00';
-	}
-
-	// Convert to a string and pad with leading zeros if needed
-	while (numericValue.length < 3) {
-		numericValue = '0' + numericValue;
-	}
-
-	// Extract the integer and decimal parts
-	const integerPart = numericValue.slice(0, -2);
-	const decimalPart = numericValue.slice(-2);
-
-	// Convert to number for proper formatting
-	const intValue = parseInt(integerPart || '0', 10);
-
-	// Format with the Brazilian locale (thousands separator)
-	const formattedInteger = intValue.toLocaleString('pt-BR');
-
-	// Combine with the decimal part
-	return `${formattedInteger},${decimalPart}`;
-};
-
-/**
  * Convert a masked currency value to a number
  * @param maskedValue - Masked currency value
  * @returns Numeric value
  */
 export const currencyToNumber = (maskedValue: string): number => {
-	// Remove thousand separators (.) and convert decimal separator (,) to dot (.)
+	// Se o valor estiver vazio, retorna 0
+	if (!maskedValue || maskedValue === '') {
+		return 0;
+	}
+
+	// Remove separadores de milhar (.) e converte vírgula para ponto decimal
 	const cleaned = maskedValue.replace(/\./g, '').replace(',', '.');
-	// Parse the resulting string to a float
-	return parseFloat(cleaned) || 0;
+
+	// Converter para número
+	const num = parseFloat(cleaned);
+
+	// Se for NaN, retorna 0
+	if (isNaN(num)) {
+		return 0;
+	}
+
+	return num;
 };
 
 /**
@@ -65,18 +45,24 @@ export const handleCurrencyInputChange = (
 	e: React.ChangeEvent<HTMLInputElement>,
 	setter: (value: number) => void
 ): void => {
-	// Get the raw input value
-	const inputValue = e.target.value;
+	// Obtém o valor do input
+	const value = e.target.value;
 
-	// Remove formatting and non-numeric characters
-	const numericValue = inputValue.replace(/\D/g, '');
+	// Remove todos os caracteres não numéricos
+	const numericValue = value.replace(/\D/g, '');
 
-	// Convert to currency format
-	const formattedValue = applyCurrencyMask(numericValue);
+	// Converte para um valor numérico (em centavos)
+	const cents = parseInt(numericValue || '0', 10);
 
-	// Update the input value with the masked format
-	e.target.value = formattedValue;
+	// Converte centavos para um valor decimal (ex: 1234 -> 12.34)
+	const floatValue = cents / 100;
 
-	// Convert back to number and update state
-	setter(currencyToNumber(formattedValue));
+	// Atualiza o input com o valor formatado
+	e.target.value = floatValue.toLocaleString('pt-BR', {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	});
+
+	// Atualiza o estado com o valor numérico
+	setter(floatValue);
 }; 

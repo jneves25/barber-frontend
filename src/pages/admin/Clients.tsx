@@ -20,7 +20,8 @@ import { useAuth } from '@/context/AuthContext';
 import { handlePhoneInputChange, applyPhoneMask } from '@/utils/phone';
 
 const AdminClients = () => {
-	const { companySelected } = useAuth();
+	const { companySelected, hasPermission } = useAuth();
+	const canManageClients = hasPermission('manageClients');
 	const [clients, setClients] = useState<Client[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isLoading, setIsLoading] = useState(true);
@@ -203,15 +204,17 @@ const AdminClients = () => {
 			<div className="space-y-4">
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 					<h1 className="text-2xl font-bold">Clientes</h1>
-					<Button
-						onClick={() => {
-							setSelectedClient(null);
-							setIsAddDialogOpen(true);
-						}}
-						className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-					>
-						<Plus className="mr-2 h-4 w-4" /> Adicionar Cliente
-					</Button>
+					{canManageClients && (
+						<Button
+							onClick={() => {
+								setSelectedClient(null);
+								setIsAddDialogOpen(true);
+							}}
+							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+						>
+							<Plus className="mr-2 h-4 w-4" /> Adicionar Cliente
+						</Button>
+					)}
 				</div>
 
 				<form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
@@ -249,7 +252,7 @@ const AdminClients = () => {
 												<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
 												<th className="hidden sm:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefone</th>
 												<th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-												<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+												<th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contato</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
@@ -267,13 +270,15 @@ const AdminClients = () => {
 														</td>
 														<td className="px-3 py-3 whitespace-nowrap">
 															<div className="flex space-x-2">
-																<button
-																	className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
-																	title="Editar"
-																	onClick={() => openEditDialog(client)}
-																>
-																	<Edit className="h-4 w-4" />
-																</button>
+																{canManageClients && (
+																	<button
+																		className="p-1 text-blue-500 hover:text-blue-700 transition-colors"
+																		title="Editar"
+																		onClick={() => openEditDialog(client)}
+																	>
+																		<Edit className="h-4 w-4" />
+																	</button>
+																)}
 																<a
 																	href={`https://wa.me/${client.phone.replace(/\D/g, '')}`}
 																	target="_blank"
@@ -350,148 +355,152 @@ const AdminClients = () => {
 			</div>
 
 			{/* Add Client Dialog */}
-			<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-				<DialogContent className="sm:max-w-[425px]">
-					<DialogHeader>
-						<DialogTitle>Adicionar Novo Cliente</DialogTitle>
-						<DialogDescription>
-							Preencha os detalhes do cliente abaixo.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="grid gap-4 py-4">
-						<div className="grid gap-2">
-							<Label htmlFor="name">
-								Nome <span className="text-red-500">*</span>
-							</Label>
-							<Input
-								id="name"
-								value={newClient.name}
-								onChange={(e) => {
-									setNewClient({ ...newClient, name: e.target.value });
-									if (errors.name) setErrors({ ...errors, name: undefined });
-								}}
-								className={errors.name ? "border-red-500" : ""}
-							/>
-							{errors.name && (
-								<p className="text-sm text-red-500">{errors.name}</p>
-							)}
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="email">
-								Email <span className="text-red-500">*</span>
-							</Label>
-							<Input
-								id="email"
-								type="email"
-								value={newClient.email}
-								onChange={(e) => {
-									setNewClient({ ...newClient, email: e.target.value });
-									if (errors.email) setErrors({ ...errors, email: undefined });
-								}}
-								className={errors.email ? "border-red-500" : ""}
-							/>
-							{errors.email && (
-								<p className="text-sm text-red-500">{errors.email}</p>
-							)}
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="phone">
-								Telefone <span className="text-red-500">*</span>
-							</Label>
-							<Input
-								id="phone"
-								value={applyPhoneMask(newClient.phone)}
-								onChange={(e) => {
-									handlePhoneInputChange(e, (value) => setNewClient({ ...newClient, phone: value }));
-									if (errors.phone) setErrors({ ...errors, phone: undefined });
-								}}
-								placeholder="(00) 00000-0000"
-								maxLength={15}
-								className={errors.phone ? "border-red-500" : ""}
-							/>
-							{errors.phone && (
-								<p className="text-sm text-red-500">{errors.phone}</p>
-							)}
-						</div>
-					</div>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								closeDialog()
-							}}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							onClick={handleAddClient}
-							disabled={isSubmitting}
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-						>
-							{isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Adicionando...
-								</>
-							) : 'Adicionar Cliente'}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			{canManageClients && (
+				<>
+					<Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+						<DialogContent className="sm:max-w-[425px]">
+							<DialogHeader>
+								<DialogTitle>Adicionar Novo Cliente</DialogTitle>
+								<DialogDescription>
+									Preencha os detalhes do cliente abaixo.
+								</DialogDescription>
+							</DialogHeader>
+							<div className="grid gap-4 py-4">
+								<div className="grid gap-2">
+									<Label htmlFor="name">
+										Nome <span className="text-red-500">*</span>
+									</Label>
+									<Input
+										id="name"
+										value={newClient.name}
+										onChange={(e) => {
+											setNewClient({ ...newClient, name: e.target.value });
+											if (errors.name) setErrors({ ...errors, name: undefined });
+										}}
+										className={errors.name ? "border-red-500" : ""}
+									/>
+									{errors.name && (
+										<p className="text-sm text-red-500">{errors.name}</p>
+									)}
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="email">
+										Email <span className="text-red-500">*</span>
+									</Label>
+									<Input
+										id="email"
+										type="email"
+										value={newClient.email}
+										onChange={(e) => {
+											setNewClient({ ...newClient, email: e.target.value });
+											if (errors.email) setErrors({ ...errors, email: undefined });
+										}}
+										className={errors.email ? "border-red-500" : ""}
+									/>
+									{errors.email && (
+										<p className="text-sm text-red-500">{errors.email}</p>
+									)}
+								</div>
+								<div className="grid gap-2">
+									<Label htmlFor="phone">
+										Telefone <span className="text-red-500">*</span>
+									</Label>
+									<Input
+										id="phone"
+										value={applyPhoneMask(newClient.phone)}
+										onChange={(e) => {
+											handlePhoneInputChange(e, (value) => setNewClient({ ...newClient, phone: value }));
+											if (errors.phone) setErrors({ ...errors, phone: undefined });
+										}}
+										placeholder="(00) 00000-0000"
+										maxLength={15}
+										className={errors.phone ? "border-red-500" : ""}
+									/>
+									{errors.phone && (
+										<p className="text-sm text-red-500">{errors.phone}</p>
+									)}
+								</div>
+							</div>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => {
+										closeDialog()
+									}}
+									className="font-medium"
+								>
+									Cancelar
+								</Button>
+								<Button
+									onClick={handleAddClient}
+									disabled={isSubmitting}
+									className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+								>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Adicionando...
+										</>
+									) : 'Adicionar Cliente'}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 
-			{/* Edit Client Dialog */}
-			<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-				<DialogContent className="sm:max-w-[425px]">
-					<DialogHeader>
-						<DialogTitle>Adicionar Comentário</DialogTitle>
-						<DialogDescription>
-							Adicione notas sobre o cliente {selectedClient?.name}.
-						</DialogDescription>
-					</DialogHeader>
-					{selectedClient && (
-						<div className="grid gap-4 py-4">
-							<div className="text-sm text-gray-600 mb-2">
-								<div><strong>Telefone:</strong> {applyPhoneMask(selectedClient.phone)}</div>
-								<div><strong>Email:</strong> {selectedClient.email}</div>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="edit-comments">Comentários</Label>
-								<Textarea
-									id="edit-comments"
-									value={currentComment}
-									onChange={(e) => setCurrentComment(e.target.value)}
-									placeholder="Fale aqui sobre seu cliente para você poder consultar na próxima vez que ele te visitar e lembrar de informações dele"
-									rows={6}
-								/>
-							</div>
-						</div>
-					)}
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								closeDialog()
-							}}
-							className="font-medium"
-						>
-							Cancelar
-						</Button>
-						<Button
-							onClick={handleSaveComment}
-							disabled={isSubmitting}
-							className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
-						>
-							{isSubmitting ? (
-								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Salvando...
-								</>
-							) : 'Salvar Comentário'}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					{/* Edit Client Dialog */}
+					<Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+						<DialogContent className="sm:max-w-[425px]">
+							<DialogHeader>
+								<DialogTitle>Adicionar Comentário</DialogTitle>
+								<DialogDescription>
+									Adicione notas sobre o cliente {selectedClient?.name}.
+								</DialogDescription>
+							</DialogHeader>
+							{selectedClient && (
+								<div className="grid gap-4 py-4">
+									<div className="text-sm text-gray-600 mb-2">
+										<div><strong>Telefone:</strong> {applyPhoneMask(selectedClient.phone)}</div>
+										<div><strong>Email:</strong> {selectedClient.email}</div>
+									</div>
+									<div className="grid gap-2">
+										<Label htmlFor="edit-comments">Comentários</Label>
+										<Textarea
+											id="edit-comments"
+											value={currentComment}
+											onChange={(e) => setCurrentComment(e.target.value)}
+											placeholder="Fale aqui sobre seu cliente para você poder consultar na próxima vez que ele te visitar e lembrar de informações dele"
+											rows={6}
+										/>
+									</div>
+								</div>
+							)}
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => {
+										closeDialog()
+									}}
+									className="font-medium"
+								>
+									Cancelar
+								</Button>
+								<Button
+									onClick={handleSaveComment}
+									disabled={isSubmitting}
+									className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
+								>
+									{isSubmitting ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Salvando...
+										</>
+									) : 'Salvar Comentário'}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</>
+			)}
 		</AdminLayout>
 	);
 };
