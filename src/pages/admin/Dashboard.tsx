@@ -241,6 +241,8 @@ const Dashboard = () => {
 		netProjectedRevenue: 0,
 		barberProjections: []
 	});
+	const [periodPendingAppointments, setPeriodPendingAppointments] = useState([]);
+	const [periodPendingValue, setPeriodPendingValue] = useState(0);
 
 	const statisticsService = new StatisticsService();
 	const isAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -519,6 +521,50 @@ const Dashboard = () => {
 							previousTotal: dashboardStatsResponse.data.productsSold.previousTotal || 0
 						});
 					}
+
+					// Buscar agendamentos pendentes do período para administradores
+					try {
+						const allPendingResponse = await AppointmentService.getAll(companySelected.id);
+
+						if (allPendingResponse?.success && allPendingResponse.data) {
+							// Filtrar apenas agendamentos pendentes
+							const allPendingApps = allPendingResponse.data.filter(app => app.status === 'PENDING');
+
+							// Filtrar por período se as datas estão definidas
+							let filteredPendingApps = allPendingApps;
+							if (startDate && endDate) {
+								const startDateTime = new Date(startDate + 'T00:00:00');
+								const endDateTime = new Date(endDate + 'T23:59:59');
+
+								filteredPendingApps = allPendingApps.filter(app => {
+									const appointmentDate = new Date(app.scheduledTime);
+									return appointmentDate >= startDateTime && appointmentDate <= endDateTime;
+								});
+							}
+
+							// Calcular valor total dos pendentes do período
+							const totalPendingValue = filteredPendingApps.reduce((sum, app) => sum + app.value, 0);
+
+							console.log('AGENDAMENTOS PENDENTES DO PERÍODO (ADMIN):', {
+								total: filteredPendingApps.length,
+								valor: totalPendingValue,
+								período: { inicio: startDate, fim: endDate },
+								agendamentos: filteredPendingApps.map(app => ({
+									id: app.id,
+									cliente: app.client?.name,
+									data: app.scheduledTime,
+									valor: app.value
+								}))
+							});
+
+							setPeriodPendingAppointments(filteredPendingApps);
+							setPeriodPendingValue(totalPendingValue);
+						}
+					} catch (error) {
+						console.error('Erro ao buscar agendamentos pendentes do período:', error);
+						setPeriodPendingAppointments([]);
+						setPeriodPendingValue(0);
+					}
 				} else {
 					// Se for usuário normal, os produtos vendidos já estarão filtrados por usuário no dashboard stats
 					if (dashboardStatsResponse.success && dashboardStatsResponse.data?.productsSold) {
@@ -790,24 +836,32 @@ const Dashboard = () => {
 											<Card className="shadow-md hover:shadow-lg transition-shadow">
 												<CardHeader>
 													<CardTitle className="text-lg text-gray-800">Projeção de Faturamento</CardTitle>
-													<CardDescription>Previsão de receita com base em agendamentos pendentes</CardDescription>
+													<CardDescription>Previsão completa de receita do período selecionado</CardDescription>
 												</CardHeader>
 												<CardContent>
-													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
 														<div className="bg-amber-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Agendamentos Pendentes</h3>
 															<p className="text-2xl font-bold text-amber-700">
-																{projectionData.pendingAppointments}
+																{periodPendingAppointments.length}
 															</p>
-															<p className="text-xs text-gray-500 mt-1">Total de todos os barbeiros</p>
+															<p className="text-xs text-gray-500 mt-1">No período selecionado</p>
 														</div>
 
 														<div className="bg-green-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Faturamento Previsto</h3>
 															<p className="text-2xl font-bold text-green-700">
-																{formatCurrency(projectionData.totalPendingValue)}
+																{formatCurrency(periodPendingValue)}
 															</p>
 															<p className="text-xs text-gray-500 mt-1">De agendamentos pendentes</p>
+														</div>
+
+														<div className="bg-indigo-50 p-4 rounded-lg">
+															<h3 className="text-sm font-medium text-gray-700 mb-1">Faturamento Total do Período</h3>
+															<p className="text-2xl font-bold text-indigo-700">
+																{formatCurrency(stats.revenue.total + periodPendingValue)}
+															</p>
+															<p className="text-xs text-gray-500 mt-1">Finalizados + Pendentes</p>
 														</div>
 
 														<div className="bg-blue-50 p-4 rounded-lg">
@@ -827,37 +881,154 @@ const Dashboard = () => {
 														</div>
 													</div>
 
-													<div className="mt-6">
-														<h3 className="text-sm font-medium text-gray-700 mb-4">Projeção por Barbeiro</h3>
-														<div className="space-y-5">
-															{projectionData.barberProjections.map((barber) => (
-																<div key={barber.id} className="space-y-2">
-																	<div className="flex items-center justify-between">
-																		<div className="flex items-center">
-																			<span className="font-medium text-gray-800 mr-2">{barber.name}</span>
-																			<Badge variant="outline" className="text-xs">
-																				{barber.pendingAppointments} agendamentos
-																			</Badge>
-																		</div>
-																		<div className="flex items-center space-x-3">
-																			<div className="text-right">
-																				<span className="text-xs text-gray-500 block">Faturamento</span>
-																				<span className="text-sm font-medium text-gray-700">{formatCurrency(barber.pendingValue)}</span>
-																			</div>
-																			<div className="text-right">
-																				<span className="text-xs text-gray-500 block">Comissão ({barber.commissionPercentage}%)</span>
-																				<span className="text-sm font-medium text-green-600">{formatCurrency(barber.projectedCommission)}</span>
-																			</div>
-																		</div>
-																	</div>
-																	<div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-																		<div
-																			className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full"
-																			style={{ width: `${Math.min((barber.pendingValue / stats.revenue.total) * 100, 100)}%` }}
-																		></div>
-																	</div>
+													{/* Resumo visual da projeção completa */}
+													<div className="mb-6 p-4 bg-gradient-to-r from-gray-50 to-indigo-50 rounded-lg border border-indigo-100">
+														<h3 className="text-sm font-medium text-gray-700 mb-3">Resumo da Projeção Completa do Período</h3>
+														<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+															<div className="text-center">
+																<p className="text-xs text-gray-600 mb-1">Receita Finalizada</p>
+																<p className="text-lg font-bold text-gray-800">{formatCurrency(stats.revenue.total)}</p>
+																<p className="text-xs text-gray-500">
+																	{(stats.revenue.total + periodPendingValue) > 0
+																		? Math.round((stats.revenue.total / (stats.revenue.total + periodPendingValue)) * 100)
+																		: 0}% do total
+																</p>
+															</div>
+															<div className="text-center">
+																<p className="text-xs text-gray-600 mb-1">Receita Pendente</p>
+																<p className="text-lg font-bold text-amber-700">{formatCurrency(periodPendingValue)}</p>
+																<p className="text-xs text-gray-500">
+																	{(stats.revenue.total + periodPendingValue) > 0
+																		? Math.round((periodPendingValue / (stats.revenue.total + periodPendingValue)) * 100)
+																		: 0}% do total
+																</p>
+															</div>
+															<div className="text-center">
+																<p className="text-xs text-gray-600 mb-1">Total Projetado</p>
+																<p className="text-lg font-bold text-indigo-700">{formatCurrency(stats.revenue.total + periodPendingValue)}</p>
+																<p className="text-xs text-gray-500">Receita completa do período</p>
+															</div>
+														</div>
+
+														{/* Barra de progresso visual */}
+														<div className="mt-4">
+															<div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+																<div className="h-full flex">
+																	<div
+																		className="bg-gradient-to-r from-gray-400 to-gray-600"
+																		style={{
+																			width: `${(stats.revenue.total + periodPendingValue) > 0
+																				? (stats.revenue.total / (stats.revenue.total + periodPendingValue)) * 100
+																				: 0}%`
+																		}}
+																		title={`Finalizado: ${formatCurrency(stats.revenue.total)}`}
+																	></div>
+																	<div
+																		className="bg-gradient-to-r from-amber-400 to-amber-600"
+																		style={{
+																			width: `${(stats.revenue.total + periodPendingValue) > 0
+																				? (periodPendingValue / (stats.revenue.total + periodPendingValue)) * 100
+																				: 0}%`
+																		}}
+																		title={`Pendente: ${formatCurrency(periodPendingValue)}`}
+																	></div>
 																</div>
-															))}
+															</div>
+															<div className="flex justify-between text-xs text-gray-600 mt-1">
+																<span>Finalizado</span>
+																<span>Pendente</span>
+															</div>
+														</div>
+													</div>
+
+													<div className="mt-6">
+														<h3 className="text-sm font-medium text-gray-700 mb-4">Projeção por Barbeiro (Período Selecionado)</h3>
+														<div className="space-y-5">
+															{(() => {
+																// Agrupar agendamentos pendentes do período por barbeiro
+																const barberPendingMap = periodPendingAppointments.reduce((acc, appointment) => {
+																	const barberId = appointment.userId;
+																	const barberName = appointment.user?.name || 'Barbeiro não identificado';
+
+																	if (!acc[barberId]) {
+																		acc[barberId] = {
+																			id: barberId,
+																			name: barberName,
+																			pendingAppointments: 0,
+																			pendingValue: 0,
+																			appointments: []
+																		};
+																	}
+
+																	acc[barberId].pendingAppointments += 1;
+																	acc[barberId].pendingValue += appointment.value;
+																	acc[barberId].appointments.push(appointment);
+
+																	return acc;
+																}, {} as Record<string, {
+																	id: string;
+																	name: string;
+																	pendingAppointments: number;
+																	pendingValue: number;
+																	appointments: any[];
+																}>);
+
+																const barberPendingList: Array<{
+																	id: string;
+																	name: string;
+																	pendingAppointments: number;
+																	pendingValue: number;
+																	appointments: any[];
+																}> = Object.values(barberPendingMap);
+
+																if (barberPendingList.length === 0) {
+																	return (
+																		<div className="text-center py-8 bg-gray-50 rounded-lg">
+																			<p className="text-gray-500">Nenhum agendamento pendente no período selecionado</p>
+																		</div>
+																	);
+																}
+
+																return barberPendingList.map((barber) => {
+																	// Buscar dados de comissão do barbeiro
+																	const barberCommissionData = barberCommissions.find(b => b.id === barber.id);
+																	const commissionPercentage = barberCommissionData?.commissionPercentage || 20;
+																	const projectedCommission = (barber.pendingValue * commissionPercentage) / 100;
+
+																	return (
+																		<div key={barber.id} className="space-y-2">
+																			<div className="flex items-center justify-between">
+																				<div className="flex items-center">
+																					<span className="font-medium text-gray-800 mr-2">{barber.name}</span>
+																					<Badge variant="outline" className="text-xs">
+																						{barber.pendingAppointments} agendamentos
+																					</Badge>
+																				</div>
+																				<div className="flex items-center space-x-3">
+																					<div className="text-right">
+																						<span className="text-xs text-gray-500 block">Faturamento</span>
+																						<span className="text-sm font-medium text-gray-700">{formatCurrency(barber.pendingValue)}</span>
+																					</div>
+																					<div className="text-right">
+																						<span className="text-xs text-gray-500 block">Comissão ({commissionPercentage}%)</span>
+																						<span className="text-sm font-medium text-green-600">{formatCurrency(projectedCommission)}</span>
+																					</div>
+																				</div>
+																			</div>
+																			<div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+																				<div
+																					className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full"
+																					style={{
+																						width: `${periodPendingValue > 0
+																							? Math.min((barber.pendingValue / periodPendingValue) * 100, 100)
+																							: 0}%`
+																					}}
+																				></div>
+																			</div>
+																		</div>
+																	);
+																});
+															})()}
 														</div>
 													</div>
 												</CardContent>
