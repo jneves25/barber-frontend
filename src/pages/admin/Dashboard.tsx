@@ -743,23 +743,34 @@ const Dashboard = () => {
 								{/* Cards de estatísticas */}
 								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
 									<StatCard
-										title={isAdmin ? "Receita no Período" : "Minha Comissão no Período"}
-										value={formatCurrency(isAdmin ? stats.revenue.total : userStats.commission.total)}
+										title={isAdmin ? "Receita no Período" : "Minha Receita no Período"}
+										value={formatCurrency(isAdmin ? stats.revenue.total : userStats.revenue.total)}
 										description="No período selecionado"
 										icon={DollarSign}
-										trend={getTrendDirection(isAdmin ? stats.revenue.trend : stats.commission.trend)}
-										trendValue={formatTrend(isAdmin ? stats.revenue.trend : stats.commission.trend)}
-										previousValue={isAdmin ? stats.revenue.previousTotal || 0 : userStats.commission.previousTotal || 0}
+										trend={getTrendDirection(isAdmin ? stats.revenue.trend : userStats.revenue.trend)}
+										trendValue={formatTrend(isAdmin ? stats.revenue.trend : userStats.revenue.trend)}
+										previousValue={isAdmin ? stats.revenue.previousTotal : userStats.revenue.previousTotal}
 									/>
 									<StatCard
 										title={isAdmin ? "Atendimentos no Período" : "Meus Atendimentos no Período"}
 										value={isAdmin ? stats.appointments.total : userStats.appointments.total}
 										description="No período selecionado"
 										icon={CalendarIcon}
-										trend={getTrendDirection(stats.appointments.trend)}
-										trendValue={formatTrend(stats.appointments.trend)}
-										previousValue={isAdmin ? stats.appointments.previousTotal || 0 : userStats.appointments.previousTotal || 0}
+										trend={getTrendDirection(isAdmin ? stats.appointments.trend : userStats.appointments.trend)}
+										trendValue={formatTrend(isAdmin ? stats.appointments.trend : userStats.appointments.trend)}
+										previousValue={isAdmin ? stats.appointments.previousTotal : userStats.appointments.previousTotal}
 									/>
+									{!isAdmin && (
+										<StatCard
+											title="Minha Comissão no Período"
+											value={formatCurrency(userStats.commission.total)}
+											description="No período selecionado"
+											icon={DollarSign}
+											trend={getTrendDirection(userStats.commission.trend)}
+											trendValue={formatTrend(userStats.commission.trend)}
+											previousValue={userStats.commission.previousTotal}
+										/>
+									)}
 									<StatCard
 										title={isAdmin ? "Produtos Vendidos" : "Meus Produtos Vendidos"}
 										value={productsSold.total || 0}
