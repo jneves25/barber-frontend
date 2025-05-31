@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Scissors, Calendar, Clock, Star, MapPin, Phone, Loader2, CalendarDays, Mail, ChevronRight, ChevronLeft, InfoIcon, Check } from 'lucide-react';
+import { Scissors, Calendar, Clock, Star, MapPin, Phone, Loader2, CalendarDays, Mail, ChevronRight, ChevronLeft, InfoIcon, Check, Package, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormControl } from '@/components/ui/form';
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import ServiceService, { Service as ServiceType } from '@/services/api/ServiceService';
+import ProductService, { Product as ProductType } from '@/services/api/ProductService';
 import AppointmentService, { Appointment, AppointmentStatusEnum, Service as AppointmentServiceType, AppointmentWithCustomer } from '@/services/api/AppointmentService';
 import CompanyService, { Company } from '@/services/api/CompanyService';
 import { format, addDays, addMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -28,14 +29,22 @@ interface DateOption {
 	date: Date;
 }
 
+interface SelectedProduct {
+	id: number;
+	name: string;
+	price: number;
+	quantity: number;
+}
+
 interface AppointmentState {
 	selectedServices: string[];
 	selectedBarber: string;
 	selectedDateOption: DateOption | null;
 	selectedTime: string;
+	selectedProducts: SelectedProduct[];
 	totalPrice: number;
 	totalDuration: number;
-	activeTab: 'service' | 'barber' | 'date' | 'confirm';
+	activeTab: 'service' | 'barber' | 'date' | 'products' | 'confirm';
 }
 
 interface CustomerState {
@@ -70,6 +79,7 @@ const ClientPortal = () => {
 		selectedBarber: '',
 		selectedDateOption: null,
 		selectedTime: '',
+		selectedProducts: [],
 		totalPrice: 0,
 		totalDuration: 0,
 		activeTab: 'service'
@@ -98,6 +108,7 @@ const ClientPortal = () => {
 
 	const [company, setCompany] = useState<Company | null>(null);
 	const [services, setServices] = useState<ServiceType[]>([]);
+	const [products, setProducts] = useState<ProductType[]>([]);
 	const [barbers, setBarbers] = useState<Barber[]>([]);
 	const [dateOptions, setDateOptions] = useState<DateOption[]>([]);
 	const [visibleMonth, setVisibleMonth] = useState(format(new Date(), 'MMMM yyyy', { locale: ptBR }));
@@ -136,6 +147,7 @@ const ClientPortal = () => {
 	useEffect(() => {
 		if (company) {
 			fetchServices();
+			fetchProducts();
 			generateDateOptions();
 			processCompanyMembers();
 		}
@@ -150,8 +162,8 @@ const ClientPortal = () => {
 	}, [appointment.selectedBarber, appointment.selectedDateOption]);
 
 	useEffect(() => {
-		updateTotals(appointment.selectedServices);
-	}, [appointment.selectedServices, services]);
+		updateTotals(appointment.selectedServices, appointment.selectedProducts);
+	}, [appointment.selectedServices, appointment.selectedProducts, services, products]);
 
 	// Funções de busca de dados
 	const fetchCompanyBySlug = async () => {
@@ -192,6 +204,21 @@ const ClientPortal = () => {
 			toast.error('Erro ao conectar com o servidor');
 		} finally {
 			updateLoading({ services: false });
+		}
+	};
+
+	const fetchProducts = async () => {
+		if (!slug) return;
+
+		try {
+			const response = await ProductService.getProductsByCompanySlug(slug);
+			if (response.success && response.data) {
+				setProducts(response.data);
+			} else {
+				console.log('Nenhum produto encontrado ou erro:', response.error);
+			}
+		} catch (error) {
+			console.error('Erro ao carregar produtos:', error);
 		}
 	};
 
@@ -313,20 +340,70 @@ const ClientPortal = () => {
 				? prev.selectedServices.filter(id => id !== serviceId)
 				: [...prev.selectedServices, serviceId];
 
-			updateTotals(updatedServices);
+			updateTotals(updatedServices, prev.selectedProducts);
 			return { ...prev, selectedServices: updatedServices };
 		});
 	};
 
-	const updateTotals = (selectedServiceIds: string[]) => {
+	const updateTotals = (selectedServiceIds: string[], selectedProducts: SelectedProduct[]) => {
 		const selectedServicesData = services.filter(service =>
 			selectedServiceIds.includes(String(service.id))
 		);
 
-		const price = selectedServicesData.reduce((total, service) => total + service.price, 0);
-		const duration = selectedServicesData.reduce((total, service) => total + service.duration, 0);
+		const servicesPrice = selectedServicesData.reduce((total, service) => total + service.price, 0);
+		const servicesDuration = selectedServicesData.reduce((total, service) => total + service.duration, 0);
 
-		updateAppointment({ totalPrice: price, totalDuration: duration });
+		const productsPrice = selectedProducts.reduce((total, product) => total + (product.price * product.quantity), 0);
+
+		const totalPrice = servicesPrice + productsPrice;
+
+		updateAppointment({ totalPrice, totalDuration: servicesDuration });
+	};
+
+	const addProductToSelection = (product: ProductType) => {
+		setAppointment(prev => {
+			const existingProduct = prev.selectedProducts.find(p => p.id === product.id);
+			let updatedProducts: SelectedProduct[];
+
+			if (existingProduct) {
+				updatedProducts = prev.selectedProducts.map(p =>
+					p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+				);
+			} else {
+				updatedProducts = [...prev.selectedProducts, {
+					id: product.id!,
+					name: product.name,
+					price: product.price,
+					quantity: 1
+				}];
+			}
+
+			updateTotals(prev.selectedServices, updatedProducts);
+			return { ...prev, selectedProducts: updatedProducts };
+		});
+	};
+
+	const removeProductFromSelection = (productId: number) => {
+		setAppointment(prev => {
+			const existingProduct = prev.selectedProducts.find(p => p.id === productId);
+			let updatedProducts: SelectedProduct[];
+
+			if (existingProduct && existingProduct.quantity > 1) {
+				updatedProducts = prev.selectedProducts.map(p =>
+					p.id === productId ? { ...p, quantity: p.quantity - 1 } : p
+				);
+			} else {
+				updatedProducts = prev.selectedProducts.filter(p => p.id !== productId);
+			}
+
+			updateTotals(prev.selectedServices, updatedProducts);
+			return { ...prev, selectedProducts: updatedProducts };
+		});
+	};
+
+	const getProductQuantity = (productId: number): number => {
+		const product = appointment.selectedProducts.find(p => p.id === productId);
+		return product ? product.quantity : 0;
 	};
 
 	// Funções de cliente
@@ -433,6 +510,11 @@ const ClientPortal = () => {
 				quantity: 1
 			}));
 
+			const productsArray = appointment.selectedProducts.map(product => ({
+				productId: product.id,
+				quantity: product.quantity
+			}));
+
 			const [hours, minutes] = appointment.selectedTime.split(':').map(Number);
 			const scheduledDate = new Date(appointment.selectedDateOption.date);
 			scheduledDate.setHours(hours, minutes, 0, 0);
@@ -443,7 +525,7 @@ const ClientPortal = () => {
 				companyId: company.id,
 				userId: parseInt(appointment.selectedBarber),
 				services: servicesArray,
-				products: [],
+				products: productsArray,
 				scheduledTime: scheduledDate.toISOString(),
 				customerPhone: cleanedPhone,
 				customerName: customer.name,
@@ -480,6 +562,7 @@ const ClientPortal = () => {
 			selectedBarber: '',
 			selectedDateOption: null,
 			selectedTime: '',
+			selectedProducts: [],
 			totalPrice: 0,
 			totalDuration: 0,
 			activeTab: 'service'
@@ -568,8 +651,8 @@ const ClientPortal = () => {
 									return;
 								}
 
-								const currentIndex = ["service", "barber", "date", "confirm"].indexOf(activeTab);
-								const targetIndex = ["service", "barber", "date", "confirm"].indexOf(value);
+								const currentIndex = ["service", "barber", "date", "products", "confirm"].indexOf(activeTab);
+								const targetIndex = ["service", "barber", "date", "products", "confirm"].indexOf(value);
 
 								if (targetIndex < currentIndex && !customer.phoneVerified) {
 									setActiveTab(value);
@@ -583,6 +666,15 @@ const ClientPortal = () => {
 
 								if (value === "date" && appointment.selectedBarber === '') {
 									toast.error("Selecione um profissional antes de continuar");
+									return;
+								}
+
+								if (value === "products" && (!appointment.selectedDateOption || !appointment.selectedTime)) {
+									if (!appointment.selectedDateOption) {
+										toast.error("Selecione uma data antes de continuar");
+									} else {
+										toast.error("Selecione um horário antes de continuar");
+									}
 									return;
 								}
 
@@ -601,7 +693,7 @@ const ClientPortal = () => {
 						>
 							<div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
 								<TabsList
-									className={`grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-lg ${customer.phoneVerified ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+									className={`grid grid-cols-5 gap-1 p-1 bg-gray-100 rounded-lg ${customer.phoneVerified ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
 										}`}
 								>
 									<TabsTrigger
@@ -631,6 +723,16 @@ const ClientPortal = () => {
 										disabled={customer.phoneVerified}
 									>
 										Data/Hora
+									</TabsTrigger>
+									<TabsTrigger
+										value="products"
+										className={`data-[state=active]:bg-white data-[state=active]:text-barber-600 rounded-md py-2 ${((!appointment.selectedDateOption || !appointment.selectedTime) && activeTab !== "products") || customer.phoneVerified
+											? "opacity-50 pointer-events-none"
+											: ""
+											}`}
+										disabled={customer.phoneVerified}
+									>
+										Produtos
 									</TabsTrigger>
 									<TabsTrigger
 										value="confirm"
@@ -879,7 +981,7 @@ const ClientPortal = () => {
 													<span>
 														<Button
 															disabled={!appointment.selectedDateOption || !appointment.selectedTime || loading.timeSlots}
-															onClick={() => setActiveTab("confirm")}
+															onClick={() => setActiveTab("products")}
 															className="bg-barber-500 hover:bg-barber-600"
 														>
 															Continuar
@@ -903,6 +1005,112 @@ const ClientPortal = () => {
 								</div>
 							</TabsContent>
 
+							<TabsContent value="products" className="p-6 animate-in fade-in-50 duration-300">
+								<div className="space-y-6">
+									<div className="mb-4">
+										<h3 className="text-lg font-semibold text-gray-800 mb-2">Produtos disponíveis</h3>
+										<p className="text-sm text-gray-500">Selecione produtos adicionais para seu agendamento (opcional)</p>
+									</div>
+
+									{products.length === 0 ? (
+										<div className="py-8 bg-gray-50 rounded-lg flex flex-col items-center justify-center border border-gray-200">
+											<Package className="h-10 w-10 mb-3 text-gray-400" />
+											<p className="text-gray-600 font-medium">Nenhum produto disponível</p>
+											<p className="text-sm mt-1 text-gray-500">Esta empresa não possui produtos cadastrados</p>
+										</div>
+									) : (
+										<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+											{products.map((product) => {
+												const quantity = getProductQuantity(product.id!);
+												return (
+													<div
+														key={product.id}
+														className="border rounded-lg overflow-hidden transition-all duration-200"
+													>
+														<div className="p-4">
+															<div className="flex items-start gap-3">
+																<div className="rounded-full bg-blue-100 p-2 flex-shrink-0">
+																	<Package className="h-5 w-5 text-blue-500" />
+																</div>
+																<div className="flex-1">
+																	<div className="flex justify-between items-start mb-2">
+																		<h3 className="font-medium text-gray-900">{product.name}</h3>
+																		<span className="font-semibold text-blue-600">R$ {product.price.toFixed(2)}</span>
+																	</div>
+																	{product.description && (
+																		<p className="text-sm text-gray-500 mb-3 line-clamp-2">{product.description}</p>
+																	)}
+																	<div className="flex items-center justify-between">
+																		<span className="text-xs text-gray-400">Estoque: {product.stock}</span>
+																		<div className="flex items-center space-x-2">
+																			{quantity > 0 && (
+																				<Button
+																					variant="outline"
+																					size="sm"
+																					onClick={() => removeProductFromSelection(product.id!)}
+																					className="h-8 w-8 p-0"
+																				>
+																					<Minus className="h-4 w-4" />
+																				</Button>
+																			)}
+																			{quantity > 0 && (
+																				<span className="text-sm font-medium min-w-[20px] text-center">{quantity}</span>
+																			)}
+																			<Button
+																				variant="outline"
+																				size="sm"
+																				onClick={() => addProductToSelection(product)}
+																				disabled={product.stock === 0 || quantity >= product.stock}
+																				className="h-8 w-8 p-0"
+																			>
+																				<Plus className="h-4 w-4" />
+																			</Button>
+																		</div>
+																	</div>
+																</div>
+															</div>
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									)}
+
+									{appointment.selectedProducts.length > 0 && (
+										<div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200 animate-in fade-in-50 duration-300">
+											<h4 className="font-medium text-blue-800 mb-3">Produtos selecionados</h4>
+											<div className="space-y-2">
+												{appointment.selectedProducts.map((product) => (
+													<div key={product.id} className="flex justify-between items-center text-sm">
+														<span className="font-medium">{product.name} x{product.quantity}</span>
+														<span className="text-blue-600">R$ {(product.price * product.quantity).toFixed(2)}</span>
+													</div>
+												))}
+												<div className="flex justify-between pt-2 border-t border-blue-200 text-blue-800 font-medium">
+													<span>Total produtos:</span>
+													<span>R$ {appointment.selectedProducts.reduce((total, p) => total + (p.price * p.quantity), 0).toFixed(2)}</span>
+												</div>
+											</div>
+										</div>
+									)}
+
+									<div className="mt-6 flex justify-between">
+										<Button
+											variant="outline"
+											onClick={() => setActiveTab("date")}
+										>
+											Voltar
+										</Button>
+										<Button
+											onClick={() => setActiveTab("confirm")}
+											className="bg-barber-500 hover:bg-barber-600"
+										>
+											Continuar
+										</Button>
+									</div>
+								</div>
+							</TabsContent>
+
 							<TabsContent value="confirm" className="p-6 animate-in fade-in-50 duration-300">
 								<div className="mb-6 p-5 bg-gray-50 rounded-lg border border-gray-200">
 									<h3 className="font-semibold mb-4 text-barber-700">Resumo do agendamento</h3>
@@ -920,37 +1128,51 @@ const ClientPortal = () => {
 														</div>
 													) : null;
 												})}
-
-												<div className="flex justify-between pt-2 border-t border-gray-200 text-barber-600 font-medium">
-													<span>Total:</span>
-													<span>R$ {totalPrice.toFixed(2)}</span>
-												</div>
 											</div>
 										</div>
 
-										<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+										{appointment.selectedProducts.length > 0 && (
 											<div>
-												<p className="text-sm text-gray-500 mb-1">Profissional:</p>
-												<p className="font-medium">
-													{barbers.find(b => String(b.id) === appointment.selectedBarber)?.name || 'Não selecionado'}
-												</p>
+												<p className="text-sm text-gray-500 mb-1">Produtos:</p>
+												<div className="space-y-2">
+													{appointment.selectedProducts.map(product => (
+														<div key={product.id} className="flex justify-between text-sm">
+															<span className="font-medium">{product.name} x{product.quantity}</span>
+															<span>R$ {(product.price * product.quantity).toFixed(2)}</span>
+														</div>
+													))}
+												</div>
 											</div>
-											<div>
-												<p className="text-sm text-gray-500 mb-1">Duração:</p>
-												<p className="font-medium">{totalDuration} minutos</p>
-											</div>
-											<div>
-												<p className="text-sm text-gray-500 mb-1">Data:</p>
-												<p className="font-medium">
-													{appointment.selectedDateOption
-														? format(appointment.selectedDateOption.date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-														: 'Não selecionada'}
-												</p>
-											</div>
-											<div>
-												<p className="text-sm text-gray-500 mb-1">Horário:</p>
-												<p className="font-medium">{appointment.selectedTime || 'Não selecionado'}</p>
-											</div>
+										)}
+
+										<div className="flex justify-between pt-2 border-t border-gray-200 text-barber-600 font-medium">
+											<span>Total:</span>
+											<span>R$ {appointment.totalPrice.toFixed(2)}</span>
+										</div>
+									</div>
+
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+										<div>
+											<p className="text-sm text-gray-500 mb-1">Profissional:</p>
+											<p className="font-medium">
+												{barbers.find(b => String(b.id) === appointment.selectedBarber)?.name || 'Não selecionado'}
+											</p>
+										</div>
+										<div>
+											<p className="text-sm text-gray-500 mb-1">Duração:</p>
+											<p className="font-medium">{appointment.totalDuration} minutos</p>
+										</div>
+										<div>
+											<p className="text-sm text-gray-500 mb-1">Data:</p>
+											<p className="font-medium">
+												{appointment.selectedDateOption
+													? format(appointment.selectedDateOption.date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+													: 'Não selecionada'}
+											</p>
+										</div>
+										<div>
+											<p className="text-sm text-gray-500 mb-1">Horário:</p>
+											<p className="font-medium">{appointment.selectedTime || 'Não selecionado'}</p>
 										</div>
 									</div>
 								</div>
@@ -1069,7 +1291,7 @@ const ClientPortal = () => {
 											<Button
 												type="button"
 												variant="outline"
-												onClick={() => setActiveTab("date")}
+												onClick={() => setActiveTab("products")}
 											>
 												Voltar
 											</Button>
