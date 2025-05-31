@@ -867,17 +867,24 @@ const Dashboard = () => {
 														<div className="bg-blue-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Comissões Projetadas</h3>
 															<p className="text-2xl font-bold text-blue-700">
-																{formatCurrency(projectionData.totalProjectedCommission)}
+																{formatCurrency(
+																	barberCommissions.reduce((sum, barber) => sum + (barber.totalCommission || 0), 0) +
+																	(periodPendingValue * 0.2) // Estimativa de 20% de comissão média para pendentes
+																)}
 															</p>
-															<p className="text-xs text-gray-500 mt-1">Estimativa para barbeiros</p>
+															<p className="text-xs text-gray-500 mt-1">Finalizadas + Pendentes</p>
 														</div>
 
 														<div className="bg-purple-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Receita Líquida Projetada</h3>
 															<p className="text-2xl font-bold text-purple-700">
-																{formatCurrency(projectionData.netProjectedRevenue)}
+																{formatCurrency(
+																	(stats.revenue.total + periodPendingValue) -
+																	(barberCommissions.reduce((sum, barber) => sum + (barber.totalCommission || 0), 0) +
+																		(periodPendingValue * 0.2))
+																)}
 															</p>
-															<p className="text-xs text-gray-500 mt-1">Após pagamento de comissões</p>
+															<p className="text-xs text-gray-500 mt-1">Após todas as comissões</p>
 														</div>
 													</div>
 
