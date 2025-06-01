@@ -52,6 +52,20 @@ const AdminAppointments = () => {
 	// O usuário tem acesso à tela se tiver pelo menos uma das permissões
 	const hasAccessToAppointments = canViewAllAppointments || canViewOwnAppointments;
 
+	// Verificações de permissões para criação de agendamentos
+	const canViewAllClients = hasPermission('viewAllClients');
+	const canViewOwnClients = hasPermission('viewOwnClients');
+	const canViewAllUsers = hasPermission('viewUsers');
+	const hasAccessToClients = canViewAllClients || canViewOwnClients;
+	const hasAccessToUsers = canViewAllUsers || true; // Usuário sempre pode ver a si mesmo
+
+	// Determina se pode criar agendamentos baseado nas permissões necessárias
+	const canCreateAppointments = canManageAppointments && hasAccessToClients && hasAccessToUsers;
+
+	// Determina o modo de visualização de clientes e usuários para o modal
+	const clientViewMode = canViewAllClients ? 'all' : 'own';
+	const userViewMode = canViewAllUsers ? 'all' : 'own';
+
 	// Se o usuário não tem permissão para ver todos, define o modo como 'own' por padrão
 	useEffect(() => {
 		if (!canViewAllAppointments) {
@@ -319,7 +333,7 @@ const AdminAppointments = () => {
 							</PopoverContent>
 						</Popover>
 						{/* Botão de novo agendamento - Apenas visível se o usuário pode gerenciar agendamentos */}
-						{canManageAppointments && (
+						{canCreateAppointments && (
 							<Button
 								variant="default"
 								className="bg-[#1776D2] hover:bg-[#1776D2]/90 text-white font-medium"
@@ -643,12 +657,14 @@ const AdminAppointments = () => {
 			)}
 
 			{/* Modal para criação de agendamento - Apenas renderizado se o usuário pode gerenciar agendamentos */}
-			{canManageAppointments && (
+			{canCreateAppointments && (
 				<AppointmentCreateModal
 					isOpen={createModalOpen}
 					onClose={() => setCreateModalOpen(false)}
 					onSuccess={fetchAppointments}
 					initialDate={selectedDate}
+					clientViewMode={clientViewMode}
+					userViewMode={userViewMode}
 				/>
 			)}
 

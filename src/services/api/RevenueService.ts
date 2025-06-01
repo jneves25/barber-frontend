@@ -58,6 +58,13 @@ export interface BarberMonthlyData {
 	[barberName: string]: number | string;
 }
 
+export interface ClientGrowthData {
+	name: string;
+	newClients: number;
+	totalClients: number;
+	growth: number;
+}
+
 export class RevenueService extends BaseService {
 	constructor() {
 		super('revenue');
@@ -66,8 +73,16 @@ export class RevenueService extends BaseService {
 	// Adiciona cores aos dados do barbeiro
 	assignColors(data: BarberRevenueData[]): BarberRevenueData[] {
 		const colors = [
-			'#3B82F6', '#10B981', '#8B5CF6', '#F59E0B',
-			'#EC4899', '#06B6D4', '#EF4444', '#84CC16'
+			'#3B82F6', // Azul vibrante
+			'#8B5CF6', // Roxo médio
+			'#06B6D4', // Azul ciano
+			'#A855F7', // Roxo claro
+			'#1E40AF', // Azul escuro
+			'#7C3AED', // Roxo escuro
+			'#0EA5E9', // Azul céu
+			'#C084FC', // Roxo pastel
+			'#1D4ED8', // Azul royal
+			'#9333EA'  // Roxo vibrante
 		];
 
 		return data.map((item, index) => ({
@@ -272,6 +287,25 @@ export class RevenueService extends BaseService {
 	): Promise<ApiResponse<RevenueData[]>> {
 		return this.handleResponse<RevenueData[]>(
 			apiClient.get(`/${this.endpoint}/user`, {
+				params: {
+					companyId,
+					year,
+					startDate,
+					endDate
+				}
+			})
+		);
+	}
+
+	// Crescimento de clientes novos mês a mês
+	async getClientGrowth(
+		companyId: number,
+		year: number,
+		startDate?: string,
+		endDate?: string
+	): Promise<ApiResponse<ClientGrowthData[]>> {
+		return this.handleResponse<ClientGrowthData[]>(
+			apiClient.get(`/${this.endpoint}/client-growth`, {
 				params: {
 					companyId,
 					year,

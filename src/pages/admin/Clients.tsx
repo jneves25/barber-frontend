@@ -18,10 +18,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { handlePhoneInputChange, applyPhoneMask } from '@/utils/phone';
+import { useNavigate } from 'react-router-dom';
 
 const AdminClients = () => {
 	const { companySelected, hasPermission } = useAuth();
+	const navigate = useNavigate();
 	const canManageClients = hasPermission('manageClients');
+	const canViewAllClients = hasPermission('viewAllClients');
+	const canViewOwnClients = hasPermission('viewOwnClients');
+	const hasAccessToClients = canViewAllClients || canViewOwnClients;
 	const [clients, setClients] = useState<Client[]>([]);
 	const [searchTerm, setSearchTerm] = useState('');
 	const [isLoading, setIsLoading] = useState(true);
@@ -55,10 +60,26 @@ const AdminClients = () => {
 		}
 	}, []);
 
+	// Redirecionamento se não tiver nenhuma permissão
+	useEffect(() => {
+		if (!hasAccessToClients) {
+			toast.error('Você não tem permissão para acessar a lista de clientes.');
+			navigate('/admin');
+		}
+	}, [hasAccessToClients, navigate]);
+
 	const fetchClients = async () => {
+		if (!hasAccessToClients) return;
+
 		setIsLoading(true);
 		try {
-			const response = await ClientService.getAll(companySelected.id);
+			let response;
+			if (canViewAllClients) {
+				response = await ClientService.getAll(companySelected.id);
+			} else {
+				response = await ClientService.getByBarber();
+			}
+
 			if (response.success && response.data) {
 				setClients(response.data);
 			} else {
@@ -203,7 +224,9 @@ const AdminClients = () => {
 		<AdminLayout>
 			<div className="space-y-4">
 				<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-					<h1 className="text-2xl font-bold">Clientes</h1>
+					<h1 className="text-2xl font-bold">
+						{canViewAllClients ? 'Todos os Clientes' : 'Meus Clientes'}
+					</h1>
 					{canManageClients && (
 						<Button
 							onClick={() => {
@@ -236,7 +259,11 @@ const AdminClients = () => {
 				<Card>
 					<CardHeader>
 						<CardTitle>Lista de Clientes</CardTitle>
-						<CardDescription>Gerencie todos os clientes da barbearia.</CardDescription>
+						<CardDescription>
+							{canViewAllClients
+								? 'Gerencie todos os clientes da barbearia.'
+								: 'Visualize seus clientes atendidos.'}
+						</CardDescription>
 					</CardHeader>
 					<CardContent>
 						{isLoading ? (

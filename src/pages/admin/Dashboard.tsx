@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useAuth } from '@/context/AuthContext';
 import { StatisticsService } from '@/services/api/StatisticsService';
 import { toast } from '@/components/ui/use-toast';
-import { format, startOfMonth, isToday, addDays, isTomorrow } from 'date-fns';
+import { format, startOfMonth, isToday, addDays, isTomorrow, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
 	BarChart,
@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppointmentService from '@/services/api/AppointmentService';
-import { formatCurrency } from '@/utils/currency';
+import goalService from '@/services/api/GoalService';
 
 // Componente de estatística
 const StatCard = ({ title, value, description, icon, trend = null, trendValue = null, previousValue = null }) => {
@@ -127,7 +127,7 @@ const AppointmentCard = ({ appointment, isFirst = false }) => {
 };
 
 // Cores para os gráficos com melhor contraste e harmonização
-const COLORS = ['#8B4513', '#A0522D', '#CD853F', '#DEB887', '#F5DEB3', '#D2B48C', '#BC8F8F', '#F4A460'];
+const COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#84cc16'];
 
 // Componente de ProgressBar para mostrar progresso das metas
 const ProgressBar = ({ value, maxValue, label, color = 'barber' }) => {
@@ -233,7 +233,7 @@ const Dashboard = () => {
 	});
 	const [pendingAppointments, setPendingAppointments] = useState([]);
 	const [projectedCommission, setProjectedCommission] = useState(0);
-	const [monthlyGoal, setMonthlyGoal] = useState(2000); // Meta mensal default - poderia vir do backend
+	const [monthlyGoal, setMonthlyGoal] = useState(0); // Meta mensal será carregada do backend
 	const [projectionData, setProjectionData] = useState({
 		pendingAppointments: 0,
 		totalPendingValue: 0,
@@ -243,6 +243,12 @@ const Dashboard = () => {
 	});
 	const [periodPendingAppointments, setPeriodPendingAppointments] = useState([]);
 	const [periodPendingValue, setPeriodPendingValue] = useState(0);
+	const [currentMonthStats, setCurrentMonthStats] = useState({
+		revenue: { total: 0, trend: 0, previousTotal: 0 },
+		commission: { total: 0, trend: 0, previousTotal: 0 },
+		appointments: { total: 0, trend: 0, previousTotal: 0 },
+	});
+	const [currentMonthPendingCommission, setCurrentMonthPendingCommission] = useState(0);
 
 	const statisticsService = new StatisticsService();
 	const isAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -268,6 +274,54 @@ const Dashboard = () => {
 
 				if (dashboardStatsResponse.success && dashboardStatsResponse.data) {
 					setStats(dashboardStatsResponse.data);
+				}
+
+				// Para usuários não-admin, carregar dados do mês atual para metas
+				if (!isAdmin && user?.id) {
+					const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+					const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+
+					// Carregar estatísticas do mês atual
+					const currentMonthStatsResponse = await statisticsService.getDashboardStats(
+						companySelected.id,
+						'custom',
+						currentMonthStart,
+						currentMonthEnd,
+						user.id
+					);
+
+					if (currentMonthStatsResponse.success && currentMonthStatsResponse.data) {
+						setCurrentMonthStats(currentMonthStatsResponse.data);
+					}
+
+					// Carregar agendamentos pendentes do mês atual
+					try {
+						const allAppointmentsResponse = await AppointmentService.getByBarber(companySelected.id);
+
+						if (allAppointmentsResponse?.success && allAppointmentsResponse.data) {
+							const currentMonthPendingApps = allAppointmentsResponse.data.filter(app => {
+								if (app.status !== 'PENDING') return false;
+
+								const appDate = new Date(app.scheduledTime);
+								const currentMonth = new Date();
+
+								return appDate.getMonth() === currentMonth.getMonth() &&
+									appDate.getFullYear() === currentMonth.getFullYear();
+							});
+
+							// Calcular comissão projetada dos agendamentos pendentes do mês atual
+							let projectedCommission = 0;
+							currentMonthPendingApps.forEach(app => {
+								const userProjection = projectionData.barberProjections.find(p => p.barberId === user.id);
+								const commissionPercentage = userProjection?.commissionPercentage || 0.5; // 50% padrão
+								projectedCommission += app.value * commissionPercentage;
+							});
+
+							setCurrentMonthPendingCommission(projectedCommission);
+						}
+					} catch (error) {
+						console.error('Erro ao carregar agendamentos pendentes do mês atual:', error);
+					}
 				}
 
 				// Load top services with date range
@@ -311,7 +365,7 @@ const Dashboard = () => {
 						}));
 
 						// Calcula clientes únicos se não vier do backend
-						if (!dashboardStatsResponse.data?.clients?.total) {
+						if (!stats.clients?.total) {
 							// Estima o número de clientes como 70% do número de atendimentos
 							// Este é apenas um valor estimado, pois não temos dados reais de clientes únicos
 							const estimatedClients = Math.round(totalAppointments * 0.7);
@@ -322,6 +376,33 @@ const Dashboard = () => {
 									total: estimatedClients > 0 ? estimatedClients : prev.clients.total
 								}
 							}));
+						}
+
+						// Para administradores, buscar agendamentos pendentes do período selecionado
+						try {
+							const allAppointmentsResponse = await AppointmentService.getAll(companySelected.id);
+
+							if (allAppointmentsResponse?.success && allAppointmentsResponse.data) {
+								const pendingApps = allAppointmentsResponse.data.filter(app => {
+									if (app.status !== 'PENDING') return false;
+
+									// Filtrar por período se definido
+									if (startDate && endDate) {
+										const appDate = format(new Date(app.scheduledTime), 'yyyy-MM-dd');
+										return appDate >= startDate && appDate <= endDate;
+									}
+
+									return true;
+								});
+
+								setPeriodPendingAppointments(pendingApps);
+
+								// Calcular valor total dos agendamentos pendentes do período
+								const totalPendingValue = pendingApps.reduce((sum, app) => sum + app.value, 0);
+								setPeriodPendingValue(totalPendingValue);
+							}
+						} catch (error) {
+							console.error('Erro ao carregar agendamentos pendentes do período:', error);
 						}
 					}
 
@@ -355,9 +436,9 @@ const Dashboard = () => {
 								},
 								// Para clients, podemos obter do dashboardStats filtrando pelo usuário
 								clients: {
-									total: dashboardStatsResponse.data?.clients?.total || prev.clients.total,
-									trend: dashboardStatsResponse.data?.clients?.trend || 0,
-									previousTotal: dashboardStatsResponse.data?.clients?.previousTotal || 0
+									total: stats.clients?.total || prev.clients.total,
+									trend: stats.clients?.trend || 0,
+									previousTotal: stats.clients?.previousTotal || 0
 								}
 							}));
 						}
@@ -428,167 +509,16 @@ const Dashboard = () => {
 
 							// Não calculamos mais a projeção aqui, pois agora usamos a API /statistics/projections
 							// que tem a lógica correta de comissão
-
-							/*
-							// Calcular projeção de comissão baseada nos agendamentos pendentes
-							// e na configuração de comissão do usuário
-							const pendingValue = pendingApps.reduce((sum, app) => sum + app.value, 0);
-
-							// Buscar a comissão do usuário para calcular a projeção
-							const userBarber = barberCommissionsResponse?.data?.find(
-								barber => barber.id === user.id
-							);
-
-							// Se temos o usuário e sua configuração de comissão
-							if (userBarber) {
-								// Calcular a porcentagem média de comissão com base na receita e comissão atual
-								const commissionPercentage = userBarber.revenue > 0
-									? userBarber.totalCommission / userBarber.revenue
-									: 0.2; // Default 20%
-
-								// Aplicar a mesma porcentagem aos agendamentos pendentes
-								const projectedValue = pendingValue * commissionPercentage;
-								setProjectedCommission(projectedValue);
-							}
-							*/
 						}
-					}
-				}
-
-				// Update goals with current data
-				if (isAdmin) {
-					console.log('Atualizando metas de administrador:', {
-						revenue: dashboardStatsResponse.data?.revenue.total || 0,
-						appointments: stats.appointments.total,
-						clients: dashboardStatsResponse.data?.clients.total || 0
-					});
-
-					setGoals([
-						{
-							name: 'Faturamento',
-							current: `R$ ${(dashboardStatsResponse.data?.revenue.total || 0).toFixed(2).replace('.', ',')}`,
-						},
-						{
-							name: 'Atendimentos',
-							current: (stats.appointments.total || 0).toString(),
-						},
-						{
-							name: 'Clientes',
-							current: (dashboardStatsResponse.data?.clients.total || 0).toString(),
-						}
-					]);
-				} else {
-					// Dados personalizados para barbeiros
-					const userRevenue = userStats.revenue.total;
-					const userAppointmentsCount = userStats.appointments.total;
-					const userClients = userStats.clients.total;
-
-					console.log('Atualizando metas de barbeiro:', {
-						revenue: userRevenue,
-						appointments: userAppointmentsCount,
-						clients: userClients
-					});
-
-					setGoals([
-						{
-							name: 'Meu Faturamento',
-							current: `R$ ${userRevenue.toFixed(2).replace('.', ',')}`,
-						},
-						{
-							name: 'Meus Atendimentos',
-							current: userAppointmentsCount.toString(),
-						},
-						{
-							name: 'Meus Clientes',
-							current: userClients.toString(),
-						}
-					]);
-				}
-
-				// Se for admin/manager, buscar produtos vendidos no período
-				if (isAdmin) {
-					// Usar os dados de produtos vendidos diretamente do dashboard
-					if (dashboardStatsResponse.success && dashboardStatsResponse.data?.productsSold) {
-						console.log('PRODUTOS VENDIDOS DO DASHBOARD (ADMIN):', {
-							data: dashboardStatsResponse.data.productsSold,
-							total: dashboardStatsResponse.data.productsSold.total,
-							trend: dashboardStatsResponse.data.productsSold.trend,
-							período: { inicio: startDate, fim: endDate }
-						});
-						setProductsSold({
-							total: dashboardStatsResponse.data.productsSold.total || 0,
-							trend: dashboardStatsResponse.data.productsSold.trend || 0,
-							previousTotal: dashboardStatsResponse.data.productsSold.previousTotal || 0
-						});
-					}
-
-					// Buscar agendamentos pendentes do período para administradores
-					try {
-						const allPendingResponse = await AppointmentService.getAll(companySelected.id);
-
-						if (allPendingResponse?.success && allPendingResponse.data) {
-							// Filtrar apenas agendamentos pendentes
-							const allPendingApps = allPendingResponse.data.filter(app => app.status === 'PENDING');
-
-							// Filtrar por período se as datas estão definidas
-							let filteredPendingApps = allPendingApps;
-							if (startDate && endDate) {
-								const startDateTime = new Date(startDate + 'T00:00:00');
-								const endDateTime = new Date(endDate + 'T23:59:59');
-
-								filteredPendingApps = allPendingApps.filter(app => {
-									const appointmentDate = new Date(app.scheduledTime);
-									return appointmentDate >= startDateTime && appointmentDate <= endDateTime;
-								});
-							}
-
-							// Calcular valor total dos pendentes do período
-							const totalPendingValue = filteredPendingApps.reduce((sum, app) => sum + app.value, 0);
-
-							console.log('AGENDAMENTOS PENDENTES DO PERÍODO (ADMIN):', {
-								total: filteredPendingApps.length,
-								valor: totalPendingValue,
-								período: { inicio: startDate, fim: endDate },
-								agendamentos: filteredPendingApps.map(app => ({
-									id: app.id,
-									cliente: app.client?.name,
-									data: app.scheduledTime,
-									valor: app.value
-								}))
-							});
-
-							setPeriodPendingAppointments(filteredPendingApps);
-							setPeriodPendingValue(totalPendingValue);
-						}
-					} catch (error) {
-						console.error('Erro ao buscar agendamentos pendentes do período:', error);
-						setPeriodPendingAppointments([]);
-						setPeriodPendingValue(0);
-					}
-				} else {
-					// Se for usuário normal, os produtos vendidos já estarão filtrados por usuário no dashboard stats
-					if (dashboardStatsResponse.success && dashboardStatsResponse.data?.productsSold) {
-						console.log('PRODUTOS VENDIDOS DO DASHBOARD (USER):', {
-							data: dashboardStatsResponse.data.productsSold,
-							total: dashboardStatsResponse.data.productsSold.total,
-							trend: dashboardStatsResponse.data.productsSold.trend,
-							userId: user?.id,
-							período: { inicio: startDate, fim: endDate }
-						});
-						setProductsSold({
-							total: dashboardStatsResponse.data.productsSold.total || 0,
-							trend: dashboardStatsResponse.data.productsSold.trend || 0,
-							previousTotal: dashboardStatsResponse.data.productsSold.previousTotal || 0
-						});
 					}
 				}
 
 			} catch (error) {
-				console.error('Error loading dashboard data:', error);
+				console.error('Erro ao carregar dados do dashboard:', error);
 				toast({
-					title: "Erro ao carregar dados",
-					description: "Não foi possível carregar os dados do dashboard",
-					variant: "destructive"
+					title: "Erro",
+					description: "Erro ao carregar dados do dashboard",
+					variant: "destructive",
 				});
 			} finally {
 				setIsLoading(false);
@@ -596,7 +526,7 @@ const Dashboard = () => {
 		};
 
 		loadDashboardData();
-	}, [companySelected?.id, dateRange, user?.id, user?.role, hasPermission]);
+	}, [companySelected?.id, dateRange, user?.id, isAdmin, hasPermission]);
 
 	useEffect(() => {
 		if (!companySelected?.id) return;
@@ -639,6 +569,40 @@ const Dashboard = () => {
 		// Carregar projeções para todos os usuários (admin e normais)
 		loadProjections();
 	}, [companySelected?.id, isAdmin, user?.id]);
+
+	// Carregar meta do usuário para o mês atual (apenas para usuários não-admin)
+	useEffect(() => {
+		if (!companySelected?.id || !user?.id || isAdmin) return;
+
+		const loadUserGoal = async () => {
+			try {
+				const currentDate = new Date();
+				const currentMonth = currentDate.getMonth() + 1; // getMonth() retorna 0-11
+				const currentYear = currentDate.getFullYear();
+
+				const response = await goalService.getUserGoals(currentMonth, currentYear);
+
+				if (response.success && response.data && response.data.length > 0) {
+					// Buscar a meta do usuário atual
+					const userGoal = response.data.find(goal => goal.userId === user.id);
+					if (userGoal) {
+						setMonthlyGoal(userGoal.target);
+					} else {
+						// Se não encontrar meta específica, usar 0
+						setMonthlyGoal(0);
+					}
+				} else {
+					// Se não há metas, usar 0
+					setMonthlyGoal(0);
+				}
+			} catch (error) {
+				console.error('Erro ao carregar meta do usuário:', error);
+				setMonthlyGoal(0);
+			}
+		};
+
+		loadUserGoal();
+	}, [companySelected?.id, user?.id, isAdmin]);
 
 	const formatCurrency = (value) => {
 		return `R$ ${value.toFixed(2).replace('.', ',')}`;
@@ -787,26 +751,56 @@ const Dashboard = () => {
 
 							<TabsContent value="overview">
 								{/* Cards de estatísticas */}
-								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-									<StatCard
-										title={isAdmin ? "Receita no Período" : "Minha Receita no Período"}
-										value={formatCurrency(isAdmin ? stats.revenue.total : userStats.revenue.total)}
-										description="No período selecionado"
-										icon={DollarSign}
-										trend={getTrendDirection(isAdmin ? stats.revenue.trend : userStats.revenue.trend)}
-										trendValue={formatTrend(isAdmin ? stats.revenue.trend : userStats.revenue.trend)}
-										previousValue={isAdmin ? stats.revenue.previousTotal : userStats.revenue.previousTotal}
-									/>
-									<StatCard
-										title={isAdmin ? "Atendimentos no Período" : "Meus Atendimentos no Período"}
-										value={isAdmin ? stats.appointments.total : userStats.appointments.total}
-										description="No período selecionado"
-										icon={CalendarIcon}
-										trend={getTrendDirection(isAdmin ? stats.appointments.trend : userStats.appointments.trend)}
-										trendValue={formatTrend(isAdmin ? stats.appointments.trend : userStats.appointments.trend)}
-										previousValue={isAdmin ? stats.appointments.previousTotal : userStats.appointments.previousTotal}
-									/>
-									{!isAdmin && (
+								{isAdmin ? (
+									<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+										<StatCard
+											title="Receita no Período"
+											value={formatCurrency(stats.revenue.total)}
+											description="No período selecionado"
+											icon={DollarSign}
+											trend={getTrendDirection(stats.revenue.trend)}
+											trendValue={formatTrend(stats.revenue.trend)}
+											previousValue={stats.revenue.previousTotal}
+										/>
+										<StatCard
+											title="Atendimentos no Período"
+											value={stats.appointments.total}
+											description="No período selecionado"
+											icon={CalendarIcon}
+											trend={getTrendDirection(stats.appointments.trend)}
+											trendValue={formatTrend(stats.appointments.trend)}
+											previousValue={stats.appointments.previousTotal}
+										/>
+										<StatCard
+											title="Produtos Vendidos"
+											value={productsSold.total || 0}
+											description="No período selecionado"
+											icon={Package}
+											trend={getTrendDirection(productsSold.trend)}
+											trendValue={formatTrend(productsSold.trend)}
+											previousValue={productsSold.previousTotal || 0}
+										/>
+									</div>
+								) : (
+									<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+										<StatCard
+											title="Minha Receita no Período"
+											value={formatCurrency(userStats.revenue.total)}
+											description="No período selecionado"
+											icon={DollarSign}
+											trend={getTrendDirection(userStats.revenue.trend)}
+											trendValue={formatTrend(userStats.revenue.trend)}
+											previousValue={userStats.revenue.previousTotal}
+										/>
+										<StatCard
+											title="Meus Atendimentos no Período"
+											value={userStats.appointments.total}
+											description="No período selecionado"
+											icon={CalendarIcon}
+											trend={getTrendDirection(userStats.appointments.trend)}
+											trendValue={formatTrend(userStats.appointments.trend)}
+											previousValue={userStats.appointments.previousTotal}
+										/>
 										<StatCard
 											title="Minha Comissão no Período"
 											value={formatCurrency(userStats.commission.total)}
@@ -816,17 +810,17 @@ const Dashboard = () => {
 											trendValue={formatTrend(userStats.commission.trend)}
 											previousValue={userStats.commission.previousTotal}
 										/>
-									)}
-									<StatCard
-										title={isAdmin ? "Produtos Vendidos" : "Meus Produtos Vendidos"}
-										value={productsSold.total || 0}
-										description="No período selecionado"
-										icon={Package}
-										trend={getTrendDirection(productsSold.trend)}
-										trendValue={formatTrend(productsSold.trend)}
-										previousValue={productsSold.previousTotal || 0}
-									/>
-								</div>
+										<StatCard
+											title="Meus Produtos Vendidos"
+											value={productsSold.total || 0}
+											description="No período selecionado"
+											icon={Package}
+											trend={getTrendDirection(productsSold.trend)}
+											trendValue={formatTrend(productsSold.trend)}
+											previousValue={productsSold.previousTotal || 0}
+										/>
+									</div>
+								)}
 
 								{/* Conteúdo diferente para admin e usuário normal */}
 								{isAdmin ? (
@@ -1231,9 +1225,15 @@ const Dashboard = () => {
 																	<Bar
 																		dataKey="revenue"
 																		name="Faturamento (R$)"
-																		fill="#8B4513"
+																		fill="url(#colorGradient)"
 																		radius={[4, 4, 0, 0]}
 																	/>
+																	<defs>
+																		<linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+																			<stop offset="5%" stopColor="#6366f1" stopOpacity={0.8} />
+																			<stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.6} />
+																		</linearGradient>
+																	</defs>
 																</BarChart>
 															</ResponsiveContainer>
 														) : (
@@ -1321,20 +1321,19 @@ const Dashboard = () => {
 														<div className="bg-blue-50 rounded-lg p-4">
 															<div className="flex items-center mb-2">
 																<Target className="h-5 w-5 text-blue-600 mr-2" />
-																<h4 className="font-medium text-gray-800">Projeção de Comissão</h4>
+																<h4 className="font-medium text-gray-800">Comissão Total do Período</h4>
 															</div>
-															<p className="text-2xl font-bold text-blue-700">{formatCurrency(projectedCommission)}</p>
-															<p className="text-sm text-gray-600 mt-1">Comissão dos agendamentos pendentes</p>
+															<p className="text-2xl font-bold text-blue-700">
+																{formatCurrency(userStats.commission.total + projectedCommission)}
+															</p>
+															<p className="text-sm text-gray-600 mt-1">Finalizadas + Pendentes</p>
 															<div className="flex items-center mt-2">
-																<span className="text-xs font-medium text-blue-600">
-																	+{formatCurrency(projectedCommission)} potencial
+																<span className="text-xs font-medium text-green-600">
+																	Finalizadas: {formatCurrency(userStats.commission.total)}
 																</span>
 																<div className="ml-auto flex items-center">
-																	<TrendingUp className="h-3.5 w-3.5 text-blue-600 mr-1" />
 																	<span className="text-xs font-medium text-blue-600">
-																		{projectedCommission > 0 && userStats.commission.total > 0
-																			? `+${Math.round((projectedCommission / userStats.commission.total) * 100)}%`
-																			: "+0%"}
+																		Pendentes: {formatCurrency(projectedCommission)}
 																	</span>
 																</div>
 															</div>
@@ -1383,7 +1382,7 @@ const Dashboard = () => {
 									<Card className="shadow-md hover:shadow-lg transition-shadow">
 										<CardHeader>
 											<CardTitle className="text-lg text-gray-800">Meta de Faturamento Mensal</CardTitle>
-											<CardDescription>Progresso em relação à meta de faturamento</CardDescription>
+											<CardDescription>Progresso em relação à meta de faturamento do mês atual</CardDescription>
 										</CardHeader>
 										<CardContent>
 											<div className="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-6">
@@ -1407,11 +1406,11 @@ const Dashboard = () => {
 
 											<div className="mt-6 space-y-3">
 												<div className="flex items-center justify-between text-sm">
-													<span className="text-gray-600">Faturamento acumulado:</span>
+													<span className="text-gray-600">Faturamento acumulado (mês atual):</span>
 													<span className="font-medium text-gray-800">{formatCurrency(userStats.revenue.total)}</span>
 												</div>
 												<div className="flex items-center justify-between text-sm">
-													<span className="text-gray-600">Meta de faturamento:</span>
+													<span className="text-gray-600">Meta de faturamento mensal:</span>
 													<span className="font-medium text-gray-800">{formatCurrency(monthlyGoal)}</span>
 												</div>
 												<div className="flex items-center justify-between text-sm">
@@ -1425,25 +1424,27 @@ const Dashboard = () => {
 									<Card className="shadow-md hover:shadow-lg transition-shadow">
 										<CardHeader>
 											<CardTitle className="text-lg text-gray-800">Comissões</CardTitle>
-											<CardDescription>Comissões atuais e projetadas</CardDescription>
+											<CardDescription>Comissões atuais e projetadas do mês atual</CardDescription>
 										</CardHeader>
 										<CardContent>
 											<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 												<div className="p-4 bg-green-50 rounded-lg">
 													<div className="flex items-center mb-2">
 														<CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-														<h4 className="font-medium text-gray-800">Comissão Acumulada</h4>
+														<h4 className="font-medium text-gray-800">Comissão Finalizada</h4>
 													</div>
 													<p className="text-2xl font-bold text-green-600">{formatCurrency(userStats.commission.total)}</p>
-													<p className="text-sm text-gray-600 mt-1">No período selecionado</p>
+													<p className="text-sm text-gray-600 mt-1">No mês atual</p>
 												</div>
 												<div className="p-4 bg-blue-50 rounded-lg">
 													<div className="flex items-center mb-2">
-														<Clock className="h-5 w-5 text-blue-500 mr-2" />
-														<h4 className="font-medium text-gray-800">Comissão Projetada</h4>
+														<Target className="h-5 w-5 text-blue-500 mr-2" />
+														<h4 className="font-medium text-gray-800">Comissão Total Projetada</h4>
 													</div>
-													<p className="text-2xl font-bold text-blue-600">{formatCurrency(projectedCommission)}</p>
-													<p className="text-sm text-gray-600 mt-1">De agendamentos pendentes</p>
+													<p className="text-2xl font-bold text-blue-600">
+														{formatCurrency(userStats.commission.total + projectedCommission)}
+													</p>
+													<p className="text-sm text-gray-600 mt-1">Finalizadas + Pendentes</p>
 												</div>
 											</div>
 
@@ -1451,16 +1452,78 @@ const Dashboard = () => {
 												<ProgressBar
 													value={userStats.revenue.total}
 													maxValue={monthlyGoal}
-													label="Progresso de faturamento"
+													label="Progresso de faturamento (mês atual)"
 												/>
 
 												<div className="mt-4">
 													<ProgressBar
 														value={userStats.revenue.total + pendingAppointments.reduce((sum, app) => sum + app.value, 0)}
 														maxValue={monthlyGoal}
-														label="Projeção com pendentes"
+														label="Projeção com pendentes (mês atual)"
 														color="blue"
 													/>
+												</div>
+											</div>
+
+											{/* Resumo visual das comissões */}
+											<div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border border-blue-100">
+												<h3 className="text-sm font-medium text-gray-700 mb-3">Resumo de Comissões do Mês</h3>
+												<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+													<div className="text-center">
+														<p className="text-xs text-gray-600 mb-1">Comissão Finalizada</p>
+														<p className="text-lg font-bold text-green-600">{formatCurrency(userStats.commission.total)}</p>
+														<p className="text-xs text-gray-500">
+															{(userStats.commission.total + projectedCommission) > 0
+																? Math.round((userStats.commission.total / (userStats.commission.total + projectedCommission)) * 100)
+																: 0}% do total
+														</p>
+													</div>
+													<div className="text-center">
+														<p className="text-xs text-gray-600 mb-1">Comissão Pendente</p>
+														<p className="text-lg font-bold text-blue-600">{formatCurrency(projectedCommission)}</p>
+														<p className="text-xs text-gray-500">
+															{(userStats.commission.total + projectedCommission) > 0
+																? Math.round((projectedCommission / (userStats.commission.total + projectedCommission)) * 100)
+																: 0}% do total
+														</p>
+													</div>
+													<div className="text-center">
+														<p className="text-xs text-gray-600 mb-1">Total Projetado</p>
+														<p className="text-lg font-bold text-indigo-700">
+															{formatCurrency(userStats.commission.total + projectedCommission)}
+														</p>
+														<p className="text-xs text-gray-500">Comissão completa do mês</p>
+													</div>
+												</div>
+
+												{/* Barra de progresso visual */}
+												<div className="mt-4">
+													<div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+														<div className="h-full flex">
+															<div
+																className="bg-gradient-to-r from-green-400 to-green-600"
+																style={{
+																	width: `${(userStats.commission.total + projectedCommission) > 0
+																		? (userStats.commission.total / (userStats.commission.total + projectedCommission)) * 100
+																		: 0}%`
+																}}
+																title={`Finalizada: ${formatCurrency(userStats.commission.total)}`}
+															></div>
+															<div
+																className="bg-gradient-to-r from-blue-400 to-blue-600"
+																style={{
+																	width: `${(userStats.commission.total + projectedCommission) > 0
+																		? (projectedCommission / (userStats.commission.total + projectedCommission)) * 100
+																		: 0}%`
+																}}
+																title={`Pendente: ${formatCurrency(projectedCommission)}`}
+															></div>
+														</div>
+													</div>
+													<div className="flex justify-between text-xs text-gray-600 mt-1">
+														<span>Finalizada</span>
+														<span>Pendente</span>
+													</div>
 												</div>
 											</div>
 										</CardContent>

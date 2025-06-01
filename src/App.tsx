@@ -66,7 +66,7 @@ const App = () => (
 							</ProtectedRoute>
 						} />
 						<Route path="/admin/services" element={
-							<ProtectedRoute requiredPermission={['viewAllServices', 'viewOwnServices']}>
+							<ProtectedRoute requiredPermission={['viewServices', 'viewOwnServices']}>
 								<AdminServices />
 							</ProtectedRoute>
 						} />
@@ -86,7 +86,7 @@ const App = () => (
 							</ProtectedRoute>
 						} />
 						<Route path="/admin/revenue" element={
-							<ProtectedRoute requiredPermission={['viewFullRevenue', 'viewOwnRevenue']}>
+							<ProtectedRoute requiredPermission="viewFullRevenue">
 								<AdminRevenue />
 							</ProtectedRoute>
 						} />
@@ -96,7 +96,7 @@ const App = () => (
 							</ProtectedRoute>
 						} />
 						<Route path="/admin/products" element={
-							<ProtectedRoute requiredPermission={['viewAllProducts', 'viewOwnProducts']}>
+							<ProtectedRoute requiredPermission={['viewProducts', 'viewOwnProducts']}>
 								<AdminProducts />
 							</ProtectedRoute>
 						} />

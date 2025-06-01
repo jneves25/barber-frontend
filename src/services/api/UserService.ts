@@ -28,10 +28,8 @@ export interface User {
 		viewAllClients: boolean;
 		manageClients: boolean;
 		viewOwnClients: boolean;
-		viewAllServices: boolean;
 		manageServices: boolean;
 		viewServices: boolean;
-		viewAllProducts: boolean;
 		manageProducts: boolean;
 		viewProducts: boolean;
 		viewAllBarbers: boolean;
@@ -65,10 +63,8 @@ export interface UserPermissions {
 	viewAllClients: boolean;
 	manageClients: boolean;
 	viewOwnClients: boolean;
-	viewAllServices: boolean;
 	manageServices: boolean;
 	viewServices: boolean;
-	viewAllProducts: boolean;
 	manageProducts: boolean;
 	viewProducts: boolean;
 	viewAllBarbers: boolean;

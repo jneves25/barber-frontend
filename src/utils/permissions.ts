@@ -1,4 +1,4 @@
-export const DEFAULT_PERMISSIONS = {
+export const defaultPermissions = {
 	manageCompany: false,
 	viewCompanys: false,
 	addMember: false,
@@ -6,33 +6,31 @@ export const DEFAULT_PERMISSIONS = {
 	viewPermissions: false,
 	viewAllAppointments: false,
 	manageAppointments: false,
-	viewOwnAppointments: true,
+	viewOwnAppointments: false,
 	viewAllClients: false,
 	manageClients: false,
-	viewOwnClients: true,
-	viewAllServices: true,
+	viewOwnClients: false,
 	manageServices: false,
-	viewServices: true,
-	viewAllProducts: true,
+	viewServices: false,
 	manageProducts: false,
-	viewProducts: true,
+	viewProducts: false,
 	viewAllBarbers: false,
 	manageBarbers: false,
 	viewAllCommissions: false,
 	manageCommissions: false,
-	viewOwnCommissions: true,
+	viewOwnCommissions: false,
 	viewAllGoals: false,
 	manageGoals: false,
-	viewOwnGoals: true,
+	viewOwnGoals: false,
 	viewFullRevenue: false,
-	viewOwnRevenue: true,
+	viewOwnRevenue: false,
+	viewFullStatistics: false,
+	viewOwnStatistics: false,
 	manageSettings: false,
 	viewUsers: false,
 	manageUsers: false,
 	viewSubscriptions: false,
 	manageSubscriptions: false,
-	viewFullStatistics: false,
-	viewOwnStatistics: true,
 };
 
 export const allPermissions = [
@@ -53,12 +51,10 @@ export const allPermissions = [
 	{ id: 'viewOwnClients', name: 'Ver próprios clientes', description: 'Acesso para visualizar apenas seus próprios clientes' },
 
 	// Serviços
-	{ id: 'viewAllServices', name: 'Ver todos os serviços', description: 'Acesso para visualizar todos os serviços disponíveis' },
 	{ id: 'manageServices', name: 'Gerenciar serviços', description: 'Criar, editar e excluir serviços' },
 	{ id: 'viewServices', name: 'Ver serviços', description: 'Acesso para visualizar serviços disponíveis' },
 
 	// Produtos
-	{ id: 'viewAllProducts', name: 'Ver todos os produtos', description: 'Acesso para visualizar todos os produtos disponíveis' },
 	{ id: 'manageProducts', name: 'Gerenciar produtos', description: 'Criar, editar e excluir produtos' },
 	{ id: 'viewProducts', name: 'Ver produtos', description: 'Acesso para visualizar produtos disponíveis' },
 

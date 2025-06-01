@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import UserService, { RoleEnum, UserPermissions, User as UserType } from '@/services/api/UserService';
-import { allPermissions, DEFAULT_PERMISSIONS } from '@/utils/permissions';
+import { allPermissions, defaultPermissions } from '@/utils/permissions';
 
 // Componente principal
 const Permissions = () => {
@@ -166,7 +166,7 @@ const Permissions = () => {
 		try {
 			const response = await UserService.create({
 				...newUser,
-				permissions: DEFAULT_PERMISSIONS
+				permissions: defaultPermissions
 			});
 
 			if (response.success && response.data) {

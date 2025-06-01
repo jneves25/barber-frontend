@@ -27,7 +27,6 @@ import { ptBR } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from '@/utils/currency';
 
 import AppointmentService, {
@@ -47,25 +46,29 @@ interface AppointmentCreateModalProps {
 	onClose: () => void;
 	onSuccess: () => void; // Callback to refresh the appointments list
 	initialDate?: Date; // Initial date for the appointment
+	clientViewMode?: 'all' | 'own';
+	userViewMode?: 'all' | 'own';
 }
 
 interface ServiceItem {
 	serviceId: number;
 	quantity: number;
-	service: Service;
+	service?: Service;
 }
 
 interface ProductItem {
 	productId: number;
 	quantity: number;
-	product: Product;
+	product?: Product;
 }
 
 export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 	isOpen,
 	onClose,
 	onSuccess,
-	initialDate
+	initialDate,
+	clientViewMode = 'all',
+	userViewMode = 'all'
 }) => {
 	const { user, companySelected } = useAuth();
 	const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +116,7 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 	useEffect(() => {
 		if (!isOpen) return;
 		fetchData();
-	}, [isOpen, companySelected.id]);
+	}, [isOpen, companySelected.id, clientViewMode, userViewMode]);
 
 	// Update selectedDate when initialDate changes
 	useEffect(() => {
@@ -135,27 +138,98 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 	const fetchData = async () => {
 		setIsLoadingData(true);
 		try {
-			const [clientsRes, servicesRes, productsRes, professionalsRes] = await Promise.all([
-				ClientService.getAll(companySelected.id),
-				ServiceService.getAllServices(companySelected.id),
-				ProductService.getAllProducts(companySelected.id),
-				UserService.getUsersByCompany(companySelected.id)
+			await Promise.all([
+				fetchClients(),
+				fetchServices(),
+				fetchProducts(),
+				fetchProfessionals()
 			]);
-
-			if (clientsRes.success && clientsRes.data) setClients(clientsRes.data);
-			if (servicesRes.success && servicesRes.data) setServices(servicesRes.data as Service[]);
-			if (productsRes.success && productsRes.data) setProducts(productsRes.data as Product[]);
-			if (professionalsRes.success && professionalsRes.data) {
-				setProfessionals(professionalsRes.data);
-				if (user?.role === 'USER') {
-					setSelectedProfessionalId(Number(user.id));
-				}
-			}
 		} catch (error) {
-			console.error("Error fetching data:", error);
-			toast.error("Erro ao carregar dados necessários");
+			console.error('Erro ao carregar dados:', error);
+			toast.error('Erro ao carregar dados necessários');
 		} finally {
 			setIsLoadingData(false);
+		}
+	};
+
+	const fetchClients = async () => {
+		try {
+			let response;
+			if (clientViewMode === 'all') {
+				response = await ClientService.getAll(companySelected.id);
+			} else {
+				response = await ClientService.getByBarber();
+			}
+
+			if (response.success && response.data) {
+				setClients(response.data);
+			} else {
+				toast.error(response.error || 'Erro ao carregar clientes');
+			}
+		} catch (error) {
+			console.error('Erro ao buscar clientes:', error);
+			toast.error('Erro ao conectar com o servidor');
+		}
+	};
+
+	const fetchServices = async () => {
+		try {
+			const servicesRes = await ServiceService.getAllServices(companySelected.id);
+			if (servicesRes.success && servicesRes.data) {
+				setServices(servicesRes.data as Service[]);
+			} else {
+				toast.error(servicesRes.error || 'Erro ao carregar serviços');
+			}
+		} catch (error) {
+			console.error('Erro ao buscar serviços:', error);
+			toast.error('Erro ao conectar com o servidor');
+		}
+	};
+
+	const fetchProducts = async () => {
+		try {
+			const productsRes = await ProductService.getAllProducts(companySelected.id);
+			if (productsRes.success && productsRes.data) {
+				setProducts(productsRes.data as Product[]);
+			} else {
+				toast.error(productsRes.error || 'Erro ao carregar produtos');
+			}
+		} catch (error) {
+			console.error('Erro ao buscar produtos:', error);
+			toast.error('Erro ao conectar com o servidor');
+		}
+	};
+
+	const fetchProfessionals = async () => {
+		try {
+			let response;
+			if (userViewMode === 'all') {
+				response = await UserService.getUsersByCompany(companySelected.id);
+			} else {
+				const currentUser = {
+					id: Number(user?.id),
+					name: user?.name || '',
+					email: user?.email || '',
+					password: '',
+					role: user?.role || 'USER',
+					companyId: companySelected.id,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString()
+				};
+				response = { success: true, data: [currentUser] };
+			}
+
+			if (response.success && response.data) {
+				setProfessionals(response.data);
+				if (userViewMode === 'own' && user?.id) {
+					setSelectedProfessionalId(Number(user.id));
+				}
+			} else {
+				toast.error(response.error || 'Erro ao carregar profissionais');
+			}
+		} catch (error) {
+			console.error('Erro ao buscar profissionais:', error);
+			toast.error('Erro ao conectar com o servidor');
 		}
 	};
 
@@ -217,11 +291,11 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 	// Calculate total whenever selected services or products change
 	useEffect(() => {
 		const servicesTotal = selectedServices.reduce((total, item) => {
-			return total + (item.service.price * item.quantity);
+			return total + (item.service?.price || 0) * item.quantity;
 		}, 0);
 
 		const productsTotal = selectedProducts.reduce((total, item) => {
-			return total + (item.product.price * item.quantity);
+			return total + (item.product?.price || 0) * item.quantity;
 		}, 0);
 
 		setServiceTotal(servicesTotal);
@@ -512,8 +586,8 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 												className="flex items-center justify-between p-3 bg-white rounded-lg border"
 											>
 												<div>
-													<p className="font-medium">{item.service.name}</p>
-													<p className="text-sm text-gray-500">{formatCurrency(item.service.price)}</p>
+													<p className="font-medium">{item.service?.name}</p>
+													<p className="text-sm text-gray-500">{formatCurrency(item.service?.price || 0)}</p>
 												</div>
 												<div className="flex items-center space-x-2">
 													<Button
@@ -604,8 +678,8 @@ export const AppointmentCreateModal: React.FC<AppointmentCreateModalProps> = ({
 												className="flex items-center justify-between p-3 bg-white rounded-lg border"
 											>
 												<div>
-													<p className="font-medium">{item.product.name}</p>
-													<p className="text-sm text-gray-500">{formatCurrency(item.product.price)}</p>
+													<p className="font-medium">{item.product?.name}</p>
+													<p className="text-sm text-gray-500">{formatCurrency(item.product?.price || 0)}</p>
 												</div>
 												<div className="flex items-center space-x-2">
 													<Button

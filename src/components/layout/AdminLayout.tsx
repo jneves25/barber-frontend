@@ -53,13 +53,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 			path: '/admin/services',
 			icon: Scissors,
 			label: 'Serviços',
-			customCheck: () => hasPermission('viewAllServices') || hasPermission('viewOwnServices')
+			customCheck: () => hasPermission('viewServices')
 		},
 		{
 			path: '/admin/products',
 			icon: Package,
 			label: 'Produtos',
-			customCheck: () => hasPermission('viewAllProducts') || hasPermission('viewOwnProducts')
+			customCheck: () => hasPermission('viewProducts')
 		},
 		{
 			path: '/admin/clients',
@@ -71,7 +71,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 			path: '/admin/commissions',
 			icon: DollarSign,
 			label: 'Comissões',
-			customCheck: () => hasPermission('viewAllCommissions') || hasPermission('viewOwnCommissions')
+			customCheck: () => user?.role === 'ADMIN'
 		},
 		{
 			path: '/admin/goals',
@@ -83,11 +83,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
 			path: '/admin/revenue',
 			icon: BarChart,
 			label: 'Faturamento',
-			customCheck: () => hasPermission('viewFullRevenue') || hasPermission('viewOwnRevenue')
+			customCheck: () => user?.role === 'ADMIN'
 		},
 		{ path: '/admin/permissions', icon: Shield, label: 'Gestão', permission: 'managePermissions' },
 		{ path: '/admin/settings', icon: Settings, label: 'Configurações', permission: 'manageSettings' },
-		{ path: '/admin/subscriptions', icon: CreditCard, label: 'Assinaturas', permission: null },
+		// { path: '/admin/subscriptions', icon: CreditCard, label: 'Assinaturas', permission: null },
 	];
 
 	// Filtrar itens de menu baseado em permissões
