@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useAuth } from '@/context/AuthContext';
 import { StatisticsService } from '@/services/api/StatisticsService';
 import { toast } from '@/components/ui/use-toast';
-import { format, startOfMonth, isToday, addDays, isTomorrow, endOfMonth } from 'date-fns';
+import { format, startOfDay, endOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
 	BarChart,
@@ -196,8 +196,8 @@ const CircularProgressChart = ({ value, maxValue, title, subtitle }) => {
 const Dashboard = () => {
 	const { companySelected, user, hasPermission } = useAuth();
 	const [dateRange, setDateRange] = useState<Date[]>([
-		startOfMonth(new Date()),
-		new Date()
+		startOfDay(new Date()),
+		endOfDay(new Date())
 	]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [stats, setStats] = useState({
@@ -257,71 +257,42 @@ const Dashboard = () => {
 		if (!companySelected?.id) return;
 
 		const loadDashboardData = async () => {
-			setIsLoading(true);
 			try {
-				// Preparar datas para o filtro
-				const startDate = dateRange[0] ? format(dateRange[0], 'yyyy-MM-dd') : null;
-				const endDate = dateRange[1] ? format(dateRange[1], 'yyyy-MM-dd') : null;
+				setIsLoading(true);
 
-				// Load dashboard statistics with date range
-				const dashboardStatsResponse = await statisticsService.getDashboardStats(
+				// Formatar as datas para enviar ao backend
+				const startDate = format(dateRange[0] || startOfDay(new Date()), 'yyyy-MM-dd');
+				const endDate = format(dateRange[1] || endOfDay(new Date()), 'yyyy-MM-dd');
+
+				console.log('[Dashboard] Buscando estatísticas:', {
+					startDate,
+					endDate,
+					companyId: companySelected.id,
+					userId: !isAdmin ? user?.id : undefined,
+					dateRange
+				});
+
+				// Carregar estatísticas do dashboard com período personalizado
+				const dashboardResponse = await statisticsService.getDashboardStats(
 					companySelected.id,
 					'custom',
 					startDate,
 					endDate,
-					!isAdmin ? user?.id : undefined // Passa o ID do usuário se não for admin
+					!isAdmin ? user?.id : undefined
 				);
 
-				if (dashboardStatsResponse.success && dashboardStatsResponse.data) {
-					setStats(dashboardStatsResponse.data);
-				}
+				console.log('[Dashboard] Resposta das estatísticas:', {
+					success: dashboardResponse.success,
+					data: dashboardResponse.data,
+					period: { startDate, endDate }
+				});
 
-				// Para usuários não-admin, carregar dados do mês atual para metas
-				if (!isAdmin && user?.id) {
-					const currentMonthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-					const currentMonthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-
-					// Carregar estatísticas do mês atual
-					const currentMonthStatsResponse = await statisticsService.getDashboardStats(
-						companySelected.id,
-						'custom',
-						currentMonthStart,
-						currentMonthEnd,
-						user.id
-					);
-
-					if (currentMonthStatsResponse.success && currentMonthStatsResponse.data) {
-						setCurrentMonthStats(currentMonthStatsResponse.data);
-					}
-
-					// Carregar agendamentos pendentes do mês atual
-					try {
-						const allAppointmentsResponse = await AppointmentService.getByBarber(companySelected.id);
-
-						if (allAppointmentsResponse?.success && allAppointmentsResponse.data) {
-							const currentMonthPendingApps = allAppointmentsResponse.data.filter(app => {
-								if (app.status !== 'PENDING') return false;
-
-								const appDate = new Date(app.scheduledTime);
-								const currentMonth = new Date();
-
-								return appDate.getMonth() === currentMonth.getMonth() &&
-									appDate.getFullYear() === currentMonth.getFullYear();
-							});
-
-							// Calcular comissão projetada dos agendamentos pendentes do mês atual
-							let projectedCommission = 0;
-							currentMonthPendingApps.forEach(app => {
-								const userProjection = projectionData.barberProjections.find(p => p.barberId === user.id);
-								const commissionPercentage = userProjection?.commissionPercentage || 0.5; // 50% padrão
-								projectedCommission += app.value * commissionPercentage;
-							});
-
-							setCurrentMonthPendingCommission(projectedCommission);
-						}
-					} catch (error) {
-						console.error('Erro ao carregar agendamentos pendentes do mês atual:', error);
-					}
+				if (dashboardResponse.success && dashboardResponse.data) {
+					console.log('[Dashboard] Atualizando estatísticas:', {
+						revenue: dashboardResponse.data.revenue,
+						appointments: dashboardResponse.data.appointments
+					});
+					setStats(dashboardResponse.data);
 				}
 
 				// Load top services with date range
@@ -395,130 +366,49 @@ const Dashboard = () => {
 									return true;
 								});
 
+								// Calcular valor total dos agendamentos pendentes
+								const periodPendingValue = pendingApps.reduce((sum, app) => sum + app.value, 0);
+								setPeriodPendingValue(periodPendingValue);
 								setPeriodPendingAppointments(pendingApps);
 
-								// Calcular valor total dos agendamentos pendentes do período
-								const totalPendingValue = pendingApps.reduce((sum, app) => sum + app.value, 0);
-								setPeriodPendingValue(totalPendingValue);
+								// Atualizar projeção de dados
+								setProjectionData({
+									pendingAppointments: pendingApps.length,
+									totalPendingValue: periodPendingValue,
+									totalProjectedCommission: pendingApps.reduce((sum, app) => sum + (app.value * 0.2), 0), // 20% de comissão
+									netProjectedRevenue: periodPendingValue,
+									barberProjections: []
+								});
 							}
 						} catch (error) {
-							console.error('Erro ao carregar agendamentos pendentes do período:', error);
-						}
-					}
-
-					// Calcular a comissão do usuário logado e seus dados individuais
-					if (user?.id) {
-						const userBarberData = barberCommissionsResponse.data.find(
-							barber => barber.id === user.id
-						);
-
-						if (userBarberData) {
-							// Atualizar comissão do usuário e estatísticas
-							setUserCommission(userBarberData.totalCommission || 0);
-
-							// Atualizar dados do usuário com base no período selecionado
-							setUserStats(prev => ({
-								...prev,
-								commission: {
-									total: userBarberData.totalCommission || 0,
-									trend: stats.commission.trend || 0,
-									previousTotal: stats.commission.previousTotal || 0
-								},
-								revenue: {
-									total: userBarberData.revenue || 0,
-									trend: stats.revenue.trend || 0,
-									previousTotal: stats.revenue.previousTotal || 0
-								},
-								appointments: {
-									total: userBarberData.appointmentCount || 0,
-									trend: stats.appointments.trend || 0,
-									previousTotal: stats.appointments.previousTotal || 0
-								},
-								// Para clients, podemos obter do dashboardStats filtrando pelo usuário
-								clients: {
-									total: stats.clients?.total || prev.clients.total,
-									trend: stats.clients?.trend || 0,
-									previousTotal: stats.clients?.previousTotal || 0
-								}
-							}));
+							console.error('Erro ao buscar agendamentos pendentes:', error);
 						}
 					}
 				}
 
-				// Load user-specific top services if user is a barber with date range
-				if (user?.id && user?.role === 'USER') {
-					const userServicesResponse = await statisticsService.getTopServices(
-						companySelected.id,
-						'custom',
-						user.id, // Passando userId para filtrar por barbeiro específico
-						startDate,
-						endDate
-					);
+				// Load goals if user is not admin
+				if (!isAdmin && user?.id) {
+					const currentDate = new Date();
+					const currentMonth = currentDate.getMonth() + 1;
+					const currentYear = currentDate.getFullYear();
 
-					if (userServicesResponse.success && userServicesResponse.data) {
-						setUserTopServices(userServicesResponse.data);
-					}
-				} else {
-					setUserTopServices(topServicesResponse.data || []);
-				}
+					const goalsResponse = await goalService.getUserGoals(currentMonth, currentYear);
 
-				// Load upcoming appointments - SEMPRE do dia atual, independente do filtro de período
-				let appointmentsResponse;
-				const canViewAllAppointments = hasPermission('viewAllAppointments');
-
-				// Formatar a data atual como YYYY-MM-DD para o backend
-				const currentDate = format(new Date(), 'yyyy-MM-dd');
-
-				if (canViewAllAppointments) {
-					appointmentsResponse = await AppointmentService.getAll(companySelected.id, currentDate);
-				} else {
-					appointmentsResponse = await AppointmentService.getByBarber(companySelected.id, currentDate);
-				}
-
-				if (appointmentsResponse?.success && appointmentsResponse.data) {
-					// Se o usuário pode ver todos os agendamentos, armazena todos para a visão administrativa
-					if (canViewAllAppointments) {
-						setUpcomingAppointments(appointmentsResponse.data.slice(0, 5)); // Limita a 5 agendamentos
-					}
-
-					// Para usuários normais ou visão personalizada de administradores
-					if (user?.role === 'USER' || !canViewAllAppointments) {
-						// Se não pode ver todos, usa exatamente o que veio da API (já filtrado por barbeiro)
-						// Caso contrário (admin vendo seus próprios), filtra da lista completa
-						const filteredAppointments = !canViewAllAppointments
-							? appointmentsResponse.data
-							: appointmentsResponse.data.filter(appointment => appointment.userId === user.id);
-
-						setUserAppointments(filteredAppointments.slice(0, 5)); // Limita a 5 agendamentos
-					} else {
-						setUserAppointments([]);
-					}
-
-					// Se for usuário normal, buscar todos os agendamentos (não apenas hoje)
-					// para calcular pendentes e projeção de comissão
-					if (user?.role === 'USER') {
-						const allAppointmentsResponse = await AppointmentService.getByBarber(companySelected.id);
-
-						if (allAppointmentsResponse?.success && allAppointmentsResponse.data) {
-							// Filtrar apenas os agendamentos pendentes
-							const pendingApps = allAppointmentsResponse.data.filter(
-								app => app.status === 'PENDING'
-							);
-
-							setPendingAppointments(pendingApps);
-
-							// Não calculamos mais a projeção aqui, pois agora usamos a API /statistics/projections
-							// que tem a lógica correta de comissão
-						}
+					if (goalsResponse.success && goalsResponse.data) {
+						// Manter o formato original das metas
+						setGoals([
+							{ name: 'Faturamento', current: 'R$ 0,00' },
+							{ name: 'Clientes', current: '0' },
+							{ name: 'Agendamentos', current: '0' }
+						]);
 					}
 				}
-
 			} catch (error) {
 				console.error('Erro ao carregar dados do dashboard:', error);
 				toast({
 					title: "Erro",
 					description: "Erro ao carregar dados do dashboard",
-					variant: "destructive",
+					variant: "destructive"
 				});
 			} finally {
 				setIsLoading(false);
@@ -755,8 +645,8 @@ const Dashboard = () => {
 									<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
 										<StatCard
 											title="Receita no Período"
-											value={formatCurrency(stats.revenue.total)}
-											description="No período selecionado"
+											value={formatCurrency(stats.revenue.total || 0)}
+											description="Receita de agendamentos finalizados"
 											icon={DollarSign}
 											trend={getTrendDirection(stats.revenue.trend)}
 											trendValue={formatTrend(stats.revenue.trend)}
@@ -863,7 +753,7 @@ const Dashboard = () => {
 															<p className="text-2xl font-bold text-blue-700">
 																{formatCurrency(
 																	barberCommissions.reduce((sum, barber) => sum + (barber.totalCommission || 0), 0) +
-																	(periodPendingValue * 0.2) // Estimativa de 20% de comissão média para pendentes
+																	(periodPendingAppointments.length > 0 ? projectionData.totalProjectedCommission : 0)
 																)}
 															</p>
 															<p className="text-xs text-gray-500 mt-1">Finalizadas + Pendentes</p>
@@ -873,12 +763,13 @@ const Dashboard = () => {
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Receita Líquida Projetada</h3>
 															<p className="text-2xl font-bold text-purple-700">
 																{formatCurrency(
+																	// Receita total (finalizada + pendente)
 																	(stats.revenue.total + periodPendingValue) -
-																	(barberCommissions.reduce((sum, barber) => sum + (barber.totalCommission || 0), 0) +
-																		(periodPendingValue * 0.2))
+																	// Comissões totais (apenas dos agendamentos pendentes)
+																	(periodPendingAppointments.length > 0 ? projectionData.totalProjectedCommission : 0)
 																)}
 															</p>
-															<p className="text-xs text-gray-500 mt-1">Após todas as comissões</p>
+															<p className="text-xs text-gray-500 mt-1">Após comissões dos agendamentos pendentes</p>
 														</div>
 													</div>
 
