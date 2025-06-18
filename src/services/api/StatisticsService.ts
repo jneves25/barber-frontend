@@ -79,6 +79,22 @@ export interface Appointment {
 	}>;
 }
 
+export interface CommissionRule {
+	id: number;
+	configId: number;
+	serviceId: number;
+	percentage: number;
+}
+
+export interface CommissionConfig {
+	id: number;
+	userId: number;
+	companyId: number;
+	commissionType: 'GENERAL' | 'SERVICES';
+	commissionValue: number;
+	rules?: CommissionRule[];
+}
+
 export class StatisticsService {
 	/**
 	 * Obter estatísticas do dashboard
@@ -228,9 +244,11 @@ export class StatisticsService {
 	 */
 	async getProjections(companyId: number): Promise<ApiResponse<any>> {
 		try {
+			console.log(`[StatisticsService] Buscando projeções para a empresa ${companyId}`);
 			const response = await apiClient.get(`/statistics/projections/${companyId}`);
 
 			if (response.data && response.data.success) {
+				console.log('[StatisticsService] Projeções obtidas com sucesso:', response.data);
 				return {
 					success: true,
 					data: response.data.data,
@@ -238,17 +256,33 @@ export class StatisticsService {
 				};
 			}
 
+			console.error('[StatisticsService] Erro ao obter projeções:', response.data);
 			return {
 				success: false,
 				error: response.data.message || 'Erro ao obter projeções de faturamento',
 				status: response.status
 			};
 		} catch (error: any) {
+			console.error('[StatisticsService] Erro na requisição de projeções:', error);
 			return {
 				success: false,
-				error: error.message || 'Erro ao obter projeções de faturamento',
-				status: 500
+				error: error.response?.data?.message || error.message || 'Erro ao obter projeções de faturamento',
+				status: error.response?.status || 500
 			};
 		}
+	}
+
+	/**
+	 * Obter configuração de comissão de um barbeiro
+	 */
+	async getBarberCommissionConfig(
+		companyId: number,
+		userId: number
+	): Promise<ApiResponse<CommissionConfig>> {
+		const response = await apiClient.get<{ success: boolean; data: CommissionConfig; status: number }>(
+			`/statistics/commissions/config/${companyId}/${userId}`
+		);
+
+		return response.data;
 	}
 } 

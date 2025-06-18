@@ -249,6 +249,7 @@ const Dashboard = () => {
 		appointments: { total: 0, trend: 0, previousTotal: 0 },
 	});
 	const [currentMonthPendingCommission, setCurrentMonthPendingCommission] = useState(0);
+	const [comissoesProjetadasValor, setComissoesProjetadasValor] = useState("R$ 0,00");
 
 	const statisticsService = new StatisticsService();
 	const isAdmin = user?.role === 'ADMIN' || user?.role === 'MANAGER';
@@ -309,12 +310,26 @@ const Dashboard = () => {
 				}
 
 				// Load barber commissions with date range
+				console.log('[Dashboard] Buscando comissões dos barbeiros:', {
+					companyId: companySelected.id,
+					period: 'custom',
+					dateRange: {
+						startDate,
+						endDate
+					}
+				});
+
 				const barberCommissionsResponse = await statisticsService.getBarberCommissions(
 					companySelected.id,
 					'custom',
 					startDate,
 					endDate
 				);
+
+				console.log('[Dashboard] Resposta das comissões:', {
+					success: barberCommissionsResponse.success,
+					data: barberCommissionsResponse.data
+				});
 
 				if (barberCommissionsResponse.success && barberCommissionsResponse.data) {
 					setBarberCommissions(barberCommissionsResponse.data);
@@ -493,6 +508,83 @@ const Dashboard = () => {
 
 		loadUserGoal();
 	}, [companySelected?.id, user?.id, isAdmin]);
+
+	// Efeito para calcular comissões projetadas
+	useEffect(() => {
+		const calcularComissoesProjetadas = async () => {
+			try {
+				// Filtra agendamentos pelo período selecionado
+				const startDate = format(dateRange[0] || startOfDay(new Date()), 'yyyy-MM-dd');
+				const endDate = format(dateRange[1] || endOfDay(new Date()), 'yyyy-MM-dd');
+
+				// Filtra agendamentos do período
+				const agendamentosDoPeriodo = periodPendingAppointments.filter(app => {
+					const appDate = format(new Date(app.scheduledTime), 'yyyy-MM-dd');
+					return appDate >= startDate && appDate <= endDate;
+				});
+
+				// Calcula comissões por barbeiro
+				const comissoesProjetadas = await agendamentosDoPeriodo.reduce(async (totalPromise, agendamento) => {
+					const total = await totalPromise;
+
+					// Buscar configuração de comissão do barbeiro
+					const commissionConfig = await statisticsService.getBarberCommissionConfig(
+						companySelected.id,
+						agendamento.user?.id || 0
+					);
+
+					// Calcula comissão para cada serviço do agendamento
+					const comissaoAgendamento = await agendamento.services.reduce(async (sumPromise, servico) => {
+						const sum = await sumPromise;
+						const valorServico = servico.service.price * (servico.quantity || 1);
+						let percentualComissao = 20; // Padrão caso não tenha configuração
+
+						if (commissionConfig?.data) {
+							if (commissionConfig.data.commissionType === 'SERVICES') {
+								// Buscar regra específica para este serviço
+								const serviceRule = commissionConfig.data.rules?.find(
+									rule => rule.serviceId === servico.service.id
+								);
+								if (serviceRule) {
+									percentualComissao = serviceRule.percentage;
+								}
+							} else if (commissionConfig.data.commissionType === 'GENERAL') {
+								percentualComissao = commissionConfig.data.commissionValue;
+							}
+						}
+
+						const comissaoServico = (valorServico * percentualComissao) / 100;
+						
+						console.log(`[Dashboard] Comissão calculada:`, {
+							barbeiro: agendamento.user?.name,
+							servico: servico.service.name,
+							valor: valorServico,
+							percentual: percentualComissao,
+							comissao: comissaoServico,
+							tipoComissao: commissionConfig?.data?.commissionType || 'PADRAO'
+						});
+
+						return sum + comissaoServico;
+					}, Promise.resolve(0));
+
+					return total + comissaoAgendamento;
+				}, Promise.resolve(0));
+
+				console.log('[Dashboard] Resumo comissões:', {
+					periodo: { startDate, endDate },
+					agendamentos: agendamentosDoPeriodo.length,
+					total: comissoesProjetadas
+				});
+
+				setComissoesProjetadasValor(formatCurrency(comissoesProjetadas));
+			} catch (error) {
+				console.error('Erro ao calcular comissões projetadas:', error);
+				setComissoesProjetadasValor("R$ 0,00");
+			}
+		};
+
+		calcularComissoesProjetadas();
+	}, [dateRange, periodPendingAppointments, companySelected.id]);
 
 	const formatCurrency = (value) => {
 		return `R$ ${value.toFixed(2).replace('.', ',')}`;
@@ -723,7 +815,7 @@ const Dashboard = () => {
 													<CardDescription>Previsão completa de receita do período selecionado</CardDescription>
 												</CardHeader>
 												<CardContent>
-													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+													<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
 														<div className="bg-amber-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Agendamentos Pendentes</h3>
 															<p className="text-2xl font-bold text-amber-700">
@@ -740,36 +832,20 @@ const Dashboard = () => {
 															<p className="text-xs text-gray-500 mt-1">De agendamentos pendentes</p>
 														</div>
 
-														<div className="bg-indigo-50 p-4 rounded-lg">
-															<h3 className="text-sm font-medium text-gray-700 mb-1">Faturamento Total do Período</h3>
-															<p className="text-2xl font-bold text-indigo-700">
-																{formatCurrency(stats.revenue.total + periodPendingValue)}
-															</p>
-															<p className="text-xs text-gray-500 mt-1">Finalizados + Pendentes</p>
-														</div>
-
 														<div className="bg-blue-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Comissões Projetadas</h3>
 															<p className="text-2xl font-bold text-blue-700">
-																{formatCurrency(
-																	barberCommissions.reduce((sum, barber) => sum + (barber.totalCommission || 0), 0) +
-																	(periodPendingAppointments.length > 0 ? projectionData.totalProjectedCommission : 0)
-																)}
+																{comissoesProjetadasValor}
 															</p>
-															<p className="text-xs text-gray-500 mt-1">Finalizadas + Pendentes</p>
+															<p className="text-xs text-gray-500 mt-1">No período selecionado</p>
 														</div>
 
 														<div className="bg-purple-50 p-4 rounded-lg">
 															<h3 className="text-sm font-medium text-gray-700 mb-1">Receita Líquida Projetada</h3>
 															<p className="text-2xl font-bold text-purple-700">
-																{formatCurrency(
-																	// Receita total (finalizada + pendente)
-																	(stats.revenue.total + periodPendingValue) -
-																	// Comissões totais (apenas dos agendamentos pendentes)
-																	(periodPendingAppointments.length > 0 ? projectionData.totalProjectedCommission : 0)
-																)}
+																{formatCurrency(periodPendingValue - parseFloat(comissoesProjetadasValor.replace('R$ ', '').replace(',', '.')))}
 															</p>
-															<p className="text-xs text-gray-500 mt-1">Após comissões dos agendamentos pendentes</p>
+															<p className="text-xs text-gray-500 mt-1">Faturamento Previsto - Comissões Projetadas</p>
 														</div>
 													</div>
 
@@ -807,13 +883,13 @@ const Dashboard = () => {
 															<div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
 																<div className="h-full flex">
 																	<div
-																		className="bg-gradient-to-r from-gray-400 to-gray-600"
+																		className="bg-gradient-to-r from-green-400 to-green-600"
 																		style={{
 																			width: `${(stats.revenue.total + periodPendingValue) > 0
 																				? (stats.revenue.total / (stats.revenue.total + periodPendingValue)) * 100
 																				: 0}%`
 																		}}
-																		title={`Finalizado: ${formatCurrency(stats.revenue.total)}`}
+																		title={`Finalizada: ${formatCurrency(stats.revenue.total)}`}
 																	></div>
 																	<div
 																		className="bg-gradient-to-r from-amber-400 to-amber-600"
@@ -827,200 +903,15 @@ const Dashboard = () => {
 																</div>
 															</div>
 															<div className="flex justify-between text-xs text-gray-600 mt-1">
-																<span>Finalizado</span>
+																<span>Finalizada</span>
 																<span>Pendente</span>
 															</div>
-														</div>
-													</div>
-
-													<div className="mt-6">
-														<h3 className="text-sm font-medium text-gray-700 mb-4">Projeção por Barbeiro (Período Selecionado)</h3>
-														<div className="space-y-5">
-															{(() => {
-																// Agrupar agendamentos pendentes do período por barbeiro
-																const barberPendingMap = periodPendingAppointments.reduce((acc, appointment) => {
-																	const barberId = appointment.userId;
-																	const barberName = appointment.user?.name || 'Barbeiro não identificado';
-
-																	if (!acc[barberId]) {
-																		acc[barberId] = {
-																			id: barberId,
-																			name: barberName,
-																			pendingAppointments: 0,
-																			pendingValue: 0,
-																			appointments: []
-																		};
-																	}
-
-																	acc[barberId].pendingAppointments += 1;
-																	acc[barberId].pendingValue += appointment.value;
-																	acc[barberId].appointments.push(appointment);
-
-																	return acc;
-																}, {} as Record<string, {
-																	id: string;
-																	name: string;
-																	pendingAppointments: number;
-																	pendingValue: number;
-																	appointments: any[];
-																}>);
-
-																const barberPendingList: Array<{
-																	id: string;
-																	name: string;
-																	pendingAppointments: number;
-																	pendingValue: number;
-																	appointments: any[];
-																}> = Object.values(barberPendingMap);
-
-																if (barberPendingList.length === 0) {
-																	return (
-																		<div className="text-center py-8 bg-gray-50 rounded-lg">
-																			<p className="text-gray-500">Nenhum agendamento pendente no período selecionado</p>
-																		</div>
-																	);
-																}
-
-																return barberPendingList.map((barber) => {
-																	// Buscar dados de comissão do barbeiro
-																	const barberCommissionData = barberCommissions.find(b => b.id === barber.id);
-																	const commissionPercentage = barberCommissionData?.commissionPercentage || 20;
-																	const projectedCommission = (barber.pendingValue * commissionPercentage) / 100;
-
-																	return (
-																		<div key={barber.id} className="space-y-2">
-																			<div className="flex items-center justify-between">
-																				<div className="flex items-center">
-																					<span className="font-medium text-gray-800 mr-2">{barber.name}</span>
-																					<Badge variant="outline" className="text-xs">
-																						{barber.pendingAppointments} agendamentos
-																					</Badge>
-																				</div>
-																				<div className="flex items-center space-x-3">
-																					<div className="text-right">
-																						<span className="text-xs text-gray-500 block">Faturamento</span>
-																						<span className="text-sm font-medium text-gray-700">{formatCurrency(barber.pendingValue)}</span>
-																					</div>
-																					<div className="text-right">
-																						<span className="text-xs text-gray-500 block">Comissão ({commissionPercentage}%)</span>
-																						<span className="text-sm font-medium text-green-600">{formatCurrency(projectedCommission)}</span>
-																					</div>
-																				</div>
-																			</div>
-																			<div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-																				<div
-																					className="h-full bg-gradient-to-r from-amber-400 to-amber-600 rounded-full"
-																					style={{
-																						width: `${periodPendingValue > 0
-																							? Math.min((barber.pendingValue / periodPendingValue) * 100, 100)
-																							: 0}%`
-																					}}
-																				></div>
-																			</div>
-																		</div>
-																	);
-																});
-															})()}
 														</div>
 													</div>
 												</CardContent>
 											</Card>
 
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-												<Card className="shadow-md hover:shadow-lg transition-shadow">
-													<CardHeader>
-														<CardTitle className="text-lg text-gray-800">Análise de Produtividade</CardTitle>
-														<CardDescription>Comparativo de eficiência dos barbeiros</CardDescription>
-													</CardHeader>
-													<CardContent>
-														<div className="space-y-5">
-															{barberCommissions.map((barber) => {
-																// Cálculos de produtividade
-																const efficiency = barber.appointmentCount > 0
-																	? barber.revenue / barber.appointmentCount
-																	: 0;
-																const avgEfficiency = barberCommissions.reduce((sum, b) =>
-																	b.appointmentCount > 0 ? sum + (b.revenue / b.appointmentCount) : sum, 0
-																) / barberCommissions.filter(b => b.appointmentCount > 0).length;
 
-																const efficiencyPercentage = avgEfficiency > 0
-																	? (efficiency / avgEfficiency) * 100
-																	: 0;
-
-																return (
-																	<div key={barber.id} className="space-y-2">
-																		<div className="flex items-center justify-between">
-																			<span className="font-medium text-gray-800">{barber.name}</span>
-																			<div className="flex items-center">
-																				<span className="text-sm font-medium text-gray-700">
-																					{formatCurrency(efficiency)} / atendimento
-																				</span>
-																				<span className={`ml-2 text-xs font-medium ${efficiency > avgEfficiency ? 'text-green-600' : 'text-amber-600'
-																					}`}>
-																					{efficiency > avgEfficiency ? '+' : ''}
-																					{Math.round(efficiencyPercentage - 100)}%
-																				</span>
-																			</div>
-																		</div>
-																		<div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-																			<div
-																				className={`h-full rounded-full ${efficiency > avgEfficiency
-																					? 'bg-gradient-to-r from-green-400 to-green-600'
-																					: 'bg-gradient-to-r from-amber-400 to-amber-600'
-																					}`}
-																				style={{ width: `${Math.min(efficiencyPercentage, 200)}%` }}
-																			></div>
-																		</div>
-																	</div>
-																);
-															})}
-														</div>
-													</CardContent>
-												</Card>
-
-												<Card className="shadow-md hover:shadow-lg transition-shadow">
-													<CardHeader>
-														<CardTitle className="text-lg text-gray-800">Metas e Desempenho</CardTitle>
-														<CardDescription>Progresso das metas da empresa</CardDescription>
-													</CardHeader>
-													<CardContent>
-														<div className="space-y-6">
-															<div>
-																<div className="flex items-center justify-between mb-2">
-																	<h3 className="text-sm font-medium text-gray-700">Meta de Faturamento Mensal</h3>
-																	<span className="text-sm font-medium text-gray-700">
-																		{formatCurrency(stats.revenue.total)} / {formatCurrency(monthlyGoal * 5)}
-																	</span>
-																</div>
-																<ProgressBar
-																	value={stats.revenue.total}
-																	maxValue={monthlyGoal * 5}
-																	label="Progresso atual"
-																/>
-																<div className="mt-1 flex justify-between text-xs text-gray-500">
-																	<span>Atual: {Math.round((stats.revenue.total / (monthlyGoal * 5)) * 100)}%</span>
-																	<span>Restante: {formatCurrency(Math.max((monthlyGoal * 5) - stats.revenue.total, 0))}</span>
-																</div>
-															</div>
-
-															<div>
-																<div className="flex items-center justify-between mb-2">
-																	<h3 className="text-sm font-medium text-gray-700">Meta + Agendamentos Pendentes</h3>
-																	<span className="text-sm font-medium text-gray-700">
-																		{formatCurrency(stats.revenue.total + pendingAppointments.reduce((sum, app) => sum + app.value, 0))} / {formatCurrency(monthlyGoal * 5)}
-																	</span>
-																</div>
-																<ProgressBar
-																	value={stats.revenue.total + pendingAppointments.reduce((sum, app) => sum + app.value, 0)}
-																	maxValue={monthlyGoal * 5}
-																	label="Projeção"
-																	color="blue"
-																/>
-															</div>
-														</div>
-													</CardContent>
-												</Card>
-											</div>
 										</div>
 
 										{/* Metas e Barbeiros - mantido apenas o sumário de comissões */}
