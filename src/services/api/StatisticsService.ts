@@ -1,5 +1,6 @@
 import apiClient from './apiClient';
 import { ApiResponse } from './BaseService';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 export interface DashboardStats {
 	revenue: {
@@ -189,13 +190,25 @@ export class StatisticsService {
 	): Promise<ApiResponse<BarberCommission[]>> {
 		const params: any = { period };
 
-		if (startDate) params.startDate = startDate;
-		if (endDate) params.endDate = endDate;
+		// Garantir que as datas são passadas apenas quando o período é 'custom'
+		if (period === 'custom') {
+			if (!startDate || !endDate) {
+				console.warn('[StatisticsService] Período custom requer startDate e endDate');
+				// Usar o mês atual como fallback
+				const today = new Date();
+				params.startDate = format(startOfMonth(today), 'yyyy-MM-dd');
+				params.endDate = format(endOfMonth(today), 'yyyy-MM-dd');
+			} else {
+				params.startDate = startDate;
+				params.endDate = endDate;
+			}
+		}
 
-		console.log('Parâmetros da consulta de comissões:', {
+		console.log('[StatisticsService] Consultando comissões com parâmetros:', {
 			companyId,
 			period,
-			...params
+			params,
+			url: `/statistics/commissions/barber/${companyId}`
 		});
 
 		const response = await apiClient.get<{ success: boolean; data: BarberCommission[]; status: number }>(
@@ -203,21 +216,12 @@ export class StatisticsService {
 			{ params }
 		);
 
-		console.log('Resposta bruta de comissões:', response.data);
-
-		// Corrigir dados inconsistentes: se há receita mas nenhum atendimento
-		if (response.data?.success && response.data.data) {
-			response.data.data = response.data.data.map(barber => {
-				if (barber.revenue > 0 && (!barber.appointmentCount || barber.appointmentCount === 0)) {
-					console.log(`Corrigindo dados do barbeiro ${barber.name}: tem receita (${barber.revenue}) mas nenhum atendimento`);
-					return {
-						...barber,
-						appointmentCount: 1
-					};
-				}
-				return barber;
-			});
-		}
+		console.log('[StatisticsService] Resposta da consulta de comissões:', {
+			success: response.data?.success,
+			status: response.status,
+			dataLength: response.data?.data?.length,
+			params: response.config?.params
+		});
 
 		return response.data;
 	}

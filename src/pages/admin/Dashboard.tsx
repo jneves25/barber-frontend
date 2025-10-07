@@ -310,25 +310,35 @@ const Dashboard = () => {
 				}
 
 				// Load barber commissions with date range
+				const startDateFormatted = format(dateRange[0] || startOfDay(new Date()), 'yyyy-MM-dd');
+				const endDateFormatted = format(dateRange[1] || endOfDay(new Date()), 'yyyy-MM-dd');
+
 				console.log('[Dashboard] Buscando comissões dos barbeiros:', {
 					companyId: companySelected.id,
 					period: 'custom',
 					dateRange: {
-						startDate,
-						endDate
+						startDate: startDateFormatted,
+						endDate: endDateFormatted,
+						startDateObj: dateRange[0],
+						endDateObj: dateRange[1]
 					}
 				});
 
 				const barberCommissionsResponse = await statisticsService.getBarberCommissions(
 					companySelected.id,
 					'custom',
-					startDate,
-					endDate
+					startDateFormatted,
+					endDateFormatted
 				);
 
 				console.log('[Dashboard] Resposta das comissões:', {
 					success: barberCommissionsResponse.success,
-					data: barberCommissionsResponse.data
+					data: barberCommissionsResponse.data?.map(b => ({
+						name: b.name,
+						totalCommission: b.totalCommission,
+						appointmentCount: b.appointmentCount,
+						period: { startDate: startDateFormatted, endDate: endDateFormatted }
+					}))
 				});
 
 				if (barberCommissionsResponse.success && barberCommissionsResponse.data) {
@@ -914,12 +924,12 @@ const Dashboard = () => {
 
 										</div>
 
-										{/* Metas e Barbeiros - mantido apenas o sumário de comissões */}
-										<div className="grid grid-cols-1 gap-6 lg:grid-cols-3 mb-8">
-											<Card className="lg:col-span-2 shadow-md hover:shadow-lg transition-shadow">
+										{/* Comissões por barbeiro */}
+										<div className="grid grid-cols-1 mb-8">
+											<Card className="shadow-md hover:shadow-lg transition-shadow">
 												<CardHeader>
 													<CardTitle className="text-lg text-gray-800">Comissões por barbeiro</CardTitle>
-													<CardDescription>Desempenho por profissional no período</CardDescription>
+													                                            <CardDescription>Total de comissões a receber por profissional no período</CardDescription>
 												</CardHeader>
 												<CardContent>
 													<div className="space-y-4">
@@ -928,7 +938,7 @@ const Dashboard = () => {
 																<div key={barber.id} className="space-y-2">
 																	<div className="flex items-center">
 																		<span className="font-medium truncate text-gray-800">{barber.name}</span>
-																		<span className="ml-auto font-medium text-barber-700">{formatCurrency(barber.revenue)}</span>
+																		                                                <span className="ml-auto font-medium text-barber-700">{formatCurrency(barber.totalCommission)}</span>
 																	</div>
 																	<div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
 																		<div
@@ -948,26 +958,7 @@ const Dashboard = () => {
 												</CardContent>
 											</Card>
 
-											<Card className="shadow-md hover:shadow-lg transition-shadow">
-												<CardHeader>
-													<CardTitle className="text-lg text-gray-800">Dados do período</CardTitle>
-													<CardDescription>Resumo dos principais indicadores</CardDescription>
-												</CardHeader>
-												<CardContent>
-													<div className="space-y-6">
-														{goals.map((goal) => (
-															<div key={goal.name} className="space-y-2 bg-gray-50 p-3 rounded-lg">
-																<div className="flex items-center justify-between text-sm">
-																	<span className="font-medium text-gray-700">{goal.name}</span>
-																	<span className="text-barber-700 font-semibold text-md">
-																		{goal.current || "0"}
-																	</span>
-																</div>
-															</div>
-														))}
-													</div>
-												</CardContent>
-											</Card>
+
 										</div>
 									</>
 								) : (
